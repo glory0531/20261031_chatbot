@@ -336,3 +336,4 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen, settin
     </div>
   );
 };
+

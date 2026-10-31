@@ -18,3 +18,4 @@ if %ERRORLEVEL% NEQ 0 (
     echo [안내] 샤봇 서버가 비정상 종료되었습니다. 위 로그를 확인해 주세요.
     pause
 )
+

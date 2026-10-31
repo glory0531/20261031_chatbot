@@ -1,4 +1,4 @@
-﻿param(
+param(
   [string]$NodeVersion = "20.18.3"
 )
 
@@ -66,3 +66,4 @@ try {
   Write-Host "  인터넷 연결을 확인하시거나 https://nodejs.org 에서 LTS 버전을 설치해 주세요." -ForegroundColor Yellow
   exit 1
 }
+

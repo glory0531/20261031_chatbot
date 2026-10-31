@@ -13,3 +13,4 @@ if %ERRORLEVEL% NEQ 0 (
 
 "%NODE_EXE%" "%~dp0scripts\startTunnel.js"
 pause
+

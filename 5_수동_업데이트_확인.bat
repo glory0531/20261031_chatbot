@@ -14,3 +14,4 @@ if %ERRORLEVEL% NEQ 0 (
 "%NODE_EXE%" "%~dp0scripts\manualUpdate.js" --apply
 echo.
 pause
+

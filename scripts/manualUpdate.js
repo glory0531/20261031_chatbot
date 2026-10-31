@@ -94,3 +94,4 @@ main().catch((err) => {
   console.error('❌ 업데이트 실패:', err.message);
   process.exit(1);
 });
+

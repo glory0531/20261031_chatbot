@@ -1,6 +1,6 @@
 {
   "appName": "ShaBot",
-  "repo": "",
+  "repo": "glory0531/20261031_chatbot",
   "branch": "main",
   "checkIntervalMinutes": 30,
   "protectedPaths": [

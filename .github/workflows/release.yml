@@ -51,3 +51,4 @@ jobs:
             dist-release/ShaBot-Portable-*.zip
             dist-release/ShaBot-Update-*.zip
             dist-release/manifest.json
+

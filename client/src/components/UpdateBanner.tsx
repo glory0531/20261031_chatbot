@@ -211,3 +211,4 @@ export const UpdateBanner: React.FC<UpdateBannerProps> = ({ update, isLive }) =>
     </>
   );
 };
+

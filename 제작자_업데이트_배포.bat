@@ -14,3 +14,4 @@ if %ERRORLEVEL% NEQ 0 (
 "%NODE_EXE%" "%~dp0scripts\publishRelease.js"
 echo.
 pause
+
