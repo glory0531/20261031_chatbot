@@ -1,0 +1,241 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: 'Pretendard Variable', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+
+  /* 기본값: 치지직 네온 에메랄드 다크 테마 */
+  --color-slate-950: #0b0f14;
+  --color-slate-900: #131a22;
+  --color-slate-800: #1c2632;
+  --color-slate-700: #293646;
+  --color-slate-600: #3d4f63;
+  --color-slate-500: #64748b;
+  --color-slate-400: #94a3b8;
+  --color-slate-300: #cbd5e1;
+  --color-slate-200: #e2e8f0;
+  --color-slate-100: #f8fafc;
+
+  --color-amber-100: #d1fae5;
+  --color-amber-200: #a7f3d0;
+  --color-amber-300: #6ee7b7;
+  --color-amber-400: #00e693;
+  --color-amber-500: #10b981;
+  --color-amber-600: #059669;
+  --color-amber-700: #047857;
+}
+
+/* 1. 치지직 네온 에메랄드 (기본) */
+:root,
+[data-theme="chzzk-emerald"] {
+  --bg-canvas: #0b0f14;
+  --bg-surface: rgba(19, 26, 34, 0.86);
+  --bg-elevated: #1c2632;
+  --accent-main: #00e693;
+  --accent-sub: #10b981;
+  --accent-rgb: 0, 230, 147;
+  --text-main: #f8fafc;
+  --text-muted: #94a3b8;
+
+  --color-slate-950: #0b0f14;
+  --color-slate-900: #131a22;
+  --color-slate-800: #1c2632;
+  --color-slate-700: #293646;
+  --color-slate-400: #94a3b8;
+  --color-slate-100: #f8fafc;
+  --color-amber-100: #ecfdf5;
+  --color-amber-300: #6ee7b7;
+  --color-amber-400: #00e693;
+  --color-amber-500: #10b981;
+  --color-amber-600: #059669;
+}
+
+/* 2. 샤봇 쿠키 골드 */
+[data-theme="cookie-amber"] {
+  --bg-canvas: #16120e;
+  --bg-surface: rgba(34, 27, 21, 0.88);
+  --bg-elevated: #2e241b;
+  --accent-main: #fbbf24;
+  --accent-sub: #d97706;
+  --accent-rgb: 251, 191, 36;
+  --text-main: #fef3c7;
+  --text-muted: #d6bc98;
+
+  --color-slate-950: #16120e;
+  --color-slate-900: #221b15;
+  --color-slate-800: #2e241b;
+  --color-slate-700: #423427;
+  --color-slate-400: #c4a984;
+  --color-slate-100: #fef3c7;
+  --color-amber-100: #fef3c7;
+  --color-amber-300: #fcd34d;
+  --color-amber-400: #fbbf24;
+  --color-amber-500: #f59e0b;
+  --color-amber-600: #d97706;
+}
+
+/* 3. 미드나잇 퍼플 네온 */
+[data-theme="midnight-violet"] {
+  --bg-canvas: #0d0b18;
+  --bg-surface: rgba(23, 19, 42, 0.88);
+  --bg-elevated: #231d3d;
+  --accent-main: #c084fc;
+  --accent-sub: #9333ea;
+  --accent-rgb: 192, 132, 252;
+  --text-main: #f5f3ff;
+  --text-muted: #a59ec9;
+
+  --color-slate-950: #0d0b18;
+  --color-slate-900: #17132a;
+  --color-slate-800: #231d3d;
+  --color-slate-700: #332a56;
+  --color-slate-400: #a59ec9;
+  --color-slate-100: #f5f3ff;
+  --color-amber-100: #f3e8ff;
+  --color-amber-300: #d8b4fe;
+  --color-amber-400: #c084fc;
+  --color-amber-500: #a855f7;
+  --color-amber-600: #9333ea;
+}
+
+/* 4. 클래식 올리브 살롱 (DESIGNNAS 럭셔리 팔레트 보존) */
+[data-theme="luxury-salon"] {
+  --bg-canvas: #1c1c1c;
+  --bg-surface: rgba(43, 41, 43, 0.88);
+  --bg-elevated: #383638;
+  --accent-main: #9aa378;
+  --accent-sub: #7a8060;
+  --accent-rgb: 122, 128, 96;
+  --text-main: #ffe5b4;
+  --text-muted: #a3a88b;
+
+  --color-slate-950: #1c1c1c;
+  --color-slate-900: #292829;
+  --color-slate-800: #383638;
+  --color-slate-700: #4b494b;
+  --color-slate-400: #9aa378;
+  --color-slate-100: #ffe5b4;
+  --color-amber-100: #ffe5b4;
+  --color-amber-300: #b8c296;
+  --color-amber-400: #8e9670;
+  --color-amber-500: #7a8060;
+  --color-amber-600: #595e43;
+}
+
+/* 5. 로즈 블라썸 다크 */
+[data-theme="rose-blossom"] {
+  --bg-canvas: #160d12;
+  --bg-surface: rgba(34, 20, 28, 0.88);
+  --bg-elevated: #311d28;
+  --accent-main: #fb7185;
+  --accent-sub: #e11d48;
+  --accent-rgb: 251, 113, 133;
+  --text-main: #fff1f2;
+  --text-muted: #cda4af;
+
+  --color-slate-950: #160d12;
+  --color-slate-900: #22141c;
+  --color-slate-800: #311d28;
+  --color-slate-700: #462939;
+  --color-slate-400: #cda4af;
+  --color-slate-100: #fff1f2;
+  --color-amber-100: #ffe4e6;
+  --color-amber-300: #fda4af;
+  --color-amber-400: #fb7185;
+  --color-amber-500: #f43f5e;
+  --color-amber-600: #e11d48;
+}
+
+@layer base {
+  :root {
+    --font-sans: 'Pretendard Variable', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+    color-scheme: dark;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    margin: 0;
+    padding: 0;
+    background-color: var(--bg-canvas);
+    color: var(--text-main);
+    -webkit-font-smoothing: antialiased;
+    background-image:
+      radial-gradient(ellipse at 15% 10%, rgba(var(--accent-rgb), 0.13) 0%, transparent 45%),
+      radial-gradient(ellipse at 85% 20%, rgba(var(--accent-rgb), 0.08) 0%, transparent 40%),
+      radial-gradient(circle at 50% 80%, rgba(var(--accent-rgb), 0.06) 0%, transparent 50%);
+    background-attachment: fixed;
+  }
+
+  /* OBS 브라우저 소스 100% 투명 배경 보장 */
+  body.overlay-mode,
+  html.overlay-mode,
+  #root:has(.overlay-root) {
+    background: transparent !important;
+    background-color: transparent !important;
+    background-image: none !important;
+  }
+}
+
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-canvas);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(var(--accent-rgb), 0.35);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(var(--accent-rgb), 0.65);
+}
+
+.witch-card, .whiskey-card, .luxury-card {
+  background: var(--bg-surface);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(var(--accent-rgb), 0.22);
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.65), 0 0 15px rgba(var(--accent-rgb), 0.04);
+}
+
+.witch-card:hover, .whiskey-card:hover, .luxury-card:hover {
+  border-color: rgba(var(--accent-rgb), 0.45);
+  box-shadow: 0 12px 35px -8px rgba(0, 0, 0, 0.75), 0 0 20px rgba(var(--accent-rgb), 0.1);
+}
+
+.witch-card-gold, .whiskey-card-gold, .luxury-card-gold {
+  background: linear-gradient(135deg, var(--bg-elevated) 0%, var(--bg-canvas) 100%);
+  border: 1px solid rgba(var(--accent-rgb), 0.42);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.65), inset 0 0 15px rgba(var(--accent-rgb), 0.08);
+}
+
+.gold-gradient-text, .luxury-gradient-text {
+  background: linear-gradient(135deg, var(--text-main) 0%, var(--accent-main) 65%, var(--accent-sub) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.gold-border, .luxury-border {
+  border-color: rgba(var(--accent-rgb), 0.3);
+}
+
+@keyframes twinkle {
+  0%, 100% { opacity: 0.3; transform: scale(0.85); }
+  50% { opacity: 1; transform: scale(1.15); filter: drop-shadow(0 0 5px var(--accent-main)); }
+}
+
+.animate-twinkle {
+  animation: twinkle 3s ease-in-out infinite;
+}
+
+@keyframes float-slow {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-6px); }
+}
+
+.animate-float {
+  animation: float-slow 4s ease-in-out infinite;
+}

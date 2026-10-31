@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  shabot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: shabot:latest
+    container_name: shabot-server
+    restart: unless-stopped
+    ports:
+      - "24700:24700"
+    volumes:
+      # 스트리머 설정, 시청자 포인트, 명령어 등이 영구 저장되는 데이터 폴더
+      - ./data:/app/data
+    environment:
+      - NODE_ENV=production
+      - PORT=24700
+      - TZ=Asia/Seoul

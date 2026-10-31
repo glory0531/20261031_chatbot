@@ -1,0 +1,15 @@
+{
+  "appName": "ShaBot",
+  "repo": "",
+  "branch": "main",
+  "checkIntervalMinutes": 30,
+  "protectedPaths": [
+    "data",
+    "runtime",
+    ".env",
+    ".git",
+    "dist-release",
+    "release.config.local.json",
+    "제작자_업데이트_배포.bat"
+  ]
+}

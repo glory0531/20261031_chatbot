@@ -1,0 +1,39 @@
+{
+  "name": "shabot-chzzk-chatbot",
+  "version": "1.0.0",
+  "description": "오픈 샤봇 (ShaBot) - 치지직 스트리머 방송 챗봇 & 통합 대시보드 공식 배포판",
+  "main": "server/server.js",
+  "scripts": {
+    "dev": "concurrently -n \"SERVER,CLIENT\" -c \"cyan,magenta\" \"node server/server.js\" \"npm --prefix client run dev\"",
+    "build": "npm --prefix client run build",
+    "start": "node server/server.js",
+    "update:check": "node scripts/manualUpdate.js --check",
+    "update:apply": "node scripts/manualUpdate.js --apply",
+    "release": "node scripts/publishRelease.js"
+  },
+  "keywords": [
+    "chzzk",
+    "chatbot",
+    "dashboard",
+    "shabot",
+    "streamer",
+    "overlay",
+    "auto-update"
+  ],
+  "author": "ShaBot Project",
+  "license": "MIT",
+  "type": "module",
+  "dependencies": {
+    "adm-zip": "^0.5.16",
+    "axios": "^1.7.9",
+    "cloudflared": "^0.7.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "socket.io": "^4.8.1",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}

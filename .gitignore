@@ -1,0 +1,10 @@
+node_modules/
+client/node_modules/
+data/
+runtime/
+dist-release/
+.env
+*.log
+release.config.local.json
+.DS_Store
+Thumbs.db
