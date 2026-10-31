@@ -1,7 +1,7 @@
 # 🍪 오픈 샤봇 (ShaBot) Multi-Stage Dockerfile
 # 치지직 스트리머용 방송 챗봇 & 통합 대시보드 올인원 이미지
 
-FROM node:20-alpine AS builder
+FROM node:22-alpine AS builder
 WORKDIR /app
 
 COPY package*.json ./
@@ -14,7 +14,7 @@ COPY . .
 
 RUN npm --prefix client run build
 
-FROM node:20-alpine AS runner
+FROM node:22-alpine AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production

@@ -1,5 +1,5 @@
-param(
-  [string]$NodeVersion = "20.18.3"
+﻿param(
+  [string]$NodeVersion = "22.14.0"
 )
 
 $ErrorActionPreference = "Stop"

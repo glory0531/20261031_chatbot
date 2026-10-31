@@ -17,10 +17,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node.js 20 LTS
+      - name: Setup Node.js 22 LTS
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
           cache: "npm"
 
       - name: Install root production dependencies
@@ -28,7 +28,7 @@ jobs:
 
       - name: Install client dependencies & build production UI
         run: |
-          npm --prefix client ci --no-audit --no-fund
+          npm --prefix client install --no-audit --no-fund
           npm --prefix client run build
 
       - name: Package Portable & OTA Update ZIPs
