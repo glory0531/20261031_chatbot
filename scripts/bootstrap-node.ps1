@@ -1,4 +1,4 @@
-﻿param(
+param(
   [string]$NodeVersion = "22.14.0"
 )
 

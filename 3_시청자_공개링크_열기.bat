@@ -1,16 +1,17 @@
 @echo off
 chcp 65001 >nul
-title [오픈 샤봇] 시청자 공개 링크 생성기 (Cloudflare 보안 터널)
+title [ShaBot] Public Viewer Link (Cloudflare Tunnel)
 
 cd /d "%~dp0"
 
 call "%~dp0scripts\env_node.bat"
-if %ERRORLEVEL% NEQ 0 (
-    echo.
-    pause
-    exit /b 1
-)
+if errorlevel 1 goto :ERR
 
 "%NODE_EXE%" "%~dp0scripts\startTunnel.js"
 pause
+exit /b 0
 
+:ERR
+echo.
+pause
+exit /b 1
