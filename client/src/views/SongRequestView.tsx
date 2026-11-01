@@ -9,26 +9,33 @@ import {
   Volume2, 
   VolumeX, 
   ExternalLink, 
-  Radio, 
-  Repeat, 
   Headphones, 
   Cast, 
-  Sliders 
+  Sliders,
+  Check
 } from 'lucide-react';
-import { SongRequestsState } from '../types';
+import { SongRequestsState, Settings } from '../types';
 import { api } from '../services/api';
 import { socket } from '../services/socket';
 
 interface SongRequestViewProps {
   songRequests: SongRequestsState;
+  settings?: Settings;
 }
 
-export const SongRequestView: React.FC<SongRequestViewProps> = ({ songRequests }) => {
+export const SongRequestView: React.FC<SongRequestViewProps> = ({ songRequests, settings }) => {
+  const pUnit = settings?.pointName || 'P';
+  const cUnit = settings?.chipName || '칩';
   const [newSongInput, setNewSongInput] = useState('');
   const [isPlaying, setIsPlaying] = useState(songRequests.isPlaying ?? true);
   const [volume, setVolume] = useState(songRequests.volume ?? 80);
   const [isMuted, setIsMuted] = useState(songRequests.isMuted ?? false);
   const [dashboardAudio, setDashboardAudio] = useState(false); // OBS와 중복 소리(에코) 방지를 위해 대시보드 미리보기는 기본 음소거
+
+  // 신청곡 비용 & 재화 설정
+  const [minCost, setMinCost] = useState<number>(songRequests.settings?.minCost ?? 0);
+  const [srCurrency, setSrCurrency] = useState<'chips' | 'points'>(songRequests.settings?.currency || 'chips');
+  const [costSaved, setCostSaved] = useState(false);
 
   const curSongIdRef = useRef<string | null>(null);
   const isSkippingRef = useRef(false);
@@ -43,7 +50,9 @@ export const SongRequestView: React.FC<SongRequestViewProps> = ({ songRequests }
     if (songRequests.isPlaying !== undefined) setIsPlaying(songRequests.isPlaying);
     if (songRequests.volume !== undefined) setVolume(songRequests.volume);
     if (songRequests.isMuted !== undefined) setIsMuted(songRequests.isMuted);
-  }, [songRequests.isPlaying, songRequests.volume, songRequests.isMuted]);
+    if (songRequests.settings?.minCost !== undefined) setMinCost(songRequests.settings.minCost);
+    if (songRequests.settings?.currency !== undefined) setSrCurrency(songRequests.settings.currency);
+  }, [songRequests.isPlaying, songRequests.volume, songRequests.isMuted, songRequests.settings]);
 
   // 소켓 실시간 동기화
   useEffect(() => {
@@ -94,6 +103,12 @@ export const SongRequestView: React.FC<SongRequestViewProps> = ({ songRequests }
     if (!newSongInput.trim()) return;
     await api.addSong(newSongInput.trim());
     setNewSongInput('');
+  };
+
+  const handleSaveCost = async () => {
+    await api.updateSongSettings({ minCost: Number(minCost), currency: srCurrency });
+    setCostSaved(true);
+    setTimeout(() => setCostSaved(false), 2000);
   };
 
   // OBS와 실시간 연동되는 재생 / 일시정지 토글
@@ -149,11 +164,64 @@ export const SongRequestView: React.FC<SongRequestViewProps> = ({ songRequests }
           />
           <button
             type="submit"
-            className="px-4 py-2 rounded-xl bg-indigo-500 hover:bg-indigo-400 text-white font-bold text-xs flex items-center gap-1 shadow-lg shadow-indigo-500/20"
+            className="px-4 py-2 rounded-xl bg-indigo-500 hover:bg-indigo-400 text-white font-bold text-xs flex items-center gap-1 shadow-lg shadow-indigo-500/20 cursor-pointer"
           >
             <Plus className="w-4 h-4" /> 곡 추가
           </button>
         </form>
+      </div>
+
+      {/* 신청곡 참여 비용 & 재화 설정 바 */}
+      <div className="p-3.5 rounded-2xl bg-slate-900/70 border border-white/10 shadow-lg flex flex-wrap items-center justify-between gap-3 text-xs">
+        <div className="flex items-center gap-2">
+          <Sliders className="w-4 h-4 text-indigo-400" />
+          <span className="font-bold text-white">시청자 노래 신청(!sr) 필요 비용 설정:</span>
+          <span className="text-slate-400 text-[11px]">(0 입력 시 무료 신청)</span>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-white/10 text-[11px] font-bold">
+            <button
+              type="button"
+              onClick={() => setSrCurrency('chips')}
+              className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                srCurrency === 'chips' ? 'bg-amber-400 text-slate-950 font-black' : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              🪙 활동 칩({cUnit})
+            </button>
+            <button
+              type="button"
+              onClick={() => setSrCurrency('points')}
+              className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                srCurrency === 'points' ? 'bg-emerald-500 text-slate-950 font-black' : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              🧀 유료 포인트({pUnit})
+            </button>
+          </div>
+
+          <div className="flex items-center gap-1 bg-slate-950 px-2.5 py-1.5 rounded-xl border border-white/10">
+            <input
+              type="number"
+              min="0"
+              step="10"
+              value={minCost}
+              onChange={(e) => setMinCost(Math.max(0, Number(e.target.value)))}
+              className="w-16 bg-transparent text-xs font-black text-amber-300 text-right focus:outline-none"
+            />
+            <span className="text-[11px] font-bold text-slate-400">{srCurrency === 'points' ? pUnit : cUnit}</span>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleSaveCost}
+            className="px-3.5 py-1.5 rounded-xl bg-indigo-500 hover:bg-indigo-400 text-white font-bold text-xs flex items-center gap-1 shadow-md transition-all cursor-pointer"
+          >
+            {costSaved ? <Check className="w-3.5 h-3.5" /> : null}
+            <span>{costSaved ? '저장됨' : '비용 설정 적용'}</span>
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -175,7 +243,7 @@ export const SongRequestView: React.FC<SongRequestViewProps> = ({ songRequests }
             {/* 대시보드 미리보기 소리 토글 */}
             <button
               onClick={() => setDashboardAudio(prev => !prev)}
-              className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-colors flex items-center gap-1.5 ${
+              className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-colors flex items-center gap-1.5 cursor-pointer ${
                 dashboardAudio 
                   ? 'bg-amber-500/20 border-amber-500/40 text-amber-300' 
                   : 'bg-slate-800 border-white/10 text-slate-400 hover:text-white'
@@ -236,10 +304,10 @@ export const SongRequestView: React.FC<SongRequestViewProps> = ({ songRequests }
                 </div>
 
                 <div className="flex items-center gap-2">
-                  {/* 큰 재생 / 일시정지 버튼 */}
+                  {/* 재생 / 일시정지 버튼 */}
                   <button
                     onClick={handleTogglePlay}
-                    className={`flex-1 py-2.5 px-4 rounded-xl font-black text-xs flex items-center justify-center gap-2 transition-all shadow-md active:scale-95 ${
+                    className={`flex-1 py-2.5 px-4 rounded-xl font-black text-xs flex items-center justify-center gap-2 transition-all shadow-md active:scale-95 cursor-pointer ${
                       isPlaying 
                         ? 'bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30' 
                         : 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black'
@@ -259,7 +327,7 @@ export const SongRequestView: React.FC<SongRequestViewProps> = ({ songRequests }
                   {/* 다음 곡 스킵 버튼 */}
                   <button
                     onClick={handleSkip}
-                    className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs flex items-center gap-1.5 border border-white/10 transition-all active:scale-95 shadow-sm"
+                    className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs flex items-center gap-1.5 border border-white/10 transition-all active:scale-95 shadow-sm cursor-pointer"
                     title="다음 대기곡으로 넘기기"
                   >
                     <SkipForward className="w-4 h-4 text-amber-400" /> 다음 곡 넘기기
@@ -271,7 +339,7 @@ export const SongRequestView: React.FC<SongRequestViewProps> = ({ songRequests }
                   <div className="flex items-center gap-2 flex-1">
                     <button
                       onClick={handleToggleMute}
-                      className="p-1 rounded-lg hover:bg-white/5 text-slate-300 hover:text-white"
+                      className="p-1 rounded-lg hover:bg-white/5 text-slate-300 hover:text-white cursor-pointer"
                       title={isMuted ? "OBS 음소거 해제" : "OBS 송출 음소거"}
                     >
                       {isMuted || volume === 0 ? <VolumeX className="w-4 h-4 text-rose-400" /> : <Volume2 className="w-4 h-4 text-amber-400" />}
@@ -340,7 +408,7 @@ export const SongRequestView: React.FC<SongRequestViewProps> = ({ songRequests }
 
                   <button
                     onClick={() => handleDelete(song.id)}
-                    className="p-2 rounded-lg hover:bg-rose-500/10 text-slate-400 hover:text-rose-400 transition-colors flex-shrink-0"
+                    className="p-2 rounded-lg hover:bg-rose-500/10 text-slate-400 hover:text-rose-400 transition-colors flex-shrink-0 cursor-pointer"
                     title="대기열에서 제거"
                   >
                     <Trash2 className="w-4 h-4" />

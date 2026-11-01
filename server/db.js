@@ -8,9 +8,9 @@ export const DATA_DIR = path.join(__dirname, '../data');
 export const BACKUP_DIR = path.join(DATA_DIR, 'backups');
 export const DB_FILE = path.join(DATA_DIR, 'storage.json');
 
-export const CURRENT_SCHEMA_VERSION = 2;
+export const CURRENT_SCHEMA_VERSION = 3;
 
-// 오픈 샤봇 공식 배포판 깨끗한 초기 데이터 스키마 (더미 데이터 없음)
+// 오픈 샤봇 공식 배포판 깨끗한 초기 데이터 스키마 (유료 포인트 + 활동 칩 이원화)
 export const defaultData = {
   schemaVersion: CURRENT_SCHEMA_VERSION,
   status: {
@@ -33,6 +33,7 @@ export const defaultData = {
     streamerName: '스트리머',
     fandomName: '시청자',
     pointName: 'P',
+    chipName: '칩',
     themePreset: 'chzzk-emerald', // 'chzzk-emerald' | 'cookie-amber' | 'midnight-violet' | 'luxury-salon' | 'rose-blossom'
     onboardingCompleted: false,
     autoUpdateOnStart: true,
@@ -43,6 +44,13 @@ export const defaultData = {
     chatIntervalSeconds: 60,
     attendPoints: 100,
     attendStreakBonus: 20,
+    cheesePointEnabled: true,
+    cheesePointRatePercent: 100, // 기본 1치즈 = 1P (100%)
+    includeMissionCheese: false, // 미션 치즈 적립 포함 여부 (기본 제외)
+    cheeseDonateOverlay: true,
+    cheeseChatNotice: true,
+    cheeseAutoFund: false, // 모금함은 활동 칩 전용으로 분리 (기본 OFF)
+    donateCurrency: 'chips', // !도네 기본 사용 재화 ('chips' | 'points')
     platform: 'chzzk', // 'chzzk' | 'soop' | 'twitch' | 'simulator'
     chzzkChannelId: '',
     chzzkChatChannelId: '',
@@ -51,7 +59,8 @@ export const defaultData = {
     chzzkAccessToken: '',
     chzzkRefreshToken: '',
     chzzkWriteEnabled: false,
-    suppressPointMessagesInChat: true,
+    suppressPointMessagesInChat: true, // 무료 칩 활동 메시지 치지직 채팅 송출 제외 (도배 방지)
+    sendPaidPointMessagesInChat: true, // 유료 포인트(치즈 적립·룰렛 당첨) 치지직 채팅 송출 (기본 ON)
     soopId: '',
     twitchChannel: '',
     youtubeChannel: '',
@@ -61,10 +70,11 @@ export const defaultData = {
     {
       id: 'cmd-help',
       name: '명령어',
-      response: '💡 챗봇 명령어 목록: !출첵, !포인트, !도네, !sr, !신청, !주사위, !낚시, !가위바위보, !룰렛, !디코, !일정',
+      response: '💡 챗봇 명령어 목록: !출첵, !포인트, !칩, !모금, !도네, !sr, !신청, !주사위, !낚시, !가위바위보, !룰렛, !디코, !일정',
       permission: 'all',
       cooldown: 5,
       cost: 0,
+      currency: 'chips',
       enabled: true,
       count: 0,
       matchType: 'exact',
@@ -77,6 +87,7 @@ export const defaultData = {
       permission: 'all',
       cooldown: 5,
       cost: 0,
+      currency: 'chips',
       enabled: true,
       count: 0,
       matchType: 'exact',
@@ -89,6 +100,7 @@ export const defaultData = {
       permission: 'all',
       cooldown: 10,
       cost: 0,
+      currency: 'chips',
       enabled: true,
       count: 0,
       matchType: 'exact',
@@ -101,6 +113,7 @@ export const defaultData = {
       permission: 'all',
       cooldown: 5,
       cost: 0,
+      currency: 'chips',
       enabled: true,
       count: 0,
       matchType: 'exact',
@@ -113,6 +126,7 @@ export const defaultData = {
       permission: 'all',
       cooldown: 5,
       cost: 10,
+      currency: 'chips',
       enabled: true,
       count: 0,
       matchType: 'exact',
@@ -123,17 +137,17 @@ export const defaultData = {
     uptime: { enabled: true, name: '업타임', desc: '방송 켠 시간 확인', visibleInViewer: true },
     title: { enabled: true, name: '방제', desc: '방송 제목 변경 (매니저/스트리머)', visibleInViewer: true },
     category: { enabled: true, name: '카테고리', desc: '카테고리 변경 (매니저/스트리머)', visibleInViewer: true },
-    attend: { enabled: true, name: '출첵', desc: '일일 출석 체크 및 포인트 적립', visibleInViewer: true },
-    point: { enabled: true, name: '포인트', desc: '내 보유 포인트 잔액 확인', visibleInViewer: true },
-    donate: { enabled: true, name: '도네', desc: '포인트 방송 후원 및 TTS 재생', visibleInViewer: true },
-    fund: { enabled: true, name: '모금', desc: '포인트 모금함 기부', visibleInViewer: true },
-    vote: { enabled: true, name: '투표', desc: '포인트 예측/투표 배팅', visibleInViewer: true },
+    attend: { enabled: true, name: '출첵', desc: '일일 출석 체크 및 활동 칩 적립', visibleInViewer: true },
+    point: { enabled: true, name: '포인트', desc: '보유 유료 포인트 및 칩 잔액 통합 확인 (!칩 호환)', visibleInViewer: true },
+    donate: { enabled: true, name: '도네', desc: '칩/포인트 방송 후원 및 TTS 재생', visibleInViewer: true },
+    fund: { enabled: true, name: '모금', desc: '활동 칩 모금함 기부', visibleInViewer: true },
+    vote: { enabled: true, name: '투표', desc: '활동 칩 승부예측/투표 배팅', visibleInViewer: true },
     sr: { enabled: true, name: 'sr', desc: '유튜브 노래 신청', visibleInViewer: true },
     request: { enabled: true, name: '신청', desc: '시청자 참여/미션 신청', visibleInViewer: true },
     dice: { enabled: true, name: '주사위', desc: '1~100 랜덤 주사위 굴리기', visibleInViewer: true },
-    fishing: { enabled: true, name: '낚시', desc: '랜덤 낚시 미니게임', visibleInViewer: true },
-    rps: { enabled: true, name: '가위바위보', desc: '포인트 가위바위보 대결', visibleInViewer: true },
-    roulette: { enabled: true, name: '룰렛', desc: '포인트 행운의 룰렛 돌리기', visibleInViewer: true },
+    fishing: { enabled: true, name: '낚시', desc: '칩 미끼 랜덤 낚시 미니게임', visibleInViewer: true },
+    rps: { enabled: true, name: '가위바위보', desc: '활동 칩 가위바위보 대결', visibleInViewer: true },
+    roulette: { enabled: true, name: '룰렛', desc: '유료 포인트 행운의 룰렛 돌리기', visibleInViewer: true },
     numpick: { enabled: true, name: '뽑기', desc: '1~100 추억의 종이 뽑기', visibleInViewer: true },
     ticket: { enabled: true, name: '티켓', desc: '보유 티켓 확인 및 사용', visibleInViewer: true },
     jump: { enabled: true, name: '점프', desc: '채팅 아바타 점프 모션', visibleInViewer: true }
@@ -180,6 +194,7 @@ export const defaultData = {
       maxQueueSize: 20,
       maxPerUser: 2,
       minCost: 0,
+      currency: 'chips',
       volume: 75
     }
   },
@@ -188,6 +203,7 @@ export const defaultData = {
     title: '시청자와 함께하는 방송 컨텐츠 모금함',
     goalPoints: 50000,
     currentPoints: 0,
+    currency: 'chips',
     enabled: true,
     recentDonors: []
   },
@@ -211,12 +227,14 @@ export const defaultData = {
       { id: 'r-5', name: '꽝 (다음 기회에)', chance: 43, color: '#6b7280' }
     ],
     cost: 500,
+    currency: 'points',
     history: []
   },
   numpick: {
     title: '추억의 문방구 종이 뽑기 (1~100)',
     totalNumbers: 100,
     cost: 300,
+    currency: 'points',
     picked: {},
     prizes: [
       { id: 'p-1', rank: '1등', name: '치킨 기프티콘', chance: 2 },
@@ -250,13 +268,15 @@ if (!fs.existsSync(BACKUP_DIR)) {
 }
 
 /**
- * 구버전 storage.json을 신버전 스키마로 무손실 딥 머지(Deep Migration)합니다.
- * 새 업데이트에서 추가된 설정 키나 기본 내장 명령어를 자동으로 병합하면서
- * 기존 사용자의 포인트, 명령어, 토큰, 설정은 100% 보존합니다.
+ * 구버전 storage.json을 신버전(유료 포인트 + 활동 칩 이원화) 스키마로 무손실 딥 머지합니다.
+ * - 구버전 단일 잔액(u.points)은 전량 활동 칩(u.chips)으로 자동 이관하고 유료 포인트(u.points)는 0으로 시작합니다.
+ * - 이미 이원화된 데이터(u.chips 존재)는 유료 포인트와 칩 두 재화 모두 100% 보존합니다.
  */
 export function migrateAndMergeData(parsed) {
   const base = JSON.parse(JSON.stringify(defaultData));
   if (!parsed || typeof parsed !== 'object') return base;
+
+  const isLegacySchema = !parsed.schemaVersion || parsed.schemaVersion < 3;
 
   const hadExistingSetup = Boolean(
     parsed.settings?.chzzkChannelId ||
@@ -268,12 +288,25 @@ export function migrateAndMergeData(parsed) {
     ...(parsed.settings || {})
   };
 
-  // 구버전에서 마이그레이션된 유저는 이미 사용 중이므로 온보딩 완료로 자동 처리
+  // 구버전에서 pointName을 '칩'으로 쓰던 경우 유료 단위(P)와 활동 칩 단위(칩)가 겹치지 않도록 자동 분리
+  if (isLegacySchema && parsed.settings?.pointName === '칩' && !parsed.settings?.chipName) {
+    mergedSettings.chipName = '칩';
+    mergedSettings.pointName = 'P';
+  } else {
+    mergedSettings.pointName = mergedSettings.pointName || 'P';
+    mergedSettings.chipName = mergedSettings.chipName || '칩';
+  }
+
+  // 모금함은 활동 칩 전용으로 분리 (구버전 cheeseAutoFund 강제 OFF)
+  if (isLegacySchema) {
+    mergedSettings.cheeseAutoFund = false;
+  }
+
   if (parsed.settings?.onboardingCompleted === undefined && hadExistingSetup) {
     mergedSettings.onboardingCompleted = true;
   }
 
-  // 기본 명령어 딥 머지: 새로 추가된 기본 명령어는 자동 활성화하고, 기존 유저의 ON/OFF 설정은 유지
+  // 기본 명령어 딥 머지
   const mergedDefaultCommands = { ...base.defaultCommands };
   if (parsed.defaultCommands && typeof parsed.defaultCommands === 'object') {
     for (const [key, val] of Object.entries(parsed.defaultCommands)) {
@@ -283,6 +316,11 @@ export function migrateAndMergeData(parsed) {
       };
     }
   }
+
+  // 커스텀 명령어 currency 기본값 보정 ('chips')
+  const mergedCommands = Array.isArray(parsed.commands)
+    ? parsed.commands.map(c => ({ currency: 'chips', ...c }))
+    : base.commands;
 
   const mergedStatus = {
     ...base.status,
@@ -297,9 +335,57 @@ export function migrateAndMergeData(parsed) {
     ...(parsed.songRequests || {}),
     settings: {
       ...base.songRequests.settings,
-      ...(parsed.songRequests?.settings || {})
+      ...(parsed.songRequests?.settings || {}),
+      currency: parsed.songRequests?.settings?.currency || 'chips'
     }
   };
+
+  const mergedFund = {
+    ...base.fund,
+    ...(parsed.fund || {}),
+    currency: parsed.fund?.currency || 'chips'
+  };
+
+  const mergedRoulette = {
+    ...base.roulette,
+    ...(parsed.roulette || {}),
+    currency: parsed.roulette?.currency || 'points'
+  };
+
+  const mergedNumpick = {
+    ...base.numpick,
+    ...(parsed.numpick || {}),
+    currency: parsed.numpick?.currency || 'points'
+  };
+
+  // 시청자 지갑 마이그레이션: 구버전 단일 points -> chips로 이관 & 유료 points는 0P 시작
+  const mergedUsers = {};
+  if (parsed.users && typeof parsed.users === 'object') {
+    for (const [nick, rawUser] of Object.entries(parsed.users)) {
+      if (!rawUser || typeof rawUser !== 'object') continue;
+      if (rawUser.chips === undefined) {
+        mergedUsers[nick] = {
+          ...rawUser,
+          nickname: rawUser.nickname || nick,
+          points: 0,
+          chips: Number(rawUser.points) || 0,
+          totalCheeseDonation: Number(rawUser.totalCheeseDonation) || 0,
+          totalDonation: Number(rawUser.totalDonation) || 0,
+          tickets: Array.isArray(rawUser.tickets) ? rawUser.tickets : []
+        };
+      } else {
+        mergedUsers[nick] = {
+          ...rawUser,
+          nickname: rawUser.nickname || nick,
+          points: Number(rawUser.points) || 0,
+          chips: Number(rawUser.chips) || 0,
+          totalCheeseDonation: Number(rawUser.totalCheeseDonation) || 0,
+          totalDonation: Number(rawUser.totalDonation) || 0,
+          tickets: Array.isArray(rawUser.tickets) ? rawUser.tickets : []
+        };
+      }
+    }
+  }
 
   return {
     ...base,
@@ -307,8 +393,13 @@ export function migrateAndMergeData(parsed) {
     schemaVersion: CURRENT_SCHEMA_VERSION,
     status: mergedStatus,
     settings: mergedSettings,
+    commands: mergedCommands,
     defaultCommands: mergedDefaultCommands,
-    songRequests: mergedSongRequests
+    songRequests: mergedSongRequests,
+    fund: mergedFund,
+    roulette: mergedRoulette,
+    numpick: mergedNumpick,
+    users: mergedUsers
   };
 }
 
@@ -317,6 +408,9 @@ export function loadData() {
     if (fs.existsSync(DB_FILE)) {
       const raw = fs.readFileSync(DB_FILE, 'utf-8');
       const parsed = JSON.parse(raw);
+      if (!parsed.schemaVersion || parsed.schemaVersion < CURRENT_SCHEMA_VERSION) {
+        createLocalBackup('pre_schema_v3');
+      }
       const migrated = migrateAndMergeData(parsed);
       saveData(migrated);
       return migrated;
@@ -397,20 +491,23 @@ export function resetToDefaultData() {
   return db;
 }
 
-// 포인트 CSV 내보내기
+// 포인트 & 칩 CSV 내보내기
 export function exportPointsCSV() {
-  const header = '닉네임,보유포인트,연속출석일수,총출석수,총후원포인트,역할\n';
+  const header = '닉네임,보유포인트(유료),보유칩,연속출석일수,총출석수,누적치즈포인트,누적칩후원,역할\n';
   const rows = Object.values(db.users || {}).map(u => {
-    return `"${(u.nickname || '').replace(/"/g, '""')}",${u.points || 0},${u.attendStreak || 0},${u.totalAttends || 0},${u.totalDonation || 0},"${u.role || 'viewer'}"`;
+    return `"${(u.nickname || '').replace(/"/g, '""')}",${u.points || 0},${u.chips || 0},${u.attendStreak || 0},${u.totalAttends || 0},${u.totalCheeseDonation || 0},${u.totalDonation || 0},"${u.role || 'viewer'}"`;
   }).join('\n');
   return header + rows;
 }
 
-// 포인트 CSV 가져오기
+// 포인트 & 칩 CSV 가져오기 (신버전 2재화 및 구버전 단일재화 CSV 모두 자동 호환)
 export function importPointsCSV(csvText) {
   if (!csvText) return { success: false, count: 0 };
   const lines = csvText.trim().split(/\r?\n/);
   if (lines.length <= 1) return { success: false, count: 0 };
+
+  const headerLine = lines[0];
+  const isDualCurrencyCSV = headerLine.includes('보유칩') || headerLine.split(',').length >= 7;
 
   let count = 0;
   for (let i = 1; i < lines.length; i++) {
@@ -422,29 +519,67 @@ export function importPointsCSV(csvText) {
 
     const parts = match.map(s => s.replace(/^,/, '').replace(/^"/, '').replace(/"$/, '').replace(/""/g, '"').trim());
     const nickname = parts[0];
-    const points = parseInt(parts[1], 10);
-    const attendStreak = parseInt(parts[2], 10) || 0;
-    const totalAttends = parseInt(parts[3], 10) || 0;
-    const totalDonation = parseInt(parts[4], 10) || 0;
-    const role = parts[5] || 'viewer';
+    if (!nickname) continue;
 
-    if (nickname && !isNaN(points)) {
+    if (isDualCurrencyCSV) {
+      const points = parseInt(parts[1], 10) || 0;
+      const chips = parseInt(parts[2], 10) || 0;
+      const attendStreak = parseInt(parts[3], 10) || 0;
+      const totalAttends = parseInt(parts[4], 10) || 0;
+      const totalCheeseDonation = parseInt(parts[5], 10) || 0;
+      const totalDonation = parseInt(parts[6], 10) || 0;
+      const role = parts[7] || 'viewer';
+
       if (!db.users[nickname]) {
         db.users[nickname] = {
           nickname,
           points,
+          chips,
           attendStreak,
           totalAttends,
           lastAttend: '',
+          totalCheeseDonation,
           totalDonation,
           tickets: [],
           role
         };
       } else {
         db.users[nickname].points = points;
-        if (!isNaN(attendStreak)) db.users[nickname].attendStreak = attendStreak;
-        if (!isNaN(totalAttends)) db.users[nickname].totalAttends = totalAttends;
-        if (!isNaN(totalDonation)) db.users[nickname].totalDonation = totalDonation;
+        db.users[nickname].chips = chips;
+        db.users[nickname].attendStreak = attendStreak;
+        db.users[nickname].totalAttends = totalAttends;
+        db.users[nickname].totalCheeseDonation = totalCheeseDonation;
+        db.users[nickname].totalDonation = totalDonation;
+        if (role) db.users[nickname].role = role;
+      }
+      count++;
+    } else {
+      // 구버전 CSV: 단일 보유포인트 -> 보유칩으로 안전 이관
+      const legacyVal = parseInt(parts[1], 10);
+      if (isNaN(legacyVal)) continue;
+      const attendStreak = parseInt(parts[2], 10) || 0;
+      const totalAttends = parseInt(parts[3], 10) || 0;
+      const totalDonation = parseInt(parts[4], 10) || 0;
+      const role = parts[5] || 'viewer';
+
+      if (!db.users[nickname]) {
+        db.users[nickname] = {
+          nickname,
+          points: 0,
+          chips: legacyVal,
+          attendStreak,
+          totalAttends,
+          lastAttend: '',
+          totalCheeseDonation: 0,
+          totalDonation,
+          tickets: [],
+          role
+        };
+      } else {
+        db.users[nickname].chips = legacyVal;
+        db.users[nickname].attendStreak = attendStreak;
+        db.users[nickname].totalAttends = totalAttends;
+        db.users[nickname].totalDonation = totalDonation;
         if (role) db.users[nickname].role = role;
       }
       count++;

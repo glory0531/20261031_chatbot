@@ -79,6 +79,7 @@ export const ViewerPublicPage: React.FC<ViewerPublicPageProps> = ({
   const prefix = settings?.prefix || '!';
   const botName = settings?.botName || '샤봇';
   const pointName = settings?.pointName || 'P';
+  const chipName = settings?.chipName || '칩';
   const channelName = status?.channelName || settings?.streamerName || '치지직 스트리머';
   const profileImage = status?.channelImageUrl || '';
   const attendPoints = settings?.attendPoints ?? 100;
@@ -114,41 +115,56 @@ export const ViewerPublicPage: React.FC<ViewerPublicPageProps> = ({
         name,
         syntax: `${prefix}${name}`,
         badge: '1일 1회',
-        desc: `오늘의 출석 체크 & 기본 ${attendPoints}${pointName} 적립 (연속 출석당 +${attendStreakBonus}${pointName})`,
-        category: '참여 & 포인트'
+        desc: `오늘의 출석 체크 & 기본 ${attendPoints}${chipName} 적립 (연속 출석당 +${attendStreakBonus}${chipName})`,
+        category: '참여 & 재화'
       });
     }
 
-    // 포인트 조회
+    // 포인트 & 칩 조회 (통합)
     if (defaultCommands?.point?.enabled !== false && defaultCommands?.point?.visibleInViewer !== false) {
       const name = defaultCommands?.point?.name || '포인트';
       list.push({
         key: 'point',
         name,
-        syntax: `${prefix}${name}`,
+        syntax: `${prefix}${name} / ${prefix}칩`,
         badge: '내 지갑',
-        desc: `현재 내가 보유한 ${pointName} 잔액 및 누적 출석 일수 확인`,
-        category: '참여 & 포인트'
+        desc: `현재 내가 보유한 유료 ${pointName} 및 활동 ${chipName} 잔액 확인`,
+        category: '참여 & 재화'
+      });
+    }
+
+    // 룰렛 돌리기
+    if (defaultCommands?.roulette?.enabled !== false && defaultCommands?.roulette?.visibleInViewer !== false) {
+      const name = defaultCommands?.roulette?.name || '룰렛';
+      list.push({
+        key: 'roulette',
+        name,
+        syntax: `${prefix}${name}`,
+        badge: '행운 룰렛',
+        desc: `설정된 재화(기본: 유료 ${pointName})를 소모하여 확률 룰렛 돌리기`,
+        category: '참여 & 재화'
       });
     }
 
     // 포인트 후원 (도네이션)
     if (defaultCommands?.donate?.enabled !== false && defaultCommands?.donate?.visibleInViewer !== false) {
       const name = defaultCommands?.donate?.name || '도네';
+      const donateUnit = settings?.donateCurrency === 'points' ? pointName : chipName;
       list.push({
         key: 'donate',
         name,
-        syntax: `${prefix}${name} [${pointName}] [메시지]`,
-        badge: '포인트 후원',
+        syntax: `${prefix}${name} [${donateUnit}] [메시지]`,
+        badge: '방송 도네',
         desc: '방송 화면에 멜레 점프 팝업 알림과 한국어 TTS 음성 낭독',
-        category: '참여 & 포인트'
+        category: '참여 & 재화'
       });
     }
 
     // 노래 신청 (SR) - 스트리머의 신청곡 설정에 따라 활성화 여부 반영
     if (songRequests?.settings?.enabled !== false && defaultCommands?.sr?.enabled !== false && defaultCommands?.sr?.visibleInViewer !== false) {
       const name = defaultCommands?.sr?.name || 'sr';
-      const costText = songRequests?.settings?.minCost ? ` (비용: ${songRequests.settings.minCost}${pointName})` : '';
+      const srUnit = songRequests?.settings?.currency === 'points' ? pointName : chipName;
+      const costText = songRequests?.settings?.minCost ? ` (비용: ${songRequests.settings.minCost}${srUnit})` : '';
       list.push({
         key: 'sr',
         name,
@@ -206,7 +222,7 @@ export const ViewerPublicPage: React.FC<ViewerPublicPageProps> = ({
         name,
         syntax: `${prefix}${name}`,
         badge: '미니게임',
-        desc: `미끼(20${pointName})를 소모해 물고기, 황금잉어 낚기`,
+        desc: `미끼(20${chipName})를 소모해 물고기, 황금잉어 낚기`,
         category: '미니게임'
       });
     }
@@ -217,7 +233,7 @@ export const ViewerPublicPage: React.FC<ViewerPublicPageProps> = ({
       list.push({
         key: 'rps',
         name,
-        syntax: `${prefix}${name} [가위/바위/보] [${pointName}]`,
+        syntax: `${prefix}${name} [가위/바위/보] [${chipName}]`,
         badge: '배팅 게임',
         desc: `${botName}과 가위바위보 대결 (승리 시 배팅금 2배 획득)`,
         category: '미니게임'
@@ -227,13 +243,14 @@ export const ViewerPublicPage: React.FC<ViewerPublicPageProps> = ({
     // 목표 모금 기부
     if (defaultCommands?.fund?.enabled && fund?.enabled && defaultCommands?.fund?.visibleInViewer !== false) {
       const name = defaultCommands?.fund?.name || '모금';
+      const fundUnit = fund?.currency === 'points' ? pointName : chipName;
       list.push({
         key: 'fund',
         name,
-        syntax: `${prefix}${name} [${pointName}]`,
+        syntax: `${prefix}${name} [${fundUnit}]`,
         badge: '모금 기부',
-        desc: `진행 중인 목표 모금함에 포인트 기부하기`,
-        category: '참여 & 포인트'
+        desc: `진행 중인 목표 모금함에 ${fundUnit} 기부하기`,
+        category: '참여 & 재화'
       });
     }
 
@@ -243,10 +260,10 @@ export const ViewerPublicPage: React.FC<ViewerPublicPageProps> = ({
       list.push({
         key: 'vote',
         name,
-        syntax: `${prefix}${name} [번호] [${pointName}]`,
+        syntax: `${prefix}${name} [번호] [${chipName}]`,
         badge: '승부 예측',
-        desc: `진행 중인 승부 예측에 포인트 배팅하기`,
-        category: '참여 & 포인트'
+        desc: `진행 중인 승부 예측에 ${chipName} 배팅하기`,
+        category: '참여 & 재화'
       });
     }
 
@@ -264,14 +281,12 @@ export const ViewerPublicPage: React.FC<ViewerPublicPageProps> = ({
     }
 
     return list;
-  }, [defaultCommands, prefix, pointName, attendPoints, attendStreakBonus, songRequests, fund, prediction]);
+  }, [defaultCommands, prefix, pointName, chipName, attendPoints, attendStreakBonus, songRequests, fund, prediction, settings?.donateCurrency]);
 
   // 스트리머가 활성화하고 시청자 공개로 설정한 커스텀 명령어 목록 (스트리머 전용 명령어는 제외)
   const enabledCustomCommands = useMemo(() => {
     return (commands || []).filter(c => c.enabled && c.permission !== 'streamer' && c.visibleInViewer !== false);
   }, [commands]);
-
-  // 💡 [안내] 모금 위젯 및 명예의 전당(랭킹)은 ViewerArchivedComponents.tsx 에 안전하게 분리 보관되었습니다.
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 pb-16">
@@ -424,9 +439,7 @@ export const ViewerPublicPage: React.FC<ViewerPublicPageProps> = ({
           </div>
         </div>
 
-        {/* 💡 [보관됨] 목표 모금 진행바 위젯은 ViewerArchivedComponents.tsx (ViewerFundGoalWidget) 에 보관되어 있습니다. */}
-
-        {/* 스트리머 승부 예측 진행 위젯 (스트리머가 예측 투표를 켰을 때만 표시) */}
+        {/* 스트리머 승부 예측 진행 위젯 */}
         {prediction?.status === 'active' && (
           <div className="p-4 rounded-2xl bg-slate-900 border border-amber-500/35 space-y-2.5 shadow-md">
             <div className="flex items-center justify-between text-xs">
@@ -434,7 +447,7 @@ export const ViewerPublicPage: React.FC<ViewerPublicPageProps> = ({
                 <Swords className="w-4 h-4 text-rose-400" /> 승부 예측 진행 중: {prediction.title}
               </span>
               <span className="px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 text-[10px] font-black animate-pulse">
-                베팅 진행 중
+                {chipName} 베팅 진행 중
               </span>
             </div>
 
@@ -443,17 +456,16 @@ export const ViewerPublicPage: React.FC<ViewerPublicPageProps> = ({
                 <div key={opt.id} className="p-2.5 rounded-xl bg-slate-950 border border-white/10 space-y-1">
                   <div className="flex items-center justify-between text-xs font-bold text-white">
                     <span>{idx + 1}. {opt.title}</span>
-                    <span className="text-amber-300 font-mono">{(opt.points || 0).toLocaleString()} {pointName}</span>
+                    <span className="text-cyan-300 font-mono">{(opt.points || 0).toLocaleString()} {chipName}</span>
                   </div>
                   <div className="text-[10px] text-slate-400">
-                    참여 방법: <b className="text-amber-200">{prefix}{defaultCommands?.vote?.name || '투표'} {idx + 1} [금액]</b>
+                    참여 방법: <b className="text-cyan-200">{prefix}{defaultCommands?.vote?.name || '투표'} {idx + 1} [금액]</b>
                   </div>
                 </div>
               ))}
             </div>
           </div>
         )}
-
 
         {/* 탭 내비게이션 (모바일 가로 스크롤) */}
         <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none border-b border-amber-400/20">
@@ -504,7 +516,7 @@ export const ViewerPublicPage: React.FC<ViewerPublicPageProps> = ({
               {/* 스트리머가 정한 신청곡 규칙 뱃지들 */}
               <div className="flex items-center gap-2 flex-wrap text-[11px]">
                 <span className="px-2.5 py-0.5 rounded-lg bg-slate-900 text-amber-300 border border-white/5 font-semibold">
-                  신청 비용: {songRequests.settings.minCost ? `${songRequests.settings.minCost} ${pointName}` : '무료'}
+                  신청 비용: {songRequests.settings.minCost ? `${songRequests.settings.minCost} ${songRequests.settings.currency === 'points' ? pointName : chipName}` : '무료'}
                 </span>
                 <span className="px-2.5 py-0.5 rounded-lg bg-slate-900 text-slate-300 border border-white/5 font-semibold">
                   1인당 최대 {songRequests.settings.maxPerUser}곡
@@ -529,7 +541,7 @@ export const ViewerPublicPage: React.FC<ViewerPublicPageProps> = ({
                 <img src={songRequests.current.thumbnail} alt="" className="w-16 h-12 rounded-xl object-cover border border-white/20 shrink-0" />
                 <div className="min-w-0 flex-1">
                   <span className="text-[10px] font-black text-slate-100 flex items-center gap-1">
-                    <Sparkles className="w-3 h-3 text-amber-400" /> 현재 재생 중 ✦
+                    <Sparkles className="w-3.5 h-3.5 text-amber-400" /> 현재 재생 중 ✦
                   </span>
                   <div className="font-extrabold text-white text-sm truncate">{songRequests.current.title}</div>
                   <div className="text-[11px] text-amber-400">신청자: {songRequests.current.requester}</div>
@@ -602,7 +614,7 @@ export const ViewerPublicPage: React.FC<ViewerPublicPageProps> = ({
           </div>
         )}
 
-        {/* 탭 4: 챗봇 명령어 가이드 (스트리머 설정에 100% 동적 연동) */}
+        {/* 탭 4: 챗봇 명령어 가이드 */}
         {activeTab === 'commands' && (
           <div className="space-y-5">
             <div>
@@ -614,7 +626,7 @@ export const ViewerPublicPage: React.FC<ViewerPublicPageProps> = ({
               </p>
             </div>
 
-            {/* 기본 탑재 명령어 (스트리머가 켜두고 시청자 공개로 설정한 명령어만 표시) */}
+            {/* 기본 탑재 명령어 */}
             <div className="space-y-2.5">
               <div className="text-xs font-bold text-slate-100 flex items-center justify-between">
                 <span>✦ 기본 내장 명령어 ({enabledDefaultCommands.length}개 공개됨)</span>
@@ -649,19 +661,22 @@ export const ViewerPublicPage: React.FC<ViewerPublicPageProps> = ({
 
               {enabledCustomCommands.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  {enabledCustomCommands.map((c) => (
-                    <div key={c.id} className="p-3 rounded-2xl bg-slate-900/90 border border-amber-400/20 space-y-1 text-xs">
-                      <div className="flex items-center justify-between">
-                        <span className="font-black text-amber-300 font-mono">{prefix}{c.name}</span>
-                        {c.cost > 0 && (
-                          <span className="text-[10px] px-2 py-0.5 rounded-md bg-rose-500/15 text-rose-300 font-bold">
-                            소모: {c.cost} {pointName}
-                          </span>
-                        )}
+                  {enabledCustomCommands.map((c) => {
+                    const cUnit = c.currency === 'points' ? pointName : chipName;
+                    return (
+                      <div key={c.id} className="p-3 rounded-2xl bg-slate-900/90 border border-amber-400/20 space-y-1 text-xs">
+                        <div className="flex items-center justify-between">
+                          <span className="font-black text-amber-300 font-mono">{prefix}{c.name}</span>
+                          {c.cost > 0 && (
+                            <span className="text-[10px] px-2 py-0.5 rounded-md bg-rose-500/15 text-rose-300 font-bold">
+                              소모: {c.cost} {cUnit}
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-amber-400 text-[11px] line-clamp-2 leading-relaxed">{c.response}</div>
                       </div>
-                      <div className="text-amber-400 text-[11px] line-clamp-2 leading-relaxed">{c.response}</div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="text-center py-5 text-xs text-slate-500 rounded-2xl witch-card border border-white/5">
@@ -671,8 +686,6 @@ export const ViewerPublicPage: React.FC<ViewerPublicPageProps> = ({
             </div>
           </div>
         )}
-
-        {/* 💡 [보관됨] 별빛 명예의 전당(랭킹) 탭 컴포넌트는 ViewerArchivedComponents.tsx (ViewerRankingTab) 에 보관되어 있습니다. */}
       </div>
     </div>
   );

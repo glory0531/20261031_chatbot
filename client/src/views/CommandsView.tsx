@@ -17,15 +17,18 @@ import {
   Eye,
   EyeOff
 } from 'lucide-react';
-import { CustomCommand } from '../types';
+import { CustomCommand, Settings } from '../types';
 import { api } from '../services/api';
 
 interface CommandsViewProps {
   commands: CustomCommand[];
   prefix: string;
+  settings?: Settings;
 }
 
-export const CommandsView: React.FC<CommandsViewProps> = ({ commands, prefix }) => {
+export const CommandsView: React.FC<CommandsViewProps> = ({ commands, prefix, settings }) => {
+  const pUnit = settings?.pointName || 'P';
+  const cUnit = settings?.chipName || '칩';
   const [search, setSearch] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [editingCmd, setEditingCmd] = useState<CustomCommand | null>(null);
@@ -36,6 +39,7 @@ export const CommandsView: React.FC<CommandsViewProps> = ({ commands, prefix }) 
   const [permission, setPermission] = useState<CustomCommand['permission']>('all');
   const [cooldown, setCooldown] = useState(5);
   const [cost, setCost] = useState(0);
+  const [currency, setCurrency] = useState<'chips' | 'points'>('chips');
   const [matchType, setMatchType] = useState<'exact' | 'contains' | 'startsWith'>('exact');
   const [oncePerUser, setOncePerUser] = useState(false);
   const [visibleInViewer, setVisibleInViewer] = useState(true);
@@ -43,7 +47,8 @@ export const CommandsView: React.FC<CommandsViewProps> = ({ commands, prefix }) 
   const variables = [
     { tag: '{user}', desc: '명령어 호출자' },
     { tag: '{target}', desc: '호출 대상(@멘션)' },
-    { tag: '{points}', desc: '보유 포인트' },
+    { tag: '{points}', desc: '보유 유료 포인트' },
+    { tag: '{chips}', desc: '보유 활동 칩' },
     { tag: '{uptime}', desc: '방송 시간' },
     { tag: '{title}', desc: '방송 제목' },
     { tag: '{random:1-100}', desc: '1~100 난수' },
@@ -57,6 +62,7 @@ export const CommandsView: React.FC<CommandsViewProps> = ({ commands, prefix }) 
     setPermission('all');
     setCooldown(5);
     setCost(0);
+    setCurrency('chips');
     setMatchType('exact');
     setOncePerUser(false);
     setVisibleInViewer(true);
@@ -70,6 +76,7 @@ export const CommandsView: React.FC<CommandsViewProps> = ({ commands, prefix }) 
     setPermission(cmd.permission);
     setCooldown(cmd.cooldown);
     setCost(cmd.cost);
+    setCurrency(cmd.currency || 'chips');
     setMatchType(cmd.matchType || 'exact');
     setOncePerUser(cmd.oncePerUser ?? false);
     setVisibleInViewer(cmd.visibleInViewer !== false);
@@ -87,6 +94,7 @@ export const CommandsView: React.FC<CommandsViewProps> = ({ commands, prefix }) 
         permission,
         cooldown,
         cost,
+        currency,
         matchType,
         oncePerUser,
         visibleInViewer
@@ -98,6 +106,7 @@ export const CommandsView: React.FC<CommandsViewProps> = ({ commands, prefix }) 
         permission,
         cooldown,
         cost,
+        currency,
         matchType,
         oncePerUser,
         visibleInViewer
@@ -271,8 +280,8 @@ export const CommandsView: React.FC<CommandsViewProps> = ({ commands, prefix }) 
                   <Clock className="w-3 h-3 text-slate-500" /> 쿨타임 {cmd.cooldown}초
                 </span>
                 {cmd.cost > 0 && (
-                  <span className="flex items-center gap-1 text-amber-400 font-semibold">
-                    <Coins className="w-3 h-3" /> {cmd.cost}P 소모
+                  <span className={`flex items-center gap-1 font-semibold ${cmd.currency === 'points' ? 'text-emerald-400' : 'text-amber-400'}`}>
+                    <Coins className="w-3 h-3" /> {cmd.cost.toLocaleString()}{cmd.currency === 'points' ? pUnit : cUnit} 소모
                   </span>
                 )}
               </div>
@@ -382,7 +391,7 @@ export const CommandsView: React.FC<CommandsViewProps> = ({ commands, prefix }) 
                 ></textarea>
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-slate-300 mb-1">사용 권한</label>
                   <select
@@ -411,7 +420,19 @@ export const CommandsView: React.FC<CommandsViewProps> = ({ commands, prefix }) 
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-300 mb-1">소모 포인트</label>
+                  <label className="block text-xs font-bold text-slate-300 mb-1">소모 재화</label>
+                  <select
+                    value={currency}
+                    onChange={(e: any) => setCurrency(e.target.value)}
+                    className="w-full px-2.5 py-2 rounded-xl bg-slate-950 border border-white/10 text-xs text-white focus:outline-none font-bold"
+                  >
+                    <option value="chips">🪙 칩 ({cUnit})</option>
+                    <option value="points">🧀 포인트 ({pUnit})</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-300 mb-1">소모 수량</label>
                   <input
                     type="number"
                     min="0"

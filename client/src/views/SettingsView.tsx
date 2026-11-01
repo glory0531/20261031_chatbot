@@ -21,9 +21,11 @@ import {
   RotateCcw,
   FileJson,
   DownloadCloud,
-  Wand2
+  Wand2,
+  Coins,
+  CircleDollarSign
 } from 'lucide-react';
-import { Settings, ThemePreset, UpdateState } from '../types';
+import { Settings, ThemePreset, UpdateState, CurrencyType } from '../types';
 import { THEME_PRESETS } from '../constants/themes';
 import { api } from '../services/api';
 
@@ -40,11 +42,19 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, update, on
   const [showSecret, setShowSecret] = useState(false);
   const [chzzkWriteEnabled, setChzzkWriteEnabled] = useState(settings.chzzkWriteEnabled ?? false);
   const [suppressPointMessagesInChat, setSuppressPointMessagesInChat] = useState(settings.suppressPointMessagesInChat ?? true);
+  const [sendPaidPointMessagesInChat, setSendPaidPointMessagesInChat] = useState(settings.sendPaidPointMessagesInChat ?? true);
+
   const [botName, setBotName] = useState(settings.botName || '샤봇');
   const [streamerName, setStreamerName] = useState(settings.streamerName || '스트리머');
   const [fandomName, setFandomName] = useState(settings.fandomName || '시청자');
   const [prefix, setPrefix] = useState(settings.prefix || '!');
   const [pointName, setPointName] = useState(settings.pointName || 'P');
+  const [chipName, setChipName] = useState(settings.chipName || '칩');
+  const [cheesePointEnabled, setCheesePointEnabled] = useState(settings.cheesePointEnabled ?? true);
+  const [cheesePointRatePercent, setCheesePointRatePercent] = useState(settings.cheesePointRatePercent ?? 100);
+  const [includeMissionCheese, setIncludeMissionCheese] = useState(settings.includeMissionCheese ?? false);
+  const [donateCurrency, setDonateCurrency] = useState<CurrencyType>(settings.donateCurrency || 'chips');
+
   const [themePreset, setThemePreset] = useState<ThemePreset>(settings.themePreset || 'chzzk-emerald');
   const [autoUpdateOnStart, setAutoUpdateOnStart] = useState(settings.autoUpdateOnStart ?? true);
   const [attendPoints, setAttendPoints] = useState(settings.attendPoints ?? 100);
@@ -68,6 +78,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, update, on
     setFandomName(settings.fandomName || '시청자');
     setPrefix(settings.prefix || '!');
     setPointName(settings.pointName || 'P');
+    setChipName(settings.chipName || '칩');
+    setCheesePointEnabled(settings.cheesePointEnabled ?? true);
+    setCheesePointRatePercent(settings.cheesePointRatePercent ?? 100);
+    setIncludeMissionCheese(settings.includeMissionCheese ?? false);
+    setDonateCurrency(settings.donateCurrency || 'chips');
+    setSuppressPointMessagesInChat(settings.suppressPointMessagesInChat ?? true);
+    setSendPaidPointMessagesInChat(settings.sendPaidPointMessagesInChat ?? true);
     setThemePreset(settings.themePreset || 'chzzk-emerald');
     setAutoUpdateOnStart(settings.autoUpdateOnStart ?? true);
   }, [settings]);
@@ -110,6 +127,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, update, on
         autoUpdateOnStart,
         prefix,
         pointName,
+        chipName,
+        cheesePointEnabled,
+        cheesePointRatePercent: Number(cheesePointRatePercent),
+        includeMissionCheese,
+        donateCurrency,
         attendPoints: Number(attendPoints),
         chatPoints: Number(chatPoints),
         ttsEnabled,
@@ -118,7 +140,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, update, on
         chzzkClientId: chzzkClientId.trim(),
         chzzkClientSecret: chzzkClientSecret.trim(),
         chzzkWriteEnabled: true,
-        suppressPointMessagesInChat
+        suppressPointMessagesInChat,
+        sendPaidPointMessagesInChat
       });
       window.location.href = '/api/chzzk/login';
     } catch (err: any) {
@@ -146,6 +169,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, update, on
       autoUpdateOnStart,
       prefix,
       pointName,
+      chipName,
+      cheesePointEnabled,
+      cheesePointRatePercent: Number(cheesePointRatePercent),
+      includeMissionCheese,
+      donateCurrency,
       attendPoints: Number(attendPoints),
       chatPoints: Number(chatPoints),
       ttsEnabled,
@@ -154,7 +182,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, update, on
       chzzkClientId,
       chzzkClientSecret,
       chzzkWriteEnabled,
-      suppressPointMessagesInChat
+      suppressPointMessagesInChat,
+      sendPaidPointMessagesInChat
     });
     setSavedSuccess(true);
     setTimeout(() => setSavedSuccess(false), 2500);
@@ -237,7 +266,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, update, on
   };
 
   const handleResetData = async () => {
-    const confirmed = confirm('경고: 모든 시청자 포인트 내역, 커스텀 명령어, 일정이 샤봇 최초 기본값으로 초기화됩니다.\n(초기화 직전 상태는 data/backups 에 자동 보관됩니다)\n\n정말 초기화하시겠습니까?');
+    const confirmed = confirm('경고: 모든 시청자 포인트 & 칩 내역, 커스텀 명령어, 일정이 샤봇 최초 기본값으로 초기화됩니다.\n(초기화 직전 상태는 data/backups 에 자동 보관됩니다)\n\n정말 초기화하시겠습니까?');
     if (!confirmed) return;
 
     try {
@@ -263,7 +292,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, update, on
             환경설정 & 원격 업데이트 관리
           </h2>
           <p className="text-xs text-slate-400 mt-0.5">
-            치지직 방송 연동, 방송 호칭/테마 커스터마이징, 자동 업데이트 및 데이터 백업을 한곳에서 관리합니다.
+            치지직 방송 연동, 재화 이원화(유료 포인트 & 활동 칩), 방송 호칭/테마 커스터마이징을 한곳에서 관리합니다.
           </p>
         </div>
 
@@ -544,10 +573,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, update, on
                 />
               </div>
 
+              {/* 채팅창 송출 분리 토글 2종 */}
               <div className="flex items-center justify-between p-3 rounded-xl bg-slate-950/60 border border-slate-800">
                 <div>
-                  <div className="text-xs font-bold text-slate-200">포인트 관련 메시지 치지직 송출 제외 (도배 방지)</div>
-                  <div className="text-[10px] text-slate-400">출첵·포인트 조회·미니게임 결과는 대시보드에만 표시합니다.</div>
+                  <div className="text-xs font-bold text-slate-200">무료 활동 칩 메시지 송출 제외 (도배 방지)</div>
+                  <div className="text-[10px] text-slate-400">출첵·단순 조회·미니게임 등 잦은 칩 활동은 대시보드에만 표시합니다.</div>
                 </div>
                 <input
                   type="checkbox"
@@ -556,16 +586,29 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, update, on
                   className="w-4 h-4 accent-amber-400 rounded cursor-pointer"
                 />
               </div>
+
+              <div className="flex items-center justify-between p-3 rounded-xl bg-slate-950/60 border border-slate-800">
+                <div>
+                  <div className="text-xs font-bold text-amber-300">유료 포인트 & 룰렛 결과 치지직 송출</div>
+                  <div className="text-[10px] text-slate-400">치즈 후원 적립 및 !룰렛 결과 등 유료 포인트 활동을 방송 채팅에 알립니다.</div>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={sendPaidPointMessagesInChat}
+                  onChange={(e) => setSendPaidPointMessagesInChat(e.target.checked)}
+                  className="w-4 h-4 accent-amber-400 rounded cursor-pointer"
+                />
+              </div>
             </div>
           </div>
         </div>
 
-        {/* 2. 방송 호칭 커스텀 & 데이터 백업 카드 */}
+        {/* 2. 방송 호칭 & 재화 이원화 규칙 & 데이터 백업 카드 */}
         <div className="space-y-6">
           <div className="witch-card p-5 rounded-2xl space-y-4">
             <div className="flex items-center gap-2 pb-3 border-b border-slate-800">
               <Shield className="w-4 h-4 text-amber-400" />
-              <h3 className="font-bold text-sm text-white">내 방송 맞춤 호칭 & 포인트 규칙</h3>
+              <h3 className="font-bold text-sm text-white">내 방송 맞춤 호칭 & 재화 규칙 (이원화)</h3>
             </div>
 
             <form onSubmit={handleSaveSettings} className="space-y-3.5">
@@ -592,7 +635,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, update, on
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-slate-300 mb-1">시청자/팬덤 애칭</label>
                   <input
@@ -613,21 +656,99 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, update, on
                     className="w-full px-3 py-2 rounded-xl bg-slate-950/80 border border-slate-700 text-xs text-white font-mono text-center focus:outline-none focus:border-amber-400"
                   />
                 </div>
+              </div>
+
+              {/* 단위명 설정: 유료 포인트 vs 활동 칩 */}
+              <div className="grid grid-cols-2 gap-3 p-3 rounded-xl bg-slate-950/60 border border-slate-800">
                 <div>
-                  <label className="block text-xs font-bold text-slate-300 mb-1">포인트 단위</label>
+                  <label className="block text-xs font-bold text-amber-300 mb-1 flex items-center gap-1">
+                    <CircleDollarSign className="w-3.5 h-3.5" /> 유료 포인트 단위명
+                  </label>
                   <input
                     type="text"
                     value={pointName}
                     onChange={(e) => setPointName(e.target.value)}
-                    placeholder="P / 쿠키 / 칩"
-                    className="w-full px-3 py-2 rounded-xl bg-slate-950/80 border border-slate-700 text-xs text-white text-center focus:outline-none focus:border-amber-400"
+                    placeholder="P / 캐시"
+                    className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-amber-400/40 text-xs text-white text-center focus:outline-none focus:border-amber-400 font-bold"
                   />
+                  <div className="text-[10px] text-slate-400 mt-1">치즈 후원 연동, 룰렛 유료화 전용</div>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-cyan-300 mb-1 flex items-center gap-1">
+                    <Coins className="w-3.5 h-3.5" /> 활동 칩 단위명
+                  </label>
+                  <input
+                    type="text"
+                    value={chipName}
+                    onChange={(e) => setChipName(e.target.value)}
+                    placeholder="칩 / 쿠키"
+                    className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-cyan-400/40 text-xs text-white text-center focus:outline-none focus:border-cyan-400 font-bold"
+                  />
+                  <div className="text-[10px] text-slate-400 mt-1">출석·채팅 적립, 모금, 미니게임 전용</div>
                 </div>
               </div>
 
+              {/* 치즈 후원 유료 포인트 적립 세부 설정 */}
+              <div className="p-3.5 rounded-xl bg-slate-950/60 border border-slate-800 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-xs font-bold text-amber-300 flex items-center gap-1.5">
+                      <span>🧀 치즈 후원 시 유료 포인트 자동 적립</span>
+                    </div>
+                    <div className="text-[10px] text-slate-400">시청자가 치즈 후원 시 해당 금액을 포인트로 적립합니다.</div>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={cheesePointEnabled}
+                    onChange={(e) => setCheesePointEnabled(e.target.checked)}
+                    className="w-4 h-4 accent-amber-400 rounded cursor-pointer"
+                  />
+                </div>
+
+                {cheesePointEnabled && (
+                  <div className="pt-2 border-t border-slate-800/80 grid grid-cols-2 gap-3 items-center">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-300 mb-1">
+                        치즈 1개당 적립 비율 (%)
+                      </label>
+                      <div className="flex items-center gap-1.5">
+                        <input
+                          type="number"
+                          min="1"
+                          max="1000"
+                          value={cheesePointRatePercent}
+                          onChange={(e) => setCheesePointRatePercent(Number(e.target.value))}
+                          className="w-full px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs text-white text-center font-bold"
+                        />
+                        <span className="text-xs text-amber-300 font-bold">%</span>
+                      </div>
+                      <div className="text-[10px] text-slate-400 mt-0.5">
+                        100% = 1,000치즈 후원 시 1,000{pointName} 적립
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between p-2 rounded-lg bg-slate-900 border border-slate-800">
+                      <div>
+                        <div className="text-[11px] font-bold text-slate-200">미션 치즈 포함</div>
+                        <div className="text-[9px] text-slate-400">일반/영상 외 미션 치즈도 적립</div>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={includeMissionCheese}
+                        onChange={(e) => setIncludeMissionCheese(e.target.checked)}
+                        className="w-3.5 h-3.5 accent-amber-400 rounded cursor-pointer"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* 활동 칩 무료 적립 보상 (출석/채팅) */}
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-slate-300 mb-1">출석 보상</label>
+                  <label className="block text-xs font-bold text-slate-300 mb-1">
+                    출석 보상 ({chipName})
+                  </label>
                   <input
                     type="number"
                     value={attendPoints}
@@ -636,7 +757,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, update, on
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-300 mb-1">채팅 보상</label>
+                  <label className="block text-xs font-bold text-slate-300 mb-1">
+                    채팅 보상 ({chipName})
+                  </label>
                   <input
                     type="number"
                     value={chatPoints}
@@ -644,18 +767,32 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, update, on
                     className="w-full px-3 py-2 rounded-xl bg-slate-950/80 border border-slate-700 text-xs text-white text-center"
                   />
                 </div>
-                <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-950/60 border border-slate-800 mt-5">
-                  <div className="flex items-center gap-1">
-                    <Volume2 className="w-3.5 h-3.5 text-amber-400" />
-                    <span className="text-[11px] font-bold text-slate-200">후원 TTS</span>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={ttsEnabled}
-                    onChange={(e) => setTtsEnabled(e.target.checked)}
-                    className="w-4 h-4 accent-amber-400 rounded cursor-pointer"
-                  />
+                <div>
+                  <label className="block text-xs font-bold text-slate-300 mb-1">
+                    !도네 기본 재화
+                  </label>
+                  <select
+                    value={donateCurrency}
+                    onChange={(e) => setDonateCurrency(e.target.value as CurrencyType)}
+                    className="w-full px-2 py-2 rounded-xl bg-slate-950/80 border border-slate-700 text-xs text-white text-center"
+                  >
+                    <option value="chips">활동 칩 ({chipName})</option>
+                    <option value="points">유료 포인트 ({pointName})</option>
+                  </select>
                 </div>
+              </div>
+
+              <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-950/60 border border-slate-800">
+                <div className="flex items-center gap-1.5">
+                  <Volume2 className="w-3.5 h-3.5 text-amber-400" />
+                  <span className="text-[11px] font-bold text-slate-200">후원 음성 TTS 재생 활성화</span>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={ttsEnabled}
+                  onChange={(e) => setTtsEnabled(e.target.checked)}
+                  className="w-4 h-4 accent-amber-400 rounded cursor-pointer"
+                />
               </div>
 
               <div className="pt-2 flex justify-end">
@@ -664,7 +801,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, update, on
                   className="px-6 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs shadow-lg flex items-center gap-1.5 transition-all cursor-pointer"
                 >
                   {savedSuccess ? <Check className="w-4 h-4" /> : <Sparkles className="w-3.5 h-3.5" />}
-                  <span>{savedSuccess ? '설정 저장 완료!' : '프로필 & 규칙 저장하기'}</span>
+                  <span>{savedSuccess ? '설정 저장 완료!' : '프로필 & 재화 규칙 저장하기'}</span>
                 </button>
               </div>
             </form>
@@ -701,7 +838,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, update, on
                   <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
                 </div>
                 <div className="text-left">
-                  <div className="font-black text-white text-xs">포인트 목록 엑셀</div>
+                  <div className="font-black text-white text-xs">포인트 & 칩 엑셀</div>
                   <div className="text-[10px] text-slate-400">CSV 스프레드시트</div>
                 </div>
               </button>

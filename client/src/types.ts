@@ -5,6 +5,8 @@ export type ThemePreset =
   | 'luxury-salon'
   | 'rose-blossom';
 
+export type CurrencyType = 'points' | 'chips';
+
 export interface ChannelStatus {
   botEnabled: boolean;
   channelId: string;
@@ -32,10 +34,18 @@ export interface Settings {
   ttsEnabled: boolean;
   ttsVoice: string;
   pointName: string;
+  chipName?: string;
   chatPoints: number;
   chatIntervalSeconds: number;
   attendPoints: number;
   attendStreakBonus: number;
+  cheesePointEnabled?: boolean;
+  cheesePointRatePercent?: number;
+  includeMissionCheese?: boolean;
+  cheeseDonateOverlay?: boolean;
+  cheeseChatNotice?: boolean;
+  cheeseAutoFund?: boolean;
+  donateCurrency?: CurrencyType;
   platform: 'chzzk' | 'soop' | 'twitch' | 'simulator';
   chzzkChannelId: string;
   chzzkChatChannelId: string;
@@ -48,6 +58,7 @@ export interface Settings {
   hasAccessToken?: boolean;
   hasRefreshToken?: boolean;
   suppressPointMessagesInChat?: boolean;
+  sendPaidPointMessagesInChat?: boolean;
   autoMessageIntervalMin: number;
 }
 
@@ -81,6 +92,7 @@ export interface CustomCommand {
   permission: 'all' | 'follower' | 'sub' | 'manager' | 'streamer';
   cooldown: number;
   cost: number;
+  currency?: CurrencyType;
   enabled: boolean;
   count: number;
   matchType?: 'exact' | 'contains' | 'startsWith';
@@ -108,9 +120,11 @@ export interface AutoMessage {
 export interface UserWallet {
   nickname: string;
   points: number;
+  chips: number;
   attendStreak: number;
   totalAttends: number;
   lastAttend: string;
+  totalCheeseDonation?: number;
   totalDonation: number;
   tickets: string[];
   role: 'streamer' | 'manager' | 'sub' | 'follower' | 'viewer';
@@ -139,6 +153,7 @@ export interface SongRequestsState {
     maxQueueSize: number;
     maxPerUser: number;
     minCost: number;
+    currency?: CurrencyType;
     volume: number;
   };
 }
@@ -155,8 +170,9 @@ export interface FundState {
   title: string;
   goalPoints: number;
   currentPoints: number;
+  currency?: CurrencyType;
   enabled: boolean;
-  recentDonors: { user: string; points: number; time: number }[];
+  recentDonors: { user: string; points: number; unit?: string; time: number }[];
 }
 
 export interface PredictionOption {
@@ -185,6 +201,7 @@ export interface RouletteItem {
 export interface RouletteState {
   items: RouletteItem[];
   cost: number;
+  currency?: CurrencyType;
   history: { user: string; prize?: string; winner?: string; time: number }[];
 }
 
@@ -199,6 +216,7 @@ export interface NumPickState {
   title: string;
   totalNumbers: number;
   cost: number;
+  currency?: CurrencyType;
   prizes?: NumPickPrize[];
   picked: Record<number, { user: string; prize: string; time?: number }>;
 }
@@ -217,6 +235,11 @@ export interface DonationAlert {
   id: string;
   user: string;
   amount: number;
+  unit?: string;
+  currency?: CurrencyType;
+  currencyName?: string;
+  cheeseAmount?: number;
+  donationType?: string;
   message: string;
   role: string;
   timestamp: number;

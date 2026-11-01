@@ -23,6 +23,7 @@ export const GoalOverlay: React.FC = () => {
   if (!fund) return null;
 
   const percent = Math.min(100, Math.floor((fund.currentPoints / fund.goalPoints) * 100));
+  const unit = fund.currency === 'points' ? 'P' : '칩';
 
   return (
     <div className="fixed top-6 right-6 w-80 p-4 rounded-2xl bg-[#1C1C1C]/90 backdrop-blur-md border-2 border-[#7A8060]/60 shadow-[0_10px_30px_rgba(0,0,0,0.6)] space-y-2 select-none pointer-events-none">
@@ -42,8 +43,8 @@ export const GoalOverlay: React.FC = () => {
       </div>
 
       <div className="flex justify-between text-[11px] font-bold text-[#7A8060]">
-        <span>{fund.currentPoints.toLocaleString()}P</span>
-        <span>목표 {fund.goalPoints.toLocaleString()}P</span>
+        <span>{fund.currentPoints.toLocaleString()}{unit}</span>
+        <span>목표 {fund.goalPoints.toLocaleString()}{unit}</span>
       </div>
     </div>
   );

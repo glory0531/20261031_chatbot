@@ -141,12 +141,12 @@ export const api = {
     return res.json();
   },
 
-  // 포인트 지급/차감
-  async modifyPoints(username: string, amount: number, reason?: string) {
+  // 포인트 & 칩 지급/차감
+  async modifyPoints(username: string, amount: number, reason?: string, currency: 'points' | 'chips' = 'chips') {
     const res = await fetch(`${API_BASE}/points/modify`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, amount, reason })
+      body: JSON.stringify({ username, amount, reason, currency })
     });
     return res.json();
   },
@@ -188,6 +188,16 @@ export const api = {
   // 노래 신청 플레이어 제어
   async controlSongPlayer(data: { action: 'play' | 'pause' | 'toggle' | 'volume' | 'mute' | 'unmute'; volume?: number; isMuted?: boolean }) {
     const res = await fetch(`${API_BASE}/sr/control`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    return res.json();
+  },
+
+  // 노래 신청 비용/재화 설정 저장
+  async updateSongSettings(data: { enabled?: boolean; maxQueueSize?: number; maxPerUser?: number; minCost?: number; currency?: 'points' | 'chips' }) {
+    const res = await fetch(`${API_BASE}/sr/settings`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
@@ -330,7 +340,7 @@ export const api = {
     return res.json();
   },
 
-  async updateRoulette(data: { items?: any[]; cost?: number }) {
+  async updateRoulette(data: { items?: any[]; cost?: number; currency?: 'points' | 'chips' }) {
     const res = await fetch(`${API_BASE}/roulette/update`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -348,7 +358,7 @@ export const api = {
     return res.json();
   },
 
-  async updateNumPick(data: { title?: string; cost?: number; totalNumbers?: number; prizes?: any[] }) {
+  async updateNumPick(data: { title?: string; cost?: number; totalNumbers?: number; prizes?: any[]; currency?: 'points' | 'chips' }) {
     const res = await fetch(`${API_BASE}/numpick/update`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

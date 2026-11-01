@@ -364,7 +364,7 @@ export function App() {
           )}
 
           {currentTab === 'commands' && (
-            <CommandsView commands={commands} prefix={settings.prefix} />
+            <CommandsView commands={commands} prefix={settings.prefix} settings={settings} />
           )}
 
           {currentTab === 'default-commands' && (
@@ -399,7 +399,7 @@ export function App() {
           )}
 
           {currentTab === 'sr' && (
-            <SongRequestView songRequests={songRequests} />
+            <SongRequestView songRequests={songRequests} settings={settings} />
           )}
 
           {currentTab === 'requests' && (
@@ -407,7 +407,7 @@ export function App() {
           )}
 
           {currentTab === 'games' && (
-            <GamesView roulette={roulette} numpick={numpick} />
+            <GamesView roulette={roulette} numpick={numpick} settings={settings} />
           )}
 
           {currentTab === 'schedule' && (
@@ -421,7 +421,7 @@ export function App() {
           )}
 
           {currentTab === 'simulator' && (
-            <SimulatorView simulatorRunning={simulatorRunning} />
+            <SimulatorView simulatorRunning={simulatorRunning} settings={settings} />
           )}
 
           {currentTab === 'settings' && (

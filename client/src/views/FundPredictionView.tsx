@@ -38,12 +38,17 @@ export const FundPredictionView: React.FC<FundPredictionViewProps> = ({
   fund,
   prediction,
   defaultCommands,
-  status
+  status,
+  settings
 }) => {
+  const pUnit = settings?.pointName || 'P';
+  const cUnit = settings?.chipName || '칩';
+
   // 모금함 설정 상태
   const [isEditingFund, setIsEditingFund] = useState(false);
   const [fundTitle, setFundTitle] = useState(fund.title);
   const [goalPoints, setGoalPoints] = useState(fund.goalPoints);
+  const [fundCurrency, setFundCurrency] = useState<'chips' | 'points'>(fund.currency || 'chips');
 
   // 새 예측 투표 모달 상태
   const [isNewPredictionOpen, setIsNewPredictionOpen] = useState(false);
@@ -57,12 +62,15 @@ export const FundPredictionView: React.FC<FundPredictionViewProps> = ({
   useEffect(() => {
     setFundTitle(fund.title);
     setGoalPoints(fund.goalPoints);
-  }, [fund.title, fund.goalPoints]);
+    if (fund.currency) setFundCurrency(fund.currency);
+  }, [fund.title, fund.goalPoints, fund.currency]);
 
   const showFeedback = (msg: string) => {
     setFeedback(msg);
     setTimeout(() => setFeedback(null), 3000);
   };
+
+  const fundUnit = fundCurrency === 'points' ? pUnit : cUnit;
 
   // 모금함 설정 저장
   const handleSaveFund = async (e: React.FormEvent) => {
@@ -70,7 +78,8 @@ export const FundPredictionView: React.FC<FundPredictionViewProps> = ({
     if (!fundTitle.trim() || goalPoints <= 0) return;
     await api.updateFund({
       title: fundTitle.trim(),
-      goalPoints: Number(goalPoints)
+      goalPoints: Number(goalPoints),
+      currency: fundCurrency
     });
     setIsEditingFund(false);
     showFeedback('모금함 목표가 저장되었습니다!');
@@ -291,8 +300,8 @@ export const FundPredictionView: React.FC<FundPredictionViewProps> = ({
               </div>
 
               <div className="flex justify-between text-xs text-slate-400 pt-1">
-                <span>현재 모금액: <strong className="text-white text-sm">{fund.currentPoints.toLocaleString()}P</strong></span>
-                <span>목표액: <strong className="text-slate-300 text-sm">{fund.goalPoints.toLocaleString()}P</strong></span>
+                <span>현재 모금액: <strong className="text-white text-sm">{fund.currentPoints.toLocaleString()}{fundUnit}</strong></span>
+                <span>목표액: <strong className="text-slate-300 text-sm">{fund.goalPoints.toLocaleString()}{fundUnit}</strong></span>
               </div>
             </div>
 
@@ -302,7 +311,7 @@ export const FundPredictionView: React.FC<FundPredictionViewProps> = ({
                 <span className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
                   <Coins className="w-3.5 h-3.5 text-amber-400" /> 최근 모금 참여자 ({fund.recentDonors?.length || 0}명)
                 </span>
-                <span className="text-[11px] text-slate-500">채팅에서 !모금 [포인트] 입력 시 적립</span>
+                <span className="text-[11px] text-slate-500">채팅에서 !모금 [{fundUnit}] 입력 시 기부</span>
               </div>
 
               <div className="min-h-[140px] max-h-[170px] overflow-y-auto space-y-1.5 pr-1">
@@ -324,7 +333,7 @@ export const FundPredictionView: React.FC<FundPredictionViewProps> = ({
                         </span>
                         <span className="font-bold text-white">{d.user}</span>
                       </div>
-                      <span className="text-amber-400 font-extrabold">+{d.points.toLocaleString()}P</span>
+                      <span className="text-amber-400 font-extrabold">+{d.points.toLocaleString()}{d.unit || fundUnit}</span>
                     </div>
                   ))
                 )}
@@ -336,19 +345,19 @@ export const FundPredictionView: React.FC<FundPredictionViewProps> = ({
           <div className="pt-3 border-t border-white/10 flex items-center justify-between gap-2">
             <button
               onClick={handleResetFund}
-              className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-rose-500/20 text-slate-400 hover:text-rose-300 border border-white/5 text-xs font-bold flex items-center gap-1.5 transition-all"
+              className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-rose-500/20 text-slate-400 hover:text-rose-300 border border-white/5 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
               title="모금액과 기부자 내역을 0으로 리셋합니다."
             >
               <RotateCcw className="w-3.5 h-3.5" />
-              <span>모금액 0P 초기화</span>
+              <span>모금액 초기화</span>
             </button>
 
             <button
               onClick={handleTestFund}
-              className="px-3.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 transition-all shadow-md shadow-amber-500/20 active:scale-95"
+              className="px-3.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 transition-all shadow-md shadow-amber-500/20 active:scale-95 cursor-pointer"
             >
               <Play className="w-3 h-3 fill-slate-950" />
-              <span>5,000P 모금 테스트</span>
+              <span>5,000{fundUnit} 모금 테스트</span>
             </button>
           </div>
         </div>
@@ -410,8 +419,8 @@ export const FundPredictionView: React.FC<FundPredictionViewProps> = ({
                   <h4 className="text-base font-extrabold text-white">{prediction.title}</h4>
                 </div>
                 <div className="text-right">
-                  <span className="text-[11px] text-slate-400 block">총 베팅 포인트</span>
-                  <span className="text-base font-black text-amber-400">{totalVotesPoints.toLocaleString()}P</span>
+                  <span className="text-[11px] text-slate-400 block">총 베팅 칩</span>
+                  <span className="text-base font-black text-amber-400">{totalVotesPoints.toLocaleString()}{cUnit}</span>
                   <span className="text-[10px] text-slate-500 block">({totalVotesCount}표 참여)</span>
                 </div>
               </div>
@@ -571,6 +580,38 @@ export const FundPredictionView: React.FC<FundPredictionViewProps> = ({
             <form onSubmit={handleSaveFund} className="space-y-4">
               <div>
                 <label className="block text-xs font-bold text-slate-300 mb-1.5">
+                  모금에 사용할 재화
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setFundCurrency('chips')}
+                    className={`p-2.5 rounded-xl border text-xs font-bold text-left transition-all cursor-pointer ${
+                      fundCurrency === 'chips'
+                        ? 'bg-amber-500/20 border-amber-400 text-amber-300'
+                        : 'bg-slate-950/60 border-white/10 text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    <div>🪙 활동 칩 ({cUnit})</div>
+                    <div className="text-[10px] font-normal text-slate-400 mt-0.5">출첵·채팅 적립 칩으로 모금 (추천)</div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFundCurrency('points')}
+                    className={`p-2.5 rounded-xl border text-xs font-bold text-left transition-all cursor-pointer ${
+                      fundCurrency === 'points'
+                        ? 'bg-emerald-500/20 border-emerald-400 text-emerald-300'
+                        : 'bg-slate-950/60 border-white/10 text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    <div>🧀 유료 포인트 ({pUnit})</div>
+                    <div className="text-[10px] font-normal text-slate-400 mt-0.5">치즈 후원 유료 포인트로 모금</div>
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-1.5">
                   모금 목표 제목
                 </label>
                 <input
@@ -585,7 +626,7 @@ export const FundPredictionView: React.FC<FundPredictionViewProps> = ({
 
               <div>
                 <label className="block text-xs font-bold text-slate-300 mb-1.5">
-                  목표 포인트 (P)
+                  목표 금액 ({fundUnit})
                 </label>
                 <input
                   type="number"

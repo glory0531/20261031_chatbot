@@ -80,10 +80,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
       ]
     },
     {
-      group: `${fandomName} & 포인트`,
+      group: `${fandomName} & 재화`,
       items: [
         { id: 'attendance', label: '출석 체크 관리', icon: CalendarCheck },
-        { id: 'points', label: '포인트 지갑 & 랭킹', icon: Coins },
+        { id: 'points', label: '포인트 & 칩 지갑', icon: Coins },
         { id: 'fund-prediction', label: '공동 모금 & 승부예측', icon: TrendingUp }
       ]
     },

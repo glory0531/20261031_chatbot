@@ -42,6 +42,9 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
   const [manualNickname, setManualNickname] = useState('');
   const [actionFeedback, setActionFeedback] = useState<string | null>(null);
 
+  const cUnit = settings.chipName || '칩';
+  const pUnit = settings.pointName || 'P';
+
   // 설정값 동기화
   useEffect(() => {
     setBasePoints(settings.attendPoints ?? 100);
@@ -95,7 +98,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
     if (!manualNickname.trim()) return;
     const res = await api.manualAttend(manualNickname.trim());
     if (res.success) {
-      showFeedback(`[${manualNickname.trim()}]님 수동 출석 완료 (+${res.earned}P 지급)`);
+      showFeedback(`[${manualNickname.trim()}]님 수동 출석 완료 (+${res.earned}${cUnit} 지급)`);
       setManualNickname('');
       setIsManualModalOpen(false);
     } else {
@@ -161,7 +164,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
                 </span>
               </h2>
               <p className="text-xs text-slate-400 mt-0.5">
-                치지직 채팅창에서 시청자가 <b className="text-emerald-400">!출첵</b>을 입력하면 자동으로 칩을 지급하고 출근 명부에 기록합니다.
+                치지직 채팅창에서 시청자가 <b className="text-emerald-400">!출첵</b>을 입력하면 자동으로 {cUnit}을 지급하고 출근 명부에 기록합니다.
               </p>
             </div>
           </div>
@@ -224,11 +227,11 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
         </div>
       </div>
 
-      {/* 출석 포인트 보상 설정 카드 */}
+      {/* 출석 칩 보상 설정 카드 */}
       <div className="p-5 rounded-2xl bg-slate-900/70 border border-white/10 shadow-lg space-y-4">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-bold text-white flex items-center gap-2">
-            <Zap className="w-4 h-4 text-amber-400" /> 출석 보상 규칙 설정
+            <Zap className="w-4 h-4 text-amber-400" /> 출석 {cUnit} 보상 규칙 설정
           </h3>
           <span className="text-[11px] text-slate-400 flex items-center gap-1">
             <Clock className="w-3.5 h-3.5 text-slate-500" />
@@ -239,7 +242,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="p-4 rounded-xl bg-slate-950/60 border border-white/5 space-y-2">
             <label className="block text-xs font-bold text-slate-300">
-              기본 출석 보상 포인트
+              기본 출석 보상 {cUnit}
             </label>
             <div className="flex items-center gap-2">
               <input
@@ -249,9 +252,9 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
                 onChange={(e) => setBasePoints(Math.max(0, Number(e.target.value)))}
                 className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-white/10 text-sm text-white focus:outline-none focus:border-emerald-500/50"
               />
-              <span className="text-xs font-bold text-slate-400">P</span>
+              <span className="text-xs font-bold text-slate-400">{cUnit}</span>
             </div>
-            <p className="text-[11px] text-slate-500">당일 첫 출석 시 기본 지급되는 포인트</p>
+            <p className="text-[11px] text-slate-500">당일 첫 출석 시 기본 지급되는 {cUnit}</p>
           </div>
 
           <div className="p-4 rounded-xl bg-slate-950/60 border border-white/5 space-y-2">
@@ -266,12 +269,12 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
                 onChange={(e) => setBonusPoints(Math.max(0, Number(e.target.value)))}
                 className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-white/10 text-sm text-white focus:outline-none focus:border-emerald-500/50"
               />
-              <span className="text-xs font-bold text-slate-400">P</span>
+              <span className="text-xs font-bold text-slate-400">{cUnit}</span>
             </div>
             <p className="text-[11px] text-slate-500">
-              계산식: 기본 {basePoints}P + (연속일수 - 1) × {bonusPoints}P
+              계산식: 기본 {basePoints}{cUnit} + (연속일수 - 1) × {bonusPoints}{cUnit}
               <span className="text-emerald-400 ml-1.5 font-semibold">
-                (예: 3일 연속 시 {basePoints + 2 * bonusPoints}P)
+                (예: 3일 연속 시 {basePoints + 2 * bonusPoints}{cUnit})
               </span>
             </p>
           </div>
@@ -423,7 +426,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
                     </span>
                     <div>
                       <span className="font-bold text-white">{u.nickname}</span>
-                      <span className="text-[10px] text-slate-500 ml-2">보유: {u.points?.toLocaleString()}P</span>
+                      <span className="text-[10px] text-slate-500 ml-2">보유: {(u.chips ?? 0).toLocaleString()}{cUnit} · {(u.points ?? 0).toLocaleString()}{pUnit}</span>
                     </div>
                   </div>
                   <div className="flex items-center gap-1.5 font-bold text-amber-400">

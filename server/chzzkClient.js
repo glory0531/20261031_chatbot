@@ -1,7 +1,7 @@
 import WebSocket from 'ws';
 import axios from 'axios';
 import { db, commit } from './db.js';
-import { processChatMessage } from './botEngine.js';
+import { processChatMessage, processCheeseDonation } from './botEngine.js';
 
 let wsClient = null;
 let pingInterval = null;
@@ -186,7 +186,7 @@ export async function connectChzzk(rawChannelId) {
     wsClient = new WebSocket(wsUrl);
 
     wsClient.on('open', () => {
-      console.log('[Chzzk] 실시간 채팅 웹소켓 연결 완료!');
+      console.log('[Chzzk] 실시간 채팅 및 치즈 후원 웹소켓 연결 완료!');
       isConnected = true;
 
       const handshakePayload = {
@@ -229,20 +229,45 @@ export async function connectChzzk(rawChannelId) {
               profile = JSON.parse(c.profile || '{}');
             } catch {}
 
-            const nickname = profile.nickname || '익명 시청자';
+            let extras = {};
+            try {
+              extras = JSON.parse(c.extras || '{}');
+            } catch {}
+
+            const isAnonymous = Boolean(extras.isAnonymous) || !profile.nickname;
+            const nickname = isAnonymous ? '익명의 후원자' : profile.nickname;
+            const userIdHash = profile.userIdHash || c.uid || '';
             const message = c.msg || '';
             const userRole = profile.userRoleCode === 'streamer' ? 'streamer' :
                              profile.userRoleCode === 'streaming_chat_manager' ? 'manager' :
                              profile.badge ? 'sub' : 'viewer';
 
-            console.log(`💬 [치지직 수신] ${nickname}: ${message}`);
+            const payAmount = Number(extras.payAmount || (c.msgTypeCode === 10 ? extras.cheese : 0) || 0);
+            const donationType = String(extras.donationType || (c.msgTypeCode === 10 ? 'CHAT' : '')).toUpperCase();
+            const isCheeseDonation = (parsed.cmd === 93102 || c.msgTypeCode === 10) && payAmount > 0;
 
-            processChatMessage({
-              user: nickname,
-              message,
-              role: userRole,
-              source: 'chzzk'
-            });
+            if (isCheeseDonation) {
+              console.log(`🧀 [치지직 치즈 후원 감지] ${nickname} (${donationType || 'CHAT'}): ${payAmount}치즈 | "${message}"`);
+              processCheeseDonation({
+                user: nickname,
+                isAnonymous,
+                userIdHash,
+                cheeseAmount: payAmount,
+                donationType,
+                message,
+                role: userRole,
+                source: 'chzzk'
+              });
+            } else {
+              console.log(`💬 [치지직 수신] ${nickname}: ${message}`);
+              processChatMessage({
+                user: profile.nickname || '익명 시청자',
+                userIdHash,
+                message,
+                role: userRole,
+                source: 'chzzk'
+              });
+            }
           }
         }
       } catch (err) {
@@ -319,6 +344,18 @@ export function triggerSimulatedChat(username, message, role = 'viewer') {
     user: username || '테스트시청자',
     message: message || '반가워요!',
     role,
+    source: 'simulator'
+  });
+}
+
+export function triggerSimulatedCheese(username, cheeseAmount = 1000, message = '치즈 후원 테스트입니다! 🧀', donationType = 'CHAT') {
+  return processCheeseDonation({
+    user: username || '테스트시청자',
+    isAnonymous: false,
+    cheeseAmount: Number(cheeseAmount) || 1000,
+    donationType,
+    message,
+    role: 'viewer',
     source: 'simulator'
   });
 }

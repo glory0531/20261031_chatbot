@@ -4,12 +4,13 @@ import {
   Check, RotateCcw, AlertCircle, Palette, Trophy, Award, Sliders, ChevronRight
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import { RouletteState, NumPickState, RouletteItem, NumPickPrize } from '../types';
+import { RouletteState, NumPickState, RouletteItem, NumPickPrize, Settings } from '../types';
 import { api } from '../services/api';
 
 interface GamesViewProps {
   roulette: RouletteState;
   numpick: NumPickState;
+  settings?: Settings;
 }
 
 // 룰렛 추천 프리셋 템플릿
@@ -56,12 +57,15 @@ const COLOR_PRESETS = [
   '#3b82f6', '#06b6d4', '#10b981', '#6b7280'
 ];
 
-export const GamesView: React.FC<GamesViewProps> = ({ roulette, numpick }) => {
+export const GamesView: React.FC<GamesViewProps> = ({ roulette, numpick, settings }) => {
+  const pUnit = settings?.pointName || 'P';
+  const cUnit = settings?.chipName || '칩';
   const [activeTab, setActiveTab] = useState<'roulette' | 'numpick'>('roulette');
 
   // --- 룰렛 상태 ---
   const [rouletteItems, setRouletteItems] = useState<RouletteItem[]>(roulette.items || []);
   const [rouletteCost, setRouletteCost] = useState<number>(roulette.cost || 500);
+  const [rouletteCurrency, setRouletteCurrency] = useState<'points' | 'chips'>(roulette.currency || 'points');
   const [isSpinning, setIsSpinning] = useState(false);
   const [rotation, setRotation] = useState(0);
   const [winnerItem, setWinnerItem] = useState<string | null>(null);
@@ -72,6 +76,7 @@ export const GamesView: React.FC<GamesViewProps> = ({ roulette, numpick }) => {
   useEffect(() => {
     if (roulette.items) setRouletteItems(roulette.items);
     if (roulette.cost) setRouletteCost(roulette.cost);
+    if (roulette.currency) setRouletteCurrency(roulette.currency);
   }, [roulette]);
 
   // 룰렛 확률 합계 계산
@@ -155,7 +160,8 @@ export const GamesView: React.FC<GamesViewProps> = ({ roulette, numpick }) => {
     try {
       await api.updateRoulette({
         items: rouletteItems,
-        cost: Number(rouletteCost)
+        cost: Number(rouletteCost),
+        currency: rouletteCurrency
       });
       setRouletteSaved(true);
       setTimeout(() => setRouletteSaved(false), 2500);
@@ -233,6 +239,7 @@ export const GamesView: React.FC<GamesViewProps> = ({ roulette, numpick }) => {
   // --- 문방구 뽑기 상태 ---
   const [numPickTitle, setNumPickTitle] = useState(numpick.title || '추억의 문방구 종이 뽑기 (1~100)');
   const [numPickCost, setNumPickCost] = useState(numpick.cost || 300);
+  const [numPickCurrency, setNumPickCurrency] = useState<'points' | 'chips'>(numpick.currency || 'points');
   const [numPickTotal, setNumPickTotal] = useState(numpick.totalNumbers || 100);
   const [numPickPrizes, setNumPickPrizes] = useState<NumPickPrize[]>(() => {
     if (numpick.prizes && numpick.prizes.length > 0) return numpick.prizes;
@@ -255,6 +262,7 @@ export const GamesView: React.FC<GamesViewProps> = ({ roulette, numpick }) => {
   useEffect(() => {
     if (numpick.title) setNumPickTitle(numpick.title);
     if (numpick.cost) setNumPickCost(numpick.cost);
+    if (numpick.currency) setNumPickCurrency(numpick.currency);
     if (numpick.totalNumbers) setNumPickTotal(numpick.totalNumbers);
     if (numpick.picked) setPickedNumbers(numpick.picked);
     if (numpick.prizes && numpick.prizes.length > 0) setNumPickPrizes(numpick.prizes);
@@ -289,7 +297,8 @@ export const GamesView: React.FC<GamesViewProps> = ({ roulette, numpick }) => {
         title: numPickTitle,
         cost: Number(numPickCost),
         totalNumbers: Number(numPickTotal),
-        prizes: numPickPrizes
+        prizes: numPickPrizes,
+        currency: numPickCurrency
       });
       setNumPickSaved(true);
       setTimeout(() => setNumPickSaved(false), 2500);
@@ -384,9 +393,35 @@ export const GamesView: React.FC<GamesViewProps> = ({ roulette, numpick }) => {
         <div className="space-y-6">
           {/* 상단 룰렛 제어 바 */}
           <div className="p-4 rounded-2xl bg-slate-900/80 border border-amber-500/20 flex flex-wrap items-center justify-between gap-3 shadow-lg">
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3">
+              {/* 사용 재화 선택 토글 */}
+              <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-white/10 text-[11px] font-bold">
+                <button
+                  type="button"
+                  onClick={() => setRouletteCurrency('points')}
+                  className={`px-2.5 py-1 rounded-lg transition-all ${
+                    rouletteCurrency === 'points'
+                      ? 'bg-emerald-500 text-slate-950 font-black'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  🧀 유료 포인트({pUnit})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRouletteCurrency('chips')}
+                  className={`px-2.5 py-1 rounded-lg transition-all ${
+                    rouletteCurrency === 'chips'
+                      ? 'bg-amber-400 text-slate-950 font-black'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  🪙 활동 칩({cUnit})
+                </button>
+              </div>
+
               <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-slate-300">1회 참여 포인트:</span>
+                <span className="text-xs font-bold text-slate-300">1회 참여 비용:</span>
                 <div className="flex items-center gap-1 bg-slate-950 px-2.5 py-1.5 rounded-xl border border-white/10">
                   <input
                     type="number"
@@ -394,7 +429,7 @@ export const GamesView: React.FC<GamesViewProps> = ({ roulette, numpick }) => {
                     onChange={(e) => setRouletteCost(Math.max(0, Number(e.target.value)))}
                     className="w-16 bg-transparent text-xs font-black text-amber-300 text-right focus:outline-none"
                   />
-                  <span className="text-[10px] text-slate-400 font-bold">P</span>
+                  <span className="text-[10px] text-slate-400 font-bold">{rouletteCurrency === 'points' ? pUnit : cUnit}</span>
                 </div>
               </div>
 
@@ -654,6 +689,32 @@ export const GamesView: React.FC<GamesViewProps> = ({ roulette, numpick }) => {
           {/* 상단 문방구 제어 바 */}
           <div className="p-4 rounded-2xl bg-slate-900/80 border border-amber-500/20 flex flex-wrap items-center justify-between gap-3 shadow-lg">
             <div className="flex flex-wrap items-center gap-3">
+              {/* 사용 재화 선택 토글 */}
+              <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-white/10 text-[11px] font-bold">
+                <button
+                  type="button"
+                  onClick={() => setNumPickCurrency('points')}
+                  className={`px-2.5 py-1 rounded-lg transition-all ${
+                    numPickCurrency === 'points'
+                      ? 'bg-emerald-500 text-slate-950 font-black'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  🧀 포인트({pUnit})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setNumPickCurrency('chips')}
+                  className={`px-2.5 py-1 rounded-lg transition-all ${
+                    numPickCurrency === 'chips'
+                      ? 'bg-amber-400 text-slate-950 font-black'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  🪙 칩({cUnit})
+                </button>
+              </div>
+
               {/* 뽑기 제목 */}
               <div className="flex items-center gap-1.5">
                 <span className="text-xs font-bold text-slate-300">제목:</span>
@@ -661,13 +722,13 @@ export const GamesView: React.FC<GamesViewProps> = ({ roulette, numpick }) => {
                   type="text"
                   value={numPickTitle}
                   onChange={(e) => setNumPickTitle(e.target.value)}
-                  className="px-2.5 py-1.5 rounded-xl bg-slate-950 border border-white/10 text-xs font-bold text-white focus:outline-none focus:ring-1 focus:ring-amber-400 min-w-[200px]"
+                  className="px-2.5 py-1.5 rounded-xl bg-slate-950 border border-white/10 text-xs font-bold text-white focus:outline-none focus:ring-1 focus:ring-amber-400 min-w-[180px]"
                 />
               </div>
 
-              {/* 1회 소모 포인트 */}
+              {/* 1회 소모 비용 */}
               <div className="flex items-center gap-1.5">
-                <span className="text-xs font-bold text-slate-300">1회 포인트:</span>
+                <span className="text-xs font-bold text-slate-300">1회 비용:</span>
                 <div className="flex items-center gap-1 bg-slate-950 px-2 py-1.5 rounded-xl border border-white/10">
                   <input
                     type="number"
@@ -675,7 +736,7 @@ export const GamesView: React.FC<GamesViewProps> = ({ roulette, numpick }) => {
                     onChange={(e) => setNumPickCost(Math.max(0, Number(e.target.value)))}
                     className="w-14 bg-transparent text-xs font-black text-amber-300 text-right focus:outline-none"
                   />
-                  <span className="text-[10px] text-slate-400 font-bold">P</span>
+                  <span className="text-[10px] text-slate-400 font-bold">{numPickCurrency === 'points' ? pUnit : cUnit}</span>
                 </div>
               </div>
 

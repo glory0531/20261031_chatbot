@@ -38,11 +38,11 @@ export const AlertOverlay: React.FC = () => {
       try {
         if ('speechSynthesis' in window) {
           window.speechSynthesis.cancel();
-          const textToSpeak = `${nextAlert.user}님이 ${nextAlert.amount}포인트 후원! ${nextAlert.message}`;
+          const unitToSpeak = nextAlert.unit || nextAlert.currencyName || '포인트';
+          const textToSpeak = `${nextAlert.user}님이 ${nextAlert.amount}${unitToSpeak} 후원! ${nextAlert.message}`;
           const utterance = new SpeechSynthesisUtterance(textToSpeak);
           utterance.lang = 'ko-KR';
-          utterance.rate = 1.0;
-          utterance.pitch = 0.88; // 능글맞고 여유로운 아저씨, 낮은 목소리
+          utterance.pitch = 0.88;
           utterance.rate = 0.95;
 
           const voices = window.speechSynthesis.getVoices();
@@ -73,7 +73,7 @@ export const AlertOverlay: React.FC = () => {
         <div className="absolute top-2 left-6 text-[#7A8060] text-xs">✦</div>
         <div className="absolute top-2 right-6 text-[#7A8060] text-xs">✦</div>
 
-        {/* 초승달 & 별빛 마녀 심볼 바운스 */}
+        {/* 심볼 바운스 */}
         <div className="w-22 h-22 mx-auto rounded-3xl bg-gradient-to-tr from-[#8E7C6F] via-[#7A8060] to-[#FFE5B4] border-4 border-[#FFE5B4] flex items-center justify-center text-4xl shadow-2xl shadow-[#7A8060]/30">
           🥃
         </div>
@@ -87,11 +87,11 @@ export const AlertOverlay: React.FC = () => {
             <span className="text-[#7A8060] drop-shadow">{currentAlert.user}</span> 님의 특별 후원!
           </h2>
           <div className="mt-2 inline-block px-5 py-1.5 rounded-full bg-gradient-to-r from-[#8E7C6F] to-[#7A8060] text-[#1C1C1C] font-black text-xl shadow-lg">
-            {currentAlert.amount.toLocaleString()} P
+            {currentAlert.amount.toLocaleString()} {currentAlert.currencyName || 'P'}
           </div>
         </div>
 
-        {/* 후원 메시지 (크림 양피지 룬 양식) */}
+        {/* 후원 메시지 */}
         <div className="p-4 rounded-2xl bg-[#2E2C2E] border-2 border-[#7A8060]/50 text-[#FFE5B4] font-extrabold text-lg leading-relaxed break-words shadow-inner">
           "{currentAlert.message}"
         </div>
