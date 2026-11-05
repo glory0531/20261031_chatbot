@@ -13,7 +13,6 @@ import {
   FundState,
   PredictionState,
   RouletteState,
-  NumPickState,
   ChatMessage,
   ScheduleItem,
   TunnelState,
@@ -134,12 +133,6 @@ export function App() {
     cost: 500,
     history: []
   });
-  const [numpick, setNumpick] = useState<NumPickState>({
-    title: '추억의 문방구 종이 뽑기 (1~100)',
-    totalNumbers: 100,
-    cost: 300,
-    picked: {}
-  });
   const [schedules, setSchedules] = useState<ScheduleItem[]>([]);
   const [weeklySchedules, setWeeklySchedules] = useState<Record<string, ScheduleItem[]>>({});
   const [activeWeekKey, setActiveWeekKey] = useState<string>('');
@@ -163,7 +156,6 @@ export function App() {
       if (data.fund) setFund(data.fund);
       if (data.prediction) setPrediction(data.prediction);
       if (data.roulette) setRoulette(data.roulette);
-      if (data.numpick) setNumpick(data.numpick);
       if (data.schedules) setSchedules(data.schedules);
       if (data.weeklySchedules) setWeeklySchedules(data.weeklySchedules);
       if (data.activeWeekKey !== undefined) setActiveWeekKey(data.activeWeekKey);
@@ -185,7 +177,6 @@ export function App() {
     socket.on('fund_update', (data: FundState) => setFund(data));
     socket.on('prediction_update', (data: PredictionState) => setPrediction(data));
     socket.on('roulette_update', (data: RouletteState) => setRoulette(data));
-    socket.on('numpick_update', (data: NumPickState) => setNumpick(data));
     socket.on('schedules_update', (data: ScheduleItem[]) => setSchedules(data));
     socket.on('weekly_schedules_update', (data: Record<string, ScheduleItem[]>) => setWeeklySchedules(data));
     socket.on('active_week_update', (key: string) => setActiveWeekKey(key));
@@ -213,7 +204,6 @@ export function App() {
       socket.off('fund_update');
       socket.off('prediction_update');
       socket.off('roulette_update');
-      socket.off('numpick_update');
       socket.off('schedules_update');
       socket.off('weekly_schedules_update');
       socket.off('active_week_update');
@@ -407,7 +397,7 @@ export function App() {
           )}
 
           {currentTab === 'games' && (
-            <GamesView roulette={roulette} numpick={numpick} settings={settings} />
+            <GamesView roulette={roulette} settings={settings} />
           )}
 
           {currentTab === 'schedule' && (

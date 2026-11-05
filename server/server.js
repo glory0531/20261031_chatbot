@@ -85,7 +85,6 @@ export function buildInitialStatePayload() {
     fund: db.fund,
     prediction: db.prediction,
     roulette: db.roulette,
-    numpick: db.numpick,
     schedules: db.schedules,
     weeklySchedules: db.weeklySchedules || {},
     activeWeekKey: db.activeWeekKey || '',
@@ -1079,76 +1078,6 @@ app.post('/api/roulette/spin', requireLocalAdmin, (req, res) => {
   res.json({ success: true, data: spinResult });
 });
 
-app.post('/api/numpick/update', requireLocalAdmin, (req, res) => {
-  const { title, cost, totalNumbers, prizes, currency } = req.body;
-  if (!db.numpick) db.numpick = { title: '추억의 문방구 종이 뽑기 (1~100)', totalNumbers: 100, cost: 300, currency: 'points', picked: {} };
-  if (title !== undefined) db.numpick.title = title;
-  if (cost !== undefined) db.numpick.cost = Number(cost);
-  if (totalNumbers !== undefined) db.numpick.totalNumbers = Number(totalNumbers);
-  if (prizes !== undefined) db.numpick.prizes = prizes;
-  if (currency === 'points' || currency === 'chips') db.numpick.currency = currency;
-  commit();
-  io.emit('numpick_update', db.numpick);
-  res.json({ success: true, data: db.numpick });
-});
-
-app.post('/api/numpick/pick', requireLocalAdmin, (req, res) => {
-  const { num, user = db.settings.fandomName || '시청자' } = req.body;
-  if (!num) return res.status(400).json({ success: false, message: '번호가 필요합니다.' });
-  if (!db.numpick) db.numpick = { title: '추억의 문방구 종이 뽑기 (1~100)', totalNumbers: 100, cost: 300, picked: {} };
-  if (!db.numpick.picked) db.numpick.picked = {};
-  if (db.numpick.picked[num]) {
-    return res.status(400).json({ success: false, message: '이미 뽑힌 번호입니다.' });
-  }
-
-  let prizeList = db.numpick.prizes;
-  if (!prizeList || prizeList.length === 0) {
-    prizeList = [
-      { id: 'p-1', rank: '1등', name: '치킨 기프티콘', chance: 2 },
-      { id: 'p-2', rank: '2등', name: '햄버거 세트', chance: 6 },
-      { id: 'p-3', rank: '3등', name: '아메리카노', chance: 15 },
-      { id: 'p-4', rank: '4등', name: '편의점 간식', chance: 25 },
-      { id: 'p-5', rank: '5등', name: '사탕 / 젤리', chance: 30 },
-      { id: 'p-6', rank: '꽝', name: '꽝 (다음 기회에)', chance: 22 }
-    ];
-  }
-
-  const totalPrizeChance = prizeList.reduce((acc, p) => acc + (Number(p.chance) || 10), 0) || 100;
-  const rand = Math.random() * totalPrizeChance;
-  let acc = 0;
-  let selectedPrize = prizeList[prizeList.length - 1];
-  for (const p of prizeList) {
-    acc += (Number(p.chance) || 10);
-    if (rand <= acc) {
-      selectedPrize = p;
-      break;
-    }
-  }
-
-  const rankPrefix = selectedPrize.rank && selectedPrize.rank !== '꽝' ? `[${selectedPrize.rank}] ` : '';
-  const prizeText = `${rankPrefix}${selectedPrize.name}`;
-
-  db.numpick.picked[num] = {
-    user,
-    prize: prizeText,
-    time: Date.now()
-  };
-  commit();
-
-  io.emit('numpick_update', db.numpick);
-  sendBotMessage(`🎟️ [${user}]님의 문방구 뽑기 #${num}번 결과: ${prizeText} 당첨!`);
-
-  res.json({ success: true, data: { num, prize: prizeText, user } });
-});
-
-app.post('/api/numpick/reset', requireLocalAdmin, (req, res) => {
-  if (!db.numpick) db.numpick = { title: '추억의 문방구 종이 뽑기 (1~100)', totalNumbers: 100, cost: 300, picked: {} };
-  db.numpick.picked = {};
-  commit();
-  io.emit('numpick_update', db.numpick);
-  sendBotMessage(`🎟️ 문방구 뽑기 판이 새로 초기화되었습니다! (새 게임 시작)`);
-  res.json({ success: true, data: db.numpick });
-});
 
 /* ============================
    10. 채팅 & 시뮬레이터

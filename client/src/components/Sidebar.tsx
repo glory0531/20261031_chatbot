@@ -92,7 +92,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       items: [
         { id: 'sr', label: '유튜브 노래 신청 (SR)', icon: Music, badge: stats.queueCount },
         { id: 'requests', label: '시참 & 미션 대기열', icon: ListOrdered, badge: stats.requestCount },
-        { id: 'games', label: '룰렛 & 문방구 뽑기', icon: Dices },
+        { id: 'games', label: '행운의 룰렛', icon: Dices },
         { id: 'schedule', label: '주간 방송 일정표', icon: Calendar }
       ]
     },

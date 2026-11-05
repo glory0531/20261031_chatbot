@@ -148,7 +148,6 @@ export const defaultData = {
     fishing: { enabled: true, name: '낚시', desc: '칩 미끼 랜덤 낚시 미니게임', visibleInViewer: true },
     rps: { enabled: true, name: '가위바위보', desc: '활동 칩 가위바위보 대결', visibleInViewer: true },
     roulette: { enabled: true, name: '룰렛', desc: '유료 포인트 행운의 룰렛 돌리기', visibleInViewer: true },
-    numpick: { enabled: true, name: '뽑기', desc: '1~100 추억의 종이 뽑기', visibleInViewer: true },
     ticket: { enabled: true, name: '티켓', desc: '보유 티켓 확인 및 사용', visibleInViewer: true },
     jump: { enabled: true, name: '점프', desc: '채팅 아바타 점프 모션', visibleInViewer: true }
   },
@@ -230,21 +229,6 @@ export const defaultData = {
     currency: 'points',
     history: []
   },
-  numpick: {
-    title: '추억의 문방구 종이 뽑기 (1~100)',
-    totalNumbers: 100,
-    cost: 300,
-    currency: 'points',
-    picked: {},
-    prizes: [
-      { id: 'p-1', rank: '1등', name: '치킨 기프티콘', chance: 2 },
-      { id: 'p-2', rank: '2등', name: '햄버거 세트', chance: 6 },
-      { id: 'p-3', rank: '3등', name: '아메리카노', chance: 15 },
-      { id: 'p-4', rank: '4등', name: '편의점 간식', chance: 25 },
-      { id: 'p-5', rank: '5등', name: '사탕 / 젤리', chance: 30 },
-      { id: 'p-6', rank: '꽝', name: '꽝 (다음 기회에)', chance: 22 }
-    ]
-  },
   schedules: [
     { day: '월요일', time: '20:00', title: '정기 소통 & 종합게임 방송 🎮', off: false, tag: '정기' },
     { day: '화요일', time: '', title: '쉬어가는 날 🌙', off: true, tag: '휴방' },
@@ -275,6 +259,12 @@ if (!fs.existsSync(BACKUP_DIR)) {
 export function migrateAndMergeData(parsed) {
   const base = JSON.parse(JSON.stringify(defaultData));
   if (!parsed || typeof parsed !== 'object') return base;
+
+  // 문방구 뽑기(numpick) 기능 완전 제거
+  delete parsed.numpick;
+  if (parsed.defaultCommands) {
+    delete parsed.defaultCommands.numpick;
+  }
 
   const isLegacySchema = !parsed.schemaVersion || parsed.schemaVersion < 3;
 
@@ -352,12 +342,6 @@ export function migrateAndMergeData(parsed) {
     currency: parsed.roulette?.currency || 'points'
   };
 
-  const mergedNumpick = {
-    ...base.numpick,
-    ...(parsed.numpick || {}),
-    currency: parsed.numpick?.currency || 'points'
-  };
-
   // 시청자 지갑 마이그레이션: 구버전 단일 points -> chips로 이관 & 유료 points는 0P 시작
   const mergedUsers = {};
   if (parsed.users && typeof parsed.users === 'object') {
@@ -398,7 +382,6 @@ export function migrateAndMergeData(parsed) {
     songRequests: mergedSongRequests,
     fund: mergedFund,
     roulette: mergedRoulette,
-    numpick: mergedNumpick,
     users: mergedUsers
   };
 }

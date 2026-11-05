@@ -205,21 +205,7 @@ export interface RouletteState {
   history: { user: string; prize?: string; winner?: string; time: number }[];
 }
 
-export interface NumPickPrize {
-  id: string;
-  rank: string;
-  name: string;
-  chance: number;
-}
 
-export interface NumPickState {
-  title: string;
-  totalNumbers: number;
-  cost: number;
-  currency?: CurrencyType;
-  prizes?: NumPickPrize[];
-  picked: Record<number, { user: string; prize: string; time?: number }>;
-}
 
 export interface ChatMessage {
   id: string;

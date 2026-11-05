@@ -101,12 +101,11 @@ export function isPointRelatedMessage(text = '', meta = {}) {
     /배팅/,
     /걸었습니다/,
     /룰렛을\s*돌려/,
-    /뽑기\s*결과/,
     /낚시\s*결과/,
     /가위바위보/,
     /남은\s*(포인트|칩)/,
     /보유:\s*\d+/,
-    /사용법:\s*!(도네|모금|투표|가위바위보|뽑기)/
+    /사용법:\s*!(도네|모금|투표|가위바위보)/
   ];
 
   return pointPatterns.some(pattern => pattern.test(text));
@@ -138,7 +137,7 @@ export function sendBotMessage(text, meta = {}) {
   // 치지직 공식 개발자 센터 API 활성화 시 실제 방송 채팅창으로 답장 전송
   if (db.settings.chzzkClientId && db.settings.chzzkClientSecret && db.settings.chzzkWriteEnabled) {
     if (meta.currencyType === 'points') {
-      // 유료 포인트(치즈 적립 안내·유료 룰렛/뽑기 당첨 등)는 별도 토글(기본 ON) 적용
+      // 유료 포인트(치즈 적립 안내·유료 룰렛 당첨 등)는 별도 토글(기본 ON) 적용
       const allowPaidInChat = db.settings.sendPaidPointMessagesInChat !== false;
       if (!allowPaidInChat) {
         console.log(`🔇 [치지직 송출 제외 - 유료 포인트 설정 OFF] ${text}`);
@@ -842,77 +841,6 @@ async function handleDefaultCommand(cmdName, param, target, user, role) {
     );
   }
 
-  // 16. !뽑기 [번호] (기본: 유료 포인트 차감, 스트리머 재화 전환 가능)
-  if ((dCmd.numpick?.enabled !== false) && (cmdName === '뽑기' || cmdName === '문방구')) {
-    const currency = db.numpick?.currency || 'points';
-    const unit = getCurrencyUnit(currency);
-    const label = getCurrencyLabel(currency);
-    const cost = db.numpick?.cost ?? 300;
-    const total = db.numpick?.totalNumbers || 100;
-    const num = parseInt(param, 10);
-
-    if (!param || isNaN(num) || num < 1 || num > total) {
-      return sendBotMessage(`사용법: !뽑기 [1~${total} 번호] (1회 ${cost.toLocaleString()}${unit})`, { currencyType: currency });
-    }
-
-    const bal = getUserBalance(user, currency);
-    if (bal < cost) {
-      return sendBotMessage(`[잔액 부족] 문방구 뽑기를 하려면 ${cost.toLocaleString()}${unit}이(가) 필요해요 (${label}: ${bal.toLocaleString()}${unit}).`, { currencyType: currency });
-    }
-
-    if (!db.numpick.picked) db.numpick.picked = {};
-    if (db.numpick.picked[num]) {
-      const prev = db.numpick.picked[num];
-      return sendBotMessage(`[이미 뽑힌 번호] #${num}번은 이미 [${prev.user}]님이 뽑으셨어요! (결과: ${prev.prize})`, { currencyType: currency });
-    }
-
-    deductUserBalance(user, currency, cost);
-
-    let prizeList = db.numpick.prizes;
-    if (!prizeList || prizeList.length === 0) {
-      prizeList = [
-        { id: 'p-1', rank: '1등', name: 'BBQ 황금올리브 치킨', chance: 2 },
-        { id: 'p-2', rank: '2등', name: '싸이버거 세트', chance: 6 },
-        { id: 'p-3', rank: '3등', name: '스타벅스 아메리카노', chance: 15 },
-        { id: 'p-4', rank: '4등', name: '바나나우유', chance: 25 },
-        { id: 'p-5', rank: '5등', name: '새콤달콤', chance: 30 },
-        { id: 'p-6', rank: '꽝', name: '꽝 (다음 기회에)', chance: 22 }
-      ];
-    }
-
-    const totalPrizeChance = prizeList.reduce((acc, p) => acc + (Number(p.chance) || 10), 0) || 100;
-    const rand = Math.random() * totalPrizeChance;
-    let acc = 0;
-    let selectedPrize = prizeList[prizeList.length - 1];
-    for (const p of prizeList) {
-      acc += (Number(p.chance) || 10);
-      if (rand <= acc) {
-        selectedPrize = p;
-        break;
-      }
-    }
-
-    const rankPrefix = selectedPrize.rank && selectedPrize.rank !== '꽝' ? `[${selectedPrize.rank}] ` : '';
-    const prizeText = `${rankPrefix}${selectedPrize.name}`;
-
-    db.numpick.picked[num] = {
-      user: user.nickname,
-      prize: prizeText,
-      time: Date.now()
-    };
-    commit();
-
-    if (ioInstance) {
-      ioInstance.emit('numpick_update', db.numpick);
-      ioInstance.emit('points_update', db.users);
-    }
-
-    const remaining = getUserBalance(user, currency);
-    return sendBotMessage(
-      `🎟️ [${user.nickname}]님이 #${num}번 뽑기 결과: 🎉 ${prizeText} 당첨! (-${cost.toLocaleString()}${unit}, 보유: ${remaining.toLocaleString()}${unit})`,
-      { currencyType: currency }
-    );
-  }
 
   return null;
 }

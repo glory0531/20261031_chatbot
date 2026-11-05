@@ -358,28 +358,6 @@ export const api = {
     return res.json();
   },
 
-  async updateNumPick(data: { title?: string; cost?: number; totalNumbers?: number; prizes?: any[]; currency?: 'points' | 'chips' }) {
-    const res = await fetch(`${API_BASE}/numpick/update`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
-    });
-    return res.json();
-  },
-
-  async pickNumber(num: number, user?: string) {
-    const res = await fetch(`${API_BASE}/numpick/pick`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ num, user })
-    });
-    return res.json();
-  },
-
-  async resetNumPick() {
-    const res = await fetch(`${API_BASE}/numpick/reset`, { method: 'POST' });
-    return res.json();
-  },
 
   async toggleAttendance() {
     const res = await fetch(`${API_BASE}/attendance/toggle`, { method: 'POST' });
