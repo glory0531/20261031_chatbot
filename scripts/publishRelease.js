@@ -88,6 +88,7 @@ function addCoreAppFilesToZip(zip) {
     '3_시청자_공개링크_열기.bat',
     '4_데이터_관리_및_백업.bat',
     '5_수동_업데이트_확인.bat',
+    '6_공개링크_종료.bat',
     'package.json',
     'package-lock.json',
     'release.config.json',

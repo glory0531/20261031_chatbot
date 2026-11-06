@@ -377,7 +377,7 @@ export const ViewerPublicPage: React.FC<ViewerPublicPageProps> = ({
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-slate-800/90 border border-white/10 text-xs font-bold text-amber-300/90 shadow-sm">
                     <Moon className="w-3 h-3 text-amber-400" />
-                    방송 준비 중 (오프라인)
+                    {status.isShaBotOffline ? '🌙 현재 방송 오프라인 (방송 일정 확인)' : '방송 준비 중 (오프라인)'}
                   </span>
                   {status.category && (
                     <span className="text-xs text-slate-400">· 최근 카테고리: {status.category}</span>

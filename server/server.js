@@ -30,7 +30,7 @@ import {
   extractChzzkChannelId
 } from './chzzkClient.js';
 import { searchYouTube } from './youtubeSearch.js';
-import { startTunnel, stopTunnel, getTunnelState, setTunnelSocketIO } from './tunnelManager.js';
+import { startTunnel, stopTunnel, getTunnelState, setTunnelSocketIO, syncTunnelOnStartup } from './tunnelManager.js';
 import {
   getUpdateState,
   checkForUpdate,
@@ -296,7 +296,7 @@ app.get('/api/tunnel/status', (req, res) => {
 
 app.post('/api/tunnel/start', requireLocalAdmin, async (req, res) => {
   try {
-    const state = await startTunnel(PORT);
+    const state = await startTunnel(req.body || {});
     res.json({ success: true, data: state });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -1304,6 +1304,7 @@ server.listen(PORT, () => {
   console.log(` 💡 방송을 마치실 때 이 창을 닫거나 [2_샤봇_종료.bat]을 실행하세요.`);
   console.log(`==============================================================\n`);
 
+  syncTunnelOnStartup();
   startAutoMessageScheduler();
   startUpdateChecker(io);
 

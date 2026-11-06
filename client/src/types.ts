@@ -20,6 +20,7 @@ export interface ChannelStatus {
   openDate?: string;
   startTime: number;
   uptimeSeconds: number;
+  isShaBotOffline?: boolean;
 }
 
 export interface Settings {
@@ -248,4 +249,10 @@ export interface TunnelState {
   viewerUrl: string | null;
   startedAt: number | null;
   error?: string | null;
+  provider?: 'cloudflare' | 'localtunnel';
+  mode?: 'quick' | 'token' | 'subdomain';
+  subdomain?: string;
+  token?: string;
+  customDomain?: string;
+  isBackground?: boolean;
 }

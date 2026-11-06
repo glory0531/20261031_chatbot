@@ -417,8 +417,12 @@ export const api = {
     return res.json();
   },
 
-  async startTunnel() {
-    const res = await fetch(`${API_BASE}/tunnel/start`, { method: 'POST' });
+  async startTunnel(options?: { provider?: string; mode?: string; token?: string; subdomain?: string; customDomain?: string }) {
+    const res = await fetch(`${API_BASE}/tunnel/start`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(options || {})
+    });
     return res.json();
   },
 

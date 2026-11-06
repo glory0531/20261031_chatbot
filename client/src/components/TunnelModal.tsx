@@ -14,7 +14,10 @@ import {
   Music,
   MessageSquare,
   HelpCircle,
-  Radio
+  Radio,
+  Link,
+  Zap,
+  Key
 } from 'lucide-react';
 import { TunnelState } from '../types';
 import { api } from '../services/api';
@@ -34,6 +37,14 @@ export const TunnelModal: React.FC<TunnelModalProps> = ({
   const [copied, setCopied] = useState(false);
   const [showQr, setShowQr] = useState(false);
 
+  // 모드 선택 탭: 'subdomain'(고정 서브도메인) | 'quick'(클라우드플레어 퀵) | 'token'(클라우드플레어 토큰)
+  const [selectedMode, setSelectedMode] = useState<'subdomain' | 'quick' | 'token'>(
+    tunnel.mode || 'subdomain'
+  );
+  const [subdomainInput, setSubdomainInput] = useState(tunnel.subdomain || 'shabot-chzzk');
+  const [tokenInput, setTokenInput] = useState(tunnel.token || '');
+  const [customDomainInput, setCustomDomainInput] = useState(tunnel.customDomain || '');
+
   if (!isOpen) return null;
 
   const viewerUrl = tunnel.viewerUrl || (tunnel.publicUrl ? `${tunnel.publicUrl}/view` : '');
@@ -44,10 +55,34 @@ export const TunnelModal: React.FC<TunnelModalProps> = ({
       if (tunnel.isRunning) {
         await api.stopTunnel();
       } else {
-        await api.startTunnel();
+        if (selectedMode === 'subdomain') {
+          const cleanSub = subdomainInput.trim().toLowerCase().replace(/[^a-z0-9-]/g, '') || 'shabot-live';
+          await api.startTunnel({
+            provider: 'localtunnel',
+            mode: 'subdomain',
+            subdomain: cleanSub
+          });
+        } else if (selectedMode === 'token') {
+          if (!tokenInput.trim()) {
+            alert('Cloudflare Tunnel 토큰을 입력해주세요.');
+            setIsLoading(false);
+            return;
+          }
+          await api.startTunnel({
+            provider: 'cloudflare',
+            mode: 'token',
+            token: tokenInput.trim(),
+            customDomain: customDomainInput.trim()
+          });
+        } else {
+          await api.startTunnel({
+            provider: 'cloudflare',
+            mode: 'quick'
+          });
+        }
       }
     } catch (err: any) {
-      alert('공개 링크 전환 중 오류가 발생했습니다: ' + err.message);
+      alert('공개 링크 처리 중 오류가 발생했습니다: ' + err.message);
     } finally {
       setIsLoading(false);
     }
@@ -60,7 +95,7 @@ export const TunnelModal: React.FC<TunnelModalProps> = ({
     setTimeout(() => setCopied(false), 2200);
   };
 
-  // QR 코드 이미지 주소 (외부 라이브러리 없이 표준 API 활용)
+  // QR 코드 이미지 주소
   const qrCodeUrl = viewerUrl
     ? `https://api.qrserver.com/v1/create-qr-code/?size=240x240&color=e5c158&bgcolor=141624&data=${encodeURIComponent(viewerUrl)}`
     : '';
@@ -86,13 +121,13 @@ export const TunnelModal: React.FC<TunnelModalProps> = ({
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="text-lg font-black text-white flex items-center gap-1.5">
-                  <span>시청자 전용 공개 링크 공유</span>
+                  <span>시청자 전용 공개 링크</span>
                   <Sparkles className="w-4 h-4 text-amber-300" />
                 </h3>
                 {tunnel.isRunning ? (
                   <span className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 text-xs font-bold animate-pulse">
                     <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
-                    인터넷 공개 중
+                    백그라운드 유지 중
                   </span>
                 ) : (
                   <span className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 text-xs font-semibold">
@@ -101,7 +136,7 @@ export const TunnelModal: React.FC<TunnelModalProps> = ({
                 )}
               </div>
               <p className="text-xs text-amber-400 mt-0.5">
-                시청자가 스마트폰이나 PC로 방송 일정표, 노래신청 대기열을 바로 볼 수 있는 보안 링크를 생성합니다.
+                샤봇 창을 닫아도 스트리머가 직접 끄기 전까지 백그라운드에서 링크가 계속 안전하게 유지됩니다.
               </p>
             </div>
           </div>
@@ -112,13 +147,25 @@ export const TunnelModal: React.FC<TunnelModalProps> = ({
           {/* 터널 활성화 상태일 때 */}
           {tunnel.isRunning && viewerUrl ? (
             <div className="space-y-4">
+              {/* 백그라운드 상주 보장 알림 카드 */}
+              <div className="p-3.5 rounded-2xl bg-emerald-950/30 border border-emerald-500/40 flex items-center justify-between text-xs text-emerald-300">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                  <span className="font-bold">백그라운드 상주 가동 중</span>
+                  <span className="text-emerald-400/80 text-[11px]">(샤봇 창을 닫아도 링크 유지)</span>
+                </div>
+                <span className="text-[10px] px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-200 uppercase font-mono">
+                  {tunnel.provider === 'localtunnel' ? '고정 서브도메인' : tunnel.mode === 'token' ? '고정 토큰' : 'Cloudflare Quick'}
+                </span>
+              </div>
+
               {/* 공유 링크 박스 */}
               <div className="p-4 rounded-2xl bg-[#181a2b] border border-amber-400/30 space-y-2.5 shadow-inner">
                 <div className="flex items-center justify-between text-xs">
                   <span className="font-bold text-slate-100 flex items-center gap-1.5">
                     <Globe className="w-3.5 h-3.5 text-amber-400" /> 시청자 접속 전용 HTTPS 주소
                   </span>
-                  <span className="text-[11px] text-emerald-400 font-medium">Cloudflare 보안 터널 가동 중</span>
+                  <span className="text-[11px] text-amber-300 font-medium">영구 고정 링크 적용됨</span>
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -192,16 +239,127 @@ export const TunnelModal: React.FC<TunnelModalProps> = ({
               )}
             </div>
           ) : (
-            /* 터널 비활성화 상태일 때 안내 */
-            <div className="text-center py-6 px-4 space-y-4">
-              <div className="w-16 h-16 rounded-3xl bg-amber-500/10 border border-amber-500/25 text-amber-400 mx-auto flex items-center justify-center">
-                <Globe className="w-8 h-8" />
+            /* 터널 비활성화 상태일 때 모드 설정 탭 */
+            <div className="space-y-4">
+              <div className="flex items-center gap-1 p-1 bg-slate-900 rounded-2xl border border-white/10">
+                <button
+                  type="button"
+                  onClick={() => setSelectedMode('subdomain')}
+                  className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
+                    selectedMode === 'subdomain'
+                      ? 'bg-amber-400 text-slate-950 font-black shadow-md'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <Link className="w-3.5 h-3.5" />
+                  <span>원클릭 고정 주소</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedMode('quick')}
+                  className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
+                    selectedMode === 'quick'
+                      ? 'bg-amber-400 text-slate-950 font-black shadow-md'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <Zap className="w-3.5 h-3.5" />
+                  <span>Cloudflare 퀵</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedMode('token')}
+                  className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
+                    selectedMode === 'token'
+                      ? 'bg-amber-400 text-slate-950 font-black shadow-md'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <Key className="w-3.5 h-3.5" />
+                  <span>Cloudflare 토큰</span>
+                </button>
               </div>
-              <div className="space-y-1">
-                <h4 className="text-base font-black text-white">아직 공개 링크가 켜져 있지 않습니다</h4>
-                <p className="text-xs text-amber-400 max-w-sm mx-auto leading-relaxed">
-                  [공개 링크 생성하기] 버튼을 누르면 Cloudflare 보안망을 통해 전 세계 어디서나 접속할 수 있는 암호화된 HTTPS 링크가 즉시 발급됩니다.
-                </p>
+
+              {/* 탭 1: 원클릭 고정 서브도메인 (기본 추천) */}
+              {selectedMode === 'subdomain' && (
+                <div className="p-4 rounded-2xl bg-slate-900 border border-amber-400/25 space-y-3">
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-amber-300 flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-amber-400" /> 원하는 고정 영문 이름(서브도메인)
+                    </label>
+                    <p className="text-[11px] text-slate-400">
+                      회원가입 없이 원하는 영문 이름을 입력하면 항상 이 주소로 고정됩니다.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-slate-500 font-mono">https://</span>
+                    <input
+                      type="text"
+                      value={subdomainInput}
+                      onChange={(e) => setSubdomainInput(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
+                      placeholder="shabot-myname"
+                      className="flex-1 px-3 py-2 rounded-xl bg-slate-950 border border-white/10 text-xs font-mono text-amber-300 font-bold focus:outline-none focus:ring-1 focus:ring-amber-400"
+                    />
+                    <span className="text-xs text-slate-400 font-mono">.loca.lt/view</span>
+                  </div>
+                </div>
+              )}
+
+              {/* 탭 2: Cloudflare 퀵 터널 */}
+              {selectedMode === 'quick' && (
+                <div className="p-4 rounded-2xl bg-slate-900 border border-white/10 space-y-2">
+                  <h5 className="text-xs font-bold text-amber-300 flex items-center gap-1.5">
+                    <Zap className="w-3.5 h-3.5 text-amber-400" /> Cloudflare 초고속 글로벌 터널
+                  </h5>
+                  <p className="text-[11px] text-slate-300 leading-relaxed">
+                    Cloudflare의 암호화된 전용망을 통해 접속 URL이 자동 생성됩니다.
+                    샤봇 창을 닫아도 백그라운드에 상주하여 링크가 계속 유지됩니다.
+                  </p>
+                </div>
+              )}
+
+              {/* 탭 3: Cloudflare Named Tunnel (토큰) */}
+              {selectedMode === 'token' && (
+                <div className="p-4 rounded-2xl bg-slate-900 border border-white/10 space-y-3">
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-amber-300 flex items-center gap-1.5">
+                      <Key className="w-3.5 h-3.5 text-amber-400" /> Cloudflare Tunnel Token
+                    </label>
+                    <p className="text-[11px] text-slate-400">
+                      Cloudflare Zero Trust 대시보드에서 생성한 무료 터널 토큰을 붙여넣으세요.
+                    </p>
+                  </div>
+                  <input
+                    type="password"
+                    value={tokenInput}
+                    onChange={(e) => setTokenInput(e.target.value)}
+                    placeholder="eyJh..."
+                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-white/10 text-xs font-mono text-amber-300 focus:outline-none focus:ring-1 focus:ring-amber-400"
+                  />
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-slate-300">
+                      연결된 내 도메인 주소 (선택사항)
+                    </label>
+                    <input
+                      type="text"
+                      value={customDomainInput}
+                      onChange={(e) => setCustomDomainInput(e.target.value)}
+                      placeholder="https://shabot.mydomain.com"
+                      className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-white/10 text-xs font-mono text-white focus:outline-none focus:ring-1 focus:ring-amber-400"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* 백그라운드 상주 안내 배너 */}
+              <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/25 flex items-start gap-2.5">
+                <Sparkles className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                <div className="text-xs space-y-0.5">
+                  <strong className="text-amber-300">백그라운드 자동 상주 시스템 탑재</strong>
+                  <p className="text-[11px] text-amber-200/80 leading-relaxed">
+                    공개링크를 켜면 독립 백그라운드 프로세스로 실행되어, <b>샤봇 콘솔 창을 닫아도</b> 스트리머가 직접 [공개 링크 종료]를 누르기 전까지 시청자 페이지가 24시간 안전하게 유지됩니다.
+                  </p>
+                </div>
               </div>
             </div>
           )}
@@ -214,19 +372,19 @@ export const TunnelModal: React.FC<TunnelModalProps> = ({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
               <div className="flex items-center gap-2 p-2 rounded-xl bg-slate-900 text-slate-200">
                 <Calendar className="w-3.5 h-3.5 text-amber-400" />
-                <span>주간 방송 일정표</span>
+                <span>주간 방송 일정표 (스냅샷 보존)</span>
               </div>
               <div className="flex items-center gap-2 p-2 rounded-xl bg-slate-900 text-slate-200">
                 <Music className="w-3.5 h-3.5 text-emerald-400" />
-                <span>별빛 주크박스 신청곡 대기열</span>
+                <span>신청곡 대기열 & 주크박스</span>
               </div>
               <div className="flex items-center gap-2 p-2 rounded-xl bg-slate-900 text-slate-200">
                 <MessageSquare className="w-3.5 h-3.5 text-blue-400" />
-                <span>챗봇 명령어 & 사용법</span>
+                <span>챗봇 명령어 사전 & 사용법</span>
               </div>
               <div className="flex items-center gap-2 p-2 rounded-xl bg-slate-900 text-slate-200">
                 <Radio className="w-3.5 h-3.5 text-rose-400" />
-                <span>생방송 실시간 라이브 상태</span>
+                <span>생방송 실시간 LIVE / 오프라인 상태</span>
               </div>
             </div>
           </div>
@@ -249,7 +407,7 @@ export const TunnelModal: React.FC<TunnelModalProps> = ({
         <div className="p-4 bg-slate-900 border-t border-amber-400/25 flex items-center justify-between gap-3">
           <div className="text-[11px] text-slate-400 flex items-center gap-1.5">
             <HelpCircle className="w-3.5 h-3.5 text-amber-400" />
-            <span>방송을 마치면 안전을 위해 링크를 닫아주세요.</span>
+            <span>완전히 링크를 끊으실 때만 아래 종료 버튼을 눌러주세요.</span>
           </div>
 
           <button
@@ -269,12 +427,12 @@ export const TunnelModal: React.FC<TunnelModalProps> = ({
             ) : tunnel.isRunning ? (
               <>
                 <Power className="w-4 h-4" />
-                <span>공개 링크 종료하기</span>
+                <span>공개 링크 완전히 끊기 (종료)</span>
               </>
             ) : (
               <>
                 <Globe className="w-4 h-4" />
-                <span>공개 링크 생성하기 ✨</span>
+                <span>공개 링크 생성하기 (백그라운드 유지) ✨</span>
               </>
             )}
           </button>
