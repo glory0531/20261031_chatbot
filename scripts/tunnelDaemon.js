@@ -479,3 +479,4 @@ server.listen(DAEMON_PORT, () => {
   connectMainServerBridge();
   startTunnelProcess().catch(console.error);
 });
+

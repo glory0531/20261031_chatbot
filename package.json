@@ -1,6 +1,6 @@
 {
   "name": "shabot-chzzk-chatbot",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "오픈 샤봇 (ShaBot) - 치지직 스트리머 방송 챗봇 & 통합 대시보드 공식 배포판",
   "main": "server/server.js",
   "scripts": {
