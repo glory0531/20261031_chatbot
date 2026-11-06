@@ -54,6 +54,7 @@ export interface Settings {
   chzzkClientSecret?: string;
   chzzkAccessToken?: string;
   chzzkRefreshToken?: string;
+  chzzkAuthedChannelName?: string;
   chzzkWriteEnabled?: boolean;
   hasClientSecret?: boolean;
   hasAccessToken?: boolean;

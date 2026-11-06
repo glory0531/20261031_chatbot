@@ -150,6 +150,16 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, update, on
     }
   };
 
+  const handleDisconnectChzzk = async () => {
+    if (!confirm('현재 치지직 계정 연동 및 저장된 발송 토큰을 해제하시겠습니까?\n해제 후 새 계정으로 다시 연동하실 수 있습니다.')) return;
+    try {
+      await api.disconnectChzzk();
+      alert('치지직 계정 연동이 해제되었습니다. 새 계정으로 다시 연동해 주세요.');
+    } catch (err: any) {
+      alert('연동 해제 중 오류가 발생했습니다: ' + err.message);
+    }
+  };
+
   const handleConnectChzzk = async () => {
     setIsConnecting(true);
     const res = await api.connectChzzk(chzzkChannelId.trim());
@@ -536,13 +546,29 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, update, on
                     <div className="flex items-center gap-2">
                       <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
                       <div>
-                        <div className="text-xs font-black text-emerald-300">치지직 계정 연동 완료!</div>
-                        <div className="text-[10px] text-emerald-400/80">실제 방송 채팅창 답장 발송 준비 완료</div>
+                        <div className="text-xs font-black text-emerald-300 flex items-center gap-1.5">
+                          <span>치지직 계정 연동 완료!</span>
+                          {settings.chzzkAuthedChannelName && (
+                            <span className="text-[11px] px-2 py-0.5 rounded-full bg-emerald-500/30 text-amber-300 font-bold border border-emerald-400/40">
+                              발송 명의: {settings.chzzkAuthedChannelName}
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[10px] text-emerald-400/80 mt-0.5">
+                          {settings.chzzkAuthedChannelName
+                            ? `치지직 채팅창에 '${settings.chzzkAuthedChannelName}' 닉네임으로 답장이 나갑니다.`
+                            : '실제 방송 채팅창 답장 발송 준비 완료'}
+                        </div>
                       </div>
                     </div>
-                    <button type="button" onClick={handleLinkChzzk} className="text-[10px] text-slate-300 underline cursor-pointer">
-                      다시 연동하기
-                    </button>
+                    <div className="flex items-center gap-2.5">
+                      <button type="button" onClick={handleLinkChzzk} className="text-[10px] text-slate-300 hover:text-white underline cursor-pointer">
+                        다시 연동하기
+                      </button>
+                      <button type="button" onClick={handleDisconnectChzzk} className="text-[10px] text-rose-400 hover:text-rose-300 underline cursor-pointer">
+                        연동 해제
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   <button

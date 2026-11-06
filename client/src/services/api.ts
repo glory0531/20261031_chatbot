@@ -69,6 +69,15 @@ export const api = {
     return res.json();
   },
 
+  // 치지직 계정 연동 해제 및 발송 토큰 초기화
+  async disconnectChzzk() {
+    const res = await fetch(`${API_BASE}/chzzk/disconnect`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    return res.json();
+  },
+
   // 커스텀 명령어 추가
   async createCommand(cmd: any) {
     const res = await fetch(`${API_BASE}/commands`, {

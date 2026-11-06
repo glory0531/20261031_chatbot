@@ -66,6 +66,7 @@ export function getSanitizedSettings(settings) {
     chzzkClientSecret: settings.chzzkClientSecret ? '••••••••' : '',
     chzzkAccessToken: settings.chzzkAccessToken ? '••••••••' : '',
     chzzkRefreshToken: settings.chzzkRefreshToken ? '••••••••' : '',
+    chzzkAuthedChannelName: settings.chzzkAuthedChannelName || '',
     hasClientSecret: Boolean(settings.chzzkClientSecret),
     hasAccessToken: Boolean(settings.chzzkAccessToken),
     hasRefreshToken: Boolean(settings.chzzkRefreshToken)
@@ -274,6 +275,14 @@ app.post('/api/settings', requireLocalAdmin, (req, res) => {
 
   if (typeof updates.chzzkChannelId === 'string') {
     updates.chzzkChannelId = extractChzzkChannelId(updates.chzzkChannelId);
+  }
+
+  // 치지직 Client ID가 변경되었거나 삭제된 경우, 이전 계정의 발송 토큰을 즉시 초기화
+  if (updates.chzzkClientId !== undefined && updates.chzzkClientId !== db.settings.chzzkClientId) {
+    db.settings.chzzkAccessToken = '';
+    db.settings.chzzkRefreshToken = '';
+    db.settings.chzzkAuthedChannelName = '';
+    console.log('🔄 [치지직 API] Client ID 변경 감지 -> 기존 발송 토큰 초기화 완료');
   }
 
   db.settings = { ...db.settings, ...updates };
@@ -1168,6 +1177,17 @@ app.post('/api/chzzk/connect', requireLocalAdmin, async (req, res) => {
   res.json({ success: true, channelId, status: db.status });
 });
 
+app.post('/api/chzzk/disconnect', requireLocalAdmin, (req, res) => {
+  db.settings.chzzkAccessToken = '';
+  db.settings.chzzkRefreshToken = '';
+  db.settings.chzzkAuthedChannelName = '';
+  db.settings.chzzkWriteEnabled = false;
+  commit();
+  io.emit('settings_update', getSanitizedSettings(db.settings));
+  console.log('🔓 [치지직 API] 계정 연동 해제 및 발송 토큰 초기화 완료');
+  res.json({ success: true, message: '치지직 계정 연동 및 토큰이 초기화되었습니다.' });
+});
+
 app.get('/api/chzzk/login', requireLocalAdmin, (req, res) => {
   const { chzzkClientId } = db.settings;
   if (!chzzkClientId) {
@@ -1198,6 +1218,17 @@ app.get('/api/chzzk/callback', async (req, res) => {
       db.settings.chzzkAccessToken = tokenData.accessToken;
       db.settings.chzzkRefreshToken = tokenData.refreshToken || '';
       db.settings.chzzkWriteEnabled = true;
+
+      // 연동된 계정의 채널명(닉네임) 확인 및 저장
+      try {
+        const meRes = await axios.get('https://openapi.chzzk.naver.com/open/v1/users/me', {
+          headers: { 'Authorization': `Bearer ${tokenData.accessToken}` },
+          timeout: 4000
+        });
+        db.settings.chzzkAuthedChannelName = meRes.data?.content?.channelName || meRes.data?.content?.nickname || '';
+        console.log(`✅ [치지직 API] 연동 계정 확인: ${db.settings.chzzkAuthedChannelName}`);
+      } catch {}
+
       commit();
       io.emit('settings_update', getSanitizedSettings(db.settings));
       return res.redirect('/?chzzk_auth=success');
@@ -1227,6 +1258,17 @@ app.get('/', async (req, res, next) => {
         db.settings.chzzkAccessToken = tokenData.accessToken;
         db.settings.chzzkRefreshToken = tokenData.refreshToken || '';
         db.settings.chzzkWriteEnabled = true;
+
+        // 연동된 계정의 채널명(닉네임) 확인 및 저장
+        try {
+          const meRes = await axios.get('https://openapi.chzzk.naver.com/open/v1/users/me', {
+            headers: { 'Authorization': `Bearer ${tokenData.accessToken}` },
+            timeout: 4000
+          });
+          db.settings.chzzkAuthedChannelName = meRes.data?.content?.channelName || meRes.data?.content?.nickname || '';
+          console.log(`✅ [치지직 API] 연동 계정 확인: ${db.settings.chzzkAuthedChannelName}`);
+        } catch {}
+
         commit();
         io.emit('settings_update', getSanitizedSettings(db.settings));
         return res.redirect('/?chzzk_auth=success');
@@ -1307,6 +1349,21 @@ server.listen(PORT, () => {
   syncTunnelOnStartup();
   startAutoMessageScheduler();
   startUpdateChecker(io);
+
+  // 치지직 계정 연동 닉네임 자동 확인
+  if (db.settings.chzzkAccessToken && !db.settings.chzzkAuthedChannelName) {
+    axios.get('https://openapi.chzzk.naver.com/open/v1/users/me', {
+      headers: { 'Authorization': `Bearer ${db.settings.chzzkAccessToken}` },
+      timeout: 4000
+    }).then(r => {
+      const name = r.data?.content?.channelName || r.data?.content?.nickname;
+      if (name) {
+        db.settings.chzzkAuthedChannelName = name;
+        commit();
+        console.log(`✅ [치지직 API] 현재 발송 연동 계정: ${name}`);
+      }
+    }).catch(() => {});
+  }
 
   if (db.settings.chzzkChannelId) {
     connectChzzk(db.settings.chzzkChannelId);
