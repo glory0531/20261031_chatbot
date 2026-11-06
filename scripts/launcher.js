@@ -48,18 +48,26 @@ function isAutoUpdateOnStartEnabled() {
 }
 
 async function tryAutoUpdateBeforeStart() {
-  if (!isAutoUpdateOnStartEnabled()) return false;
+  const clientDistIndex = path.join(ROOT_DIR, 'client', 'dist', 'index.html');
+  const missingClientDist = !fs.existsSync(clientDistIndex);
+
+  if (!isAutoUpdateOnStartEnabled() && !missingClientDist) return false;
 
   try {
     const state = await checkForUpdate({ timeoutMs: 3500 });
-    if (!state.configured || !state.updateAvailable) return false;
+    if (!state.configured) return false;
+    if (!state.updateAvailable && !missingClientDist) return false;
 
     console.log('==============================================================');
-    console.log(` ✨ 새 업데이트 발견! (v${state.currentVersion} ➡️ v${state.latestVersion})`);
-    console.log(' 💾 내 데이터(data/)를 자동 백업하고 최신 버전을 적용합니다...');
+    if (missingClientDist && !state.updateAvailable) {
+      console.log(' 📦 대시보드 리소스(client/dist)를 자동 다운로드하여 구성합니다...');
+    } else {
+      console.log(` ✨ 새 업데이트 발견! (v${state.currentVersion} ➡️ v${state.latestVersion})`);
+    }
+    console.log(' 💾 내 데이터(data/)를 안전하게 보존하고 최신 패키지를 적용합니다...');
     console.log('==============================================================');
 
-    const meta = await downloadAndStageUpdate({ backupFn: createLocalBackup });
+    const meta = await downloadAndStageUpdate({ backupFn: createLocalBackup, force: missingClientDist });
     extractStagedUpdate({
       zipPath: meta.zipPath,
       rootDir: ROOT_DIR,
@@ -68,7 +76,7 @@ async function tryAutoUpdateBeforeStart() {
       changelog: meta.changelog
     });
 
-    console.log(` ✅ v${readCurrentVersion()} 업데이트 적용 완료! 최신 버전으로 시작합니다.\n`);
+    console.log(` ✅ 최신 대시보드 및 리소스 구성 완료!\n`);
     return true;
   } catch (err) {
     console.warn(` ⚠️ [자동 업데이트 건너뜀] ${err.message} (기존 버전으로 정상 실행합니다)`);

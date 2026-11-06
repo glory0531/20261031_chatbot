@@ -309,9 +309,9 @@ export async function checkForUpdate({ timeoutMs = 4500 } = {}) {
 /**
  * 최신 업데이트 ZIP을 다운로드하고 무결성을 검증한 뒤 임시 스테이징 폴더에 준비합니다.
  */
-export async function downloadAndStageUpdate({ backupFn } = {}) {
+export async function downloadAndStageUpdate({ backupFn, force = false } = {}) {
   const state = await checkForUpdate({ timeoutMs: 8000 });
-  if (!state.updateAvailable || !state.downloadUrl) {
+  if ((!state.updateAvailable && !force) || !state.downloadUrl) {
     throw new Error('적용 가능한 새 업데이트가 없습니다.');
   }
 

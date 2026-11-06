@@ -25,7 +25,13 @@ goto :CHECK_MODULES
 
 :BOOTSTRAP
 powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT_DIR%\scripts\bootstrap-node.ps1"
-if errorlevel 1 exit /b 1
+if errorlevel 1 (
+  echo.
+  echo [오류] 포터블 Node.js 자동 준비에 실패했습니다.
+  echo 공식 Releases에서 'ShaBot-Portable-vX.X.X.zip'을 다운로드하시면
+  echo 추가 설치 없이 즉시 실행하실 수 있습니다.
+  exit /b 1
+)
 if not exist "%PORTABLE_NODE_DIR%\node.exe" goto :NO_NODE
 
 :USE_PORTABLE
