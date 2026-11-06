@@ -3,7 +3,6 @@
 )
 
 $ErrorActionPreference = "Stop"
-try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch {}
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
@@ -17,45 +16,25 @@ if (Test-Path $NodeExe) {
 }
 
 $Arch = if ($env:PROCESSOR_ARCHITECTURE -eq "ARM64") { "arm64" } else { "x64" }
-$FolderName = "node-v$NodeVersion-win-$Arch"
-$ZipUrl = "https://nodejs.org/dist/v$NodeVersion/$FolderName.zip"
-$TmpZip = Join-Path $RuntimeDir "node-portable.zip"
-$TmpExtract = Join-Path $RuntimeDir "_extract_tmp"
+$DirectNodeUrl = "https://nodejs.org/dist/v$NodeVersion/win-$Arch/node.exe"
 
 Write-Host ""
 Write-Host "==============================================================" -ForegroundColor Cyan
-Write-Host "  [오픈 샤봇] 최초 1회 포터블 실행 엔진(Node.js) 자동 준비 중" -ForegroundColor Yellow
+Write-Host "  [오픈 샤봇] 무설치 포터블 실행 엔진(Node.js) 자동 준비 중" -ForegroundColor Yellow
 Write-Host "==============================================================" -ForegroundColor Cyan
 Write-Host "  PC에 Node.js가 없어도 걱정하지 마세요!"
-Write-Host "  샤봇 폴더 내부(runtime/node)에만 독립 엔진을 자동으로 구성합니다."
-Write-Host "  다운로드 주소: $ZipUrl"
+Write-Host "  샤봇 폴더(runtime/node)에 독립 실행 엔진을 직접 다운로드합니다."
+Write-Host "  다운로드 주소: $DirectNodeUrl"
 Write-Host ""
 
-New-Item -ItemType Directory -Force -Path $RuntimeDir | Out-Null
-
-if (Test-Path $TmpZip) { Remove-Item -Force $TmpZip }
-if (Test-Path $TmpExtract) { Remove-Item -Recurse -Force $TmpExtract }
+New-Item -ItemType Directory -Force -Path $NodeDir | Out-Null
 
 try {
-  Write-Host "  [1/2] 공식 Node.js 포터블 패키지 다운로드 중... (약 10~20초 소요)" -ForegroundColor Gray
-  Invoke-WebRequest -Uri $ZipUrl -OutFile $TmpZip -UseBasicParsing
-
-  Write-Host "  [2/2] 압축 해제 및 환경 구성 중..." -ForegroundColor Gray
-  Expand-Archive -Path $TmpZip -DestinationPath $TmpExtract -Force
-
-  $ExtractedInner = Join-Path $TmpExtract $FolderName
-  if (-not (Test-Path $ExtractedInner)) {
-    throw "압축 해제된 폴더를 찾을 수 없습니다: $ExtractedInner"
-  }
-
-  if (Test-Path $NodeDir) { Remove-Item -Recurse -Force $NodeDir }
-  Move-Item -Path $ExtractedInner -Destination $NodeDir
-
-  Remove-Item -Force $TmpZip -ErrorAction SilentlyContinue
-  Remove-Item -Recurse -Force $TmpExtract -ErrorAction SilentlyContinue
+  Write-Host "  [1/1] 공식 독립 실행 엔진(node.exe) 다운로드 중... (약 5~10초 소요)" -ForegroundColor Gray
+  Invoke-WebRequest -Uri $DirectNodeUrl -OutFile $NodeExe -UseBasicParsing
 
   if (-not (Test-Path $NodeExe)) {
-    throw "포터블 node.exe 설치 확인에 실패했습니다."
+    throw "node.exe 다운로드 확인에 실패했습니다."
   }
 
   Write-Host "  [완료] 포터블 실행 엔진 준비가 끝났습니다!" -ForegroundColor Green
@@ -63,8 +42,9 @@ try {
   exit 0
 } catch {
   Write-Host ""
-  Write-Host "  [오류] 포터블 Node.js 자동 다운로드에 실패했습니다: $($_.Exception.Message)" -ForegroundColor Red
+  $errDetail = $_.Exception.Message
+  Write-Host "  [오류] 포터블 Node.js 자동 다운로드에 실패했습니다: $errDetail" -ForegroundColor Red
   Write-Host "  인터넷 연결을 확인하시거나 https://nodejs.org 에서 LTS 버전을 설치해 주세요." -ForegroundColor Yellow
+  Write-Host ""
   exit 1
 }
-

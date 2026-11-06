@@ -310,9 +310,26 @@ async function main() {
   addCoreAppFilesToZip(updateZip);
   updateZip.writeZip(updateZipPath);
 
-  // 3-B. 올인원 포터블 배포 ZIP (신규 스트리머 최초 다운로드용 - node_modules 포함)
+  // 3-B. 올인원 포터블 배포 ZIP (신규 스트리머 최초 다운로드용 - runtime/node + node_modules 포함)
+  const runtimeNodeDir = path.join(ROOT_DIR, 'runtime', 'node');
+  const runtimeNodeExe = path.join(runtimeNodeDir, 'node.exe');
+  if (!fs.existsSync(runtimeNodeExe)) {
+    console.log('📥 포터블 node.exe 패키징 준비 중 (자동 다운로드)...');
+    fs.mkdirSync(runtimeNodeDir, { recursive: true });
+    try {
+      execSync('powershell -NoProfile -ExecutionPolicy Bypass -Command "Invoke-WebRequest -Uri \'https://nodejs.org/dist/v22.14.0/win-x64/node.exe\' -OutFile \'' + runtimeNodeExe.replace(/\\/g, '/') + '\' -UseBasicParsing"', { stdio: 'inherit' });
+    } catch (e) {
+      console.warn('⚠️ 포터블 node.exe 다운로드 실패:', e.message);
+    }
+  }
+
   const portableZip = new AdmZip();
   addCoreAppFilesToZip(portableZip);
+
+  if (fs.existsSync(runtimeNodeExe)) {
+    portableZip.addLocalFile(runtimeNodeExe, 'runtime/node');
+    console.log('   📦 [Portable] 독립 실행 엔진(runtime/node/node.exe) 패키징 포함 완료');
+  }
   const devOnlyDirs = new Set([
     'node_modules/.bin',
     'node_modules/concurrently',
