@@ -60,7 +60,7 @@ export const Header: React.FC<HeaderProps> = ({
                     className="w-full h-full object-cover object-center transition-transform group-hover:scale-110 duration-300"
                   />
                 ) : (
-                  <div className="text-xl select-none">🍪</div>
+                  <div className="text-xl select-none">🐻</div>
                 )}
               </div>
             </div>
@@ -73,7 +73,7 @@ export const Header: React.FC<HeaderProps> = ({
             <div className="flex items-center gap-2">
               <span className="font-black text-lg sm:text-xl tracking-tight gold-gradient-text drop-shadow-sm flex items-center gap-1.5">
                 <span>{botName}</span>
-                <span className="text-amber-400 text-sm">🍪</span>
+                <span className="text-amber-400 text-sm">🐻</span>
               </span>
               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-400/15 text-amber-300 border border-amber-400/30 flex items-center gap-1 shadow-sm">
                 <Sparkles className="w-2.5 h-2.5 text-amber-400" />

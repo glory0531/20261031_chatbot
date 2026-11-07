@@ -96,7 +96,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen, settin
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-11 h-11 rounded-2xl bg-amber-400/20 border border-amber-400/40 flex items-center justify-center text-2xl">
-              🍪
+              🐻
             </div>
             <div>
               <h2 className="text-lg sm:text-xl font-black text-white flex items-center gap-2">
@@ -159,7 +159,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen, settin
                   {lookupInfo.channelImageUrl ? (
                     <img src={lookupInfo.channelImageUrl} alt="" className="w-10 h-10 rounded-full object-cover" />
                   ) : (
-                    <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center">🍪</div>
+                    <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center">🐻</div>
                   )}
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-black text-white truncate">{lookupInfo.channelName}</div>

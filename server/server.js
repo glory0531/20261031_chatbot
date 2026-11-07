@@ -1332,7 +1332,7 @@ server.on('error', (err) => {
 server.listen(PORT, () => {
   const ver = readCurrentVersion();
   console.log(`\n==============================================================`);
-  console.log(`     🍪 [ShaBot v${ver}] 오픈 샤봇 - 방송용 챗봇 & 통합 대시보드`);
+  console.log(`     🐻 [ShaBot v${ver}] 오픈 샤봇 - 방송용 챗봇 & 통합 대시보드`);
   console.log(`==============================================================`);
   console.log(` 🚀 샤봇 서버가 성공적으로 시작되었습니다! (포트 ${PORT})`);
   console.log(` 🌐 관리자 대시보드:     http://localhost:${PORT}`);
