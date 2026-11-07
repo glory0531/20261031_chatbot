@@ -16,7 +16,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen, settin
   const [streamerName, setStreamerName] = useState(
     settings.streamerName && settings.streamerName !== '스트리머' ? settings.streamerName : ''
   );
-  const [botName, setBotName] = useState(settings.botName || '샤봇');
+  const [botName, setBotName] = useState(settings.botName ?? '샤봇');
   const [fandomName, setFandomName] = useState(settings.fandomName || '시청자');
   const [pointName, setPointName] = useState(settings.pointName || 'P');
   const [themePreset, setThemePreset] = useState<ThemePreset>(settings.themePreset || 'chzzk-emerald');
@@ -71,7 +71,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen, settin
 
       await api.updateSettings({
         streamerName: finalStreamer,
-        botName: botName.trim() || '샤봇',
+        botName: typeof botName === 'string' ? botName.trim() : '',
         fandomName: fandomName.trim() || '시청자',
         pointName: pointName.trim() || 'P',
         themePreset,

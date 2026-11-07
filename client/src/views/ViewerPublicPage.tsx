@@ -77,7 +77,7 @@ export const ViewerPublicPage: React.FC<ViewerPublicPageProps> = ({
 
   // 스트리머 설정값 동적 반영
   const prefix = settings?.prefix || '!';
-  const botName = settings?.botName || '샤봇';
+  const botName = (settings?.botName && settings.botName.trim()) || '샤봇';
   const pointName = settings?.pointName || 'P';
   const chipName = settings?.chipName || '칩';
   const channelName = status?.channelName || settings?.streamerName || '치지직 스트리머';

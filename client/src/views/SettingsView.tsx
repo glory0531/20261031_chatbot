@@ -44,7 +44,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, update, on
   const [suppressPointMessagesInChat, setSuppressPointMessagesInChat] = useState(settings.suppressPointMessagesInChat ?? true);
   const [sendPaidPointMessagesInChat, setSendPaidPointMessagesInChat] = useState(settings.sendPaidPointMessagesInChat ?? true);
 
-  const [botName, setBotName] = useState(settings.botName || '샤봇');
+  const [botName, setBotName] = useState(settings.botName ?? '샤봇');
   const [streamerName, setStreamerName] = useState(settings.streamerName || '스트리머');
   const [fandomName, setFandomName] = useState(settings.fandomName || '시청자');
   const [prefix, setPrefix] = useState(settings.prefix || '!');
@@ -73,7 +73,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, update, on
 
   useEffect(() => {
     setChzzkChannelId(settings.chzzkChannelId || '');
-    setBotName(settings.botName || '샤봇');
+    setBotName(settings.botName ?? '샤봇');
     setStreamerName(settings.streamerName || '스트리머');
     setFandomName(settings.fandomName || '시청자');
     setPrefix(settings.prefix || '!');
@@ -120,7 +120,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, update, on
     setIsLinking(true);
     try {
       await api.updateSettings({
-        botName,
+        botName: typeof botName === 'string' ? botName.trim() : '',
         streamerName,
         fandomName,
         themePreset,
@@ -172,7 +172,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, update, on
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
     await api.updateSettings({
-      botName,
+      botName: typeof botName === 'string' ? botName.trim() : '',
       streamerName,
       fandomName,
       themePreset,
@@ -650,14 +650,20 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, update, on
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-300 mb-1">챗봇 이름</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-bold text-slate-300">챗봇 이름</label>
+                    <span className="text-[10px] text-amber-300 font-medium">공백 허용 (비워두면 접두사 없음)</span>
+                  </div>
                   <input
                     type="text"
                     value={botName}
                     onChange={(e) => setBotName(e.target.value)}
-                    placeholder="샤봇"
+                    placeholder="비워두거나 | 또는 샤봇 입력"
                     className="w-full px-3 py-2 rounded-xl bg-slate-950/80 border border-slate-700 text-xs text-white focus:outline-none focus:border-amber-400"
                   />
+                  <p className="text-[10px] text-slate-400 mt-1">
+                    💡 예: <code>|</code> 입력 시 [김김시하 | 내용], 비워두면 [김김시하 내용] (대괄호 없이 송출)
+                  </p>
                 </div>
               </div>
 

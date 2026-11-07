@@ -181,8 +181,9 @@ app.post('/api/status/toggle', requireLocalAdmin, (req, res) => {
   db.status.botEnabled = !db.status.botEnabled;
   commit();
   io.emit('status_update', db.status);
-  const botName = db.settings.botName || '샤봇';
-  sendBotMessage(db.status.botEnabled ? `🟢 [${botName}]이(가) 활성화되었습니다.` : `🔴 [${botName}]이(가) 비활성화되었습니다.`);
+  const rawBot = typeof db.settings.botName === 'string' ? db.settings.botName.trim() : '';
+  const prefix = rawBot || '챗봇';
+  sendBotMessage(db.status.botEnabled ? `🟢 ${prefix}이(가) 활성화되었습니다.` : `🔴 ${prefix}이(가) 비활성화되었습니다.`);
   res.json({ success: true, data: db.status });
 });
 
@@ -1096,7 +1097,8 @@ app.get('/api/chat/messages', (req, res) => {
 });
 
 app.post('/api/chat/send', requireLocalAdmin, (req, res) => {
-  const { message, sender = db.settings.botName, role = 'bot' } = req.body;
+  const defaultSender = typeof db.settings.botName === 'string' && db.settings.botName.trim() ? db.settings.botName.trim() : (db.settings.streamerName || '챗봇');
+  const { message, sender = defaultSender, role = 'bot' } = req.body;
   if (!message) return res.status(400).json({ success: false });
 
   if (role === 'bot') {

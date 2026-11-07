@@ -1,5 +1,5 @@
 import { db, commit } from './db.js';
-import { sendChzzkChatMessage } from './chzzkClient.js';
+import { sendChzzkChatMessage, isRecentBotMessage } from './chzzkClient.js';
 import { searchYouTube } from './youtubeSearch.js';
 
 // 쿨타임 메모리 저장소 (commandId_userId -> timestamp)
@@ -113,9 +113,10 @@ export function isPointRelatedMessage(text = '', meta = {}) {
 
 // 봇 메시지 발송 함수 (유료 포인트 메시지 vs 무료 활동 칩 메시지 치지직 송출 분리 제어)
 export function sendBotMessage(text, meta = {}) {
+  const bName = typeof db.settings.botName === 'string' ? db.settings.botName.trim() : '';
   const botMsg = {
     id: 'msg-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4),
-    user: db.settings.botName || '샤봇',
+    user: bName || db.settings.streamerName || '샤봇',
     isBot: true,
     message: text,
     time: new Date().toLocaleTimeString('ko-KR', { hour12: false }),
@@ -124,7 +125,7 @@ export function sendBotMessage(text, meta = {}) {
     ...meta
   };
 
-  console.log(`🤖 [${db.settings.botName || '샤봇'} 답장] ${text}`);
+  console.log(`🤖 [${bName || '답장'}] ${text}`);
 
   if (!db.recentChats) db.recentChats = [];
   db.recentChats.push(botMsg);
@@ -255,9 +256,17 @@ export async function processChatMessage(chat) {
   if (!message) return null;
 
   // 봇 자신이 발송한 답장 메시지는 스스로 다시 처리하지 않도록 완벽 차단 (무한 루프 방지)
-  const currentBotName = db.settings.botName || '샤봇';
-  const botPrefix = `[${currentBotName}]`;
-  if (chat.isBot || message.startsWith(botPrefix) || message.startsWith('[샤봇]') || message.startsWith('[모트봇]') || message.startsWith('[잼쿠봇]') || message.startsWith('[쿨타임]')) {
+  const currentBotName = typeof db.settings.botName === 'string' ? db.settings.botName.trim() : '';
+  const isSelfEcho =
+    chat.isBot ||
+    isRecentBotMessage(message) ||
+    (currentBotName && (message.startsWith(`${currentBotName} `) || message === currentBotName || message.startsWith(`[${currentBotName}]`))) ||
+    message.startsWith('[샤봇]') ||
+    message.startsWith('[모트봇]') ||
+    message.startsWith('[잼쿠봇]') ||
+    message.startsWith('[쿨타임]');
+
+  if (isSelfEcho) {
     return null;
   }
 
@@ -401,7 +410,8 @@ function handleCustomCommand(cmd, target, user, role) {
   let responseText = cmd.response;
   responseText = responseText.replace(/{user}/g, user.nickname);
   responseText = responseText.replace(/{target}/g, target);
-  responseText = responseText.replace(/{bot}/g, db.settings.botName || '샤봇');
+  const rawBot = typeof db.settings.botName === 'string' ? db.settings.botName.trim() : '';
+  responseText = responseText.replace(/{bot}/g, rawBot || db.settings.streamerName || '샤봇');
   responseText = responseText.replace(/{streamer}/g, db.settings.streamerName || db.status.channelName || '스트리머');
   responseText = responseText.replace(/{fandom}/g, db.settings.fandomName || '시청자');
   responseText = responseText.replace(/{points}/g, (user.points || 0).toLocaleString());
@@ -748,8 +758,9 @@ async function handleDefaultCommand(cmdName, param, target, user, role) {
     commit();
     if (ioInstance) ioInstance.emit('points_update', db.users);
 
+    const vsBotName = typeof db.settings.botName === 'string' && db.settings.botName.trim() ? db.settings.botName.trim() : '샤봇';
     return sendBotMessage(
-      `✌️✊🖐️ [${user.nickname}]: ${choice} vs [${db.settings.botName || '샤봇'}]: ${botChoice} ➡️ ${result} (현재: ${user.chips.toLocaleString()}${cUnit})`,
+      `✌️✊🖐️ [${user.nickname}]: ${choice} vs ${vsBotName}: ${botChoice} ➡️ ${result} (현재: ${user.chips.toLocaleString()}${cUnit})`,
       { currencyType: 'chips' }
     );
   }

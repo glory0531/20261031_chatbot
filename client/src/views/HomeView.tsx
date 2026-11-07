@@ -40,7 +40,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   onNavigateTab
 }) => {
   const streamerName = status.channelName || settings?.streamerName || '스트리머';
-  const botName = settings?.botName || '샤봇';
+  const botName = (settings?.botName && settings.botName.trim()) || '샤봇';
   const fandomName = settings?.fandomName || '시청자';
   const pointName = settings?.pointName || 'P';
   const chipName = settings?.chipName || '칩';

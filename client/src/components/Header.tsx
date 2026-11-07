@@ -40,7 +40,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenTunnelModal,
   onNavigateSettings
 }) => {
-  const botName = settings?.botName || '샤봇';
+  const botName = (settings?.botName && settings.botName.trim()) || '샤봇';
   const streamerName = status.channelName || settings?.streamerName || '스트리머';
   const fandomName = settings?.fandomName || '시청자';
   const channelId = status.channelId || settings?.chzzkChannelId || '';

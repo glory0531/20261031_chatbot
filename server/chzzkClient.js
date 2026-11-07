@@ -360,6 +360,26 @@ export function triggerSimulatedCheese(username, cheeseAmount = 1000, message = 
   });
 }
 
+// 봇이 최근 발송한 메시지 추적 (웹소켓 에코 수신 시 무한 루프 및 중복 적립 방지)
+const recentSentBotMessages = new Map();
+
+export function markSentByBot(message) {
+  if (!message) return;
+  const now = Date.now();
+  recentSentBotMessages.set(message, now);
+  for (const [msg, time] of recentSentBotMessages.entries()) {
+    if (now - time > 30000) recentSentBotMessages.delete(msg);
+  }
+}
+
+export function isRecentBotMessage(message) {
+  if (!message) return false;
+  const now = Date.now();
+  const time = recentSentBotMessages.get(message);
+  if (time && now - time < 30000) return true;
+  return false;
+}
+
 export async function sendChzzkChatMessage(message) {
   const { chzzkClientId, chzzkClientSecret, chzzkAccessToken, chzzkRefreshToken, botName } = db.settings;
 
@@ -367,10 +387,18 @@ export async function sendChzzkChatMessage(message) {
     return { success: false, reason: '치지직 연동 토큰이 필요합니다.' };
   }
 
-  const botTag = `[${botName || '샤봇'}]`;
+  // 봇 이름 송출 시 대괄호 '[]' 제거 및 공백 허용:
+  // 봇 이름이 있으면 '봇이름 내용' (예: '| 내용', '샤봇 내용')
+  // 봇 이름이 비어있으면(공백) 접두사 없이 '내용' 직접 송출
+  const bName = typeof botName === 'string' ? botName.trim() : '';
+  const finalMessage = bName ? `${bName} ${message}` : message;
+
+  markSentByBot(finalMessage);
+  markSentByBot(message);
+
   const trySend = async (token) => {
     return axios.post('https://openapi.chzzk.naver.com/open/v1/chats/send', {
-      message: `${botTag} ${message}`.slice(0, 100)
+      message: finalMessage.slice(0, 100)
     }, {
       headers: {
         'Authorization': `Bearer ${token}`,
