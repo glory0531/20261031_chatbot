@@ -50,7 +50,15 @@ import { RouletteOverlay } from './overlays/RouletteOverlay';
 export function App() {
   const [pathname, setPathname] = useState(window.location.pathname);
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
-  const [currentTab, setCurrentTab] = useState<NavTab>('home');
+  const [currentTab, setCurrentTab] = useState<NavTab>(() => {
+    try {
+      const p = new URLSearchParams(window.location.search);
+      if (p.has('chzzk_auth') || p.has('chzzk_error')) {
+        return 'settings';
+      }
+    } catch {}
+    return 'home';
+  });
   const [isOverlayModalOpen, setIsOverlayModalOpen] = useState(false);
   const [isTunnelModalOpen, setIsTunnelModalOpen] = useState(false);
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
@@ -236,6 +244,28 @@ export function App() {
       document.body.classList.remove('overlay-mode');
     }
   }, [pathname]);
+
+  // 치지직 OAuth 리디렉션 결과 안내 및 URL 쿼리 파라미터 정리
+  useEffect(() => {
+    try {
+      const p = new URLSearchParams(window.location.search);
+      const auth = p.get('chzzk_auth');
+      const err = p.get('chzzk_error');
+      if (auth === 'success') {
+        setCurrentTab('settings');
+        setTimeout(() => {
+          alert('🎉 치지직 계정 연동이 완료되었습니다!\n발송 명의와 채팅 연동 상태를 확인해 주세요.');
+        }, 150);
+        window.history.replaceState({}, document.title, window.location.pathname);
+      } else if (err) {
+        setCurrentTab('settings');
+        setTimeout(() => {
+          alert(`⚠️ 치지직 연동 중 오류가 발생했습니다:\n\n[오류 내용] ${decodeURIComponent(err)}\n\n환경설정에서 Client ID, 비밀키(Secret) 및 치지직 개발자 센터 설정을 확인해 주세요.`);
+        }, 150);
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+    } catch {}
+  }, []);
 
   const isLocalHost = ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname) ||
     window.location.hostname.startsWith('192.168.') ||
