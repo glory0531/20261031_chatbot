@@ -175,12 +175,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, update, on
         themePreset,
         autoUpdateOnStart,
         prefix,
-        pointName,
+        pointName: chipName,
         chipName,
         cheesePointEnabled,
         cheesePointRatePercent: Number(cheesePointRatePercent),
         includeMissionCheese,
-        donateCurrency,
+        donateCurrency: 'chips',
         attendPoints: Number(attendPoints),
         chatPoints: Number(chatPoints),
         ttsEnabled,
@@ -747,18 +747,18 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, update, on
               />
             </div>
 
-            {/* A. 유료 포인트 & 룰렛 결과 송출 세분화 */}
+            {/* A. 후원 & 룰렛 결과 송출 세분화 */}
             <div className="space-y-2 pt-1">
               <div className="text-xs font-bold text-amber-300 flex items-center gap-1 px-1">
-                <span>💰 유료 후원 & 보상 메시지 송출</span>
+                <span>💰 후원 & 룰렛 메시지 송출</span>
                 <span className="text-[10px] text-slate-400 font-normal">(체크 시 치지직 채팅창에 발송)</span>
               </div>
 
               {/* 1. 치즈 후원 적립 알림 */}
               <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-950/60 border border-slate-800/80 hover:border-slate-700 transition-colors">
                 <div>
-                  <div className="text-xs font-bold text-slate-200">🧀 치즈 후원 시 감사 & 포인트 적립 알림</div>
-                  <div className="text-[10px] text-slate-400">예: <code>🧀 [닉네임]님 1,000치즈 후원 감사합니다! (+1,000P 적립)</code></div>
+                  <div className="text-xs font-bold text-slate-200">🧀 치즈 후원 시 감사 & {chipName} 적립 알림</div>
+                  <div className="text-[10px] text-slate-400">예: <code>🧀 [닉네임]님 1,000치즈 후원 감사합니다! (+1,000{chipName} 적립)</code></div>
                 </div>
                 <input
                   type="checkbox"
@@ -790,11 +790,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, update, on
                 />
               </div>
 
-              {/* 3. 포인트/칩 도네이션 후원 알림 */}
+              {/* 3. 도네이션 후원 알림 */}
               <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-950/60 border border-slate-800/80 hover:border-slate-700 transition-colors">
                 <div>
-                  <div className="text-xs font-bold text-slate-200">⚔️ 포인트/칩 도네이션({fullDonateCmd}) 후원 알림</div>
-                  <div className="text-[10px] text-slate-400">예: <code>⚔️ [닉네임]님이 1,000포인트를 후원하셨습니다! "메시지"</code></div>
+                  <div className="text-xs font-bold text-slate-200">⚔️ 방송 재화 도네이션({fullDonateCmd}) 후원 알림</div>
+                  <div className="text-[10px] text-slate-400">예: <code>⚔️ [닉네임]님이 1,000{chipName}을(를) 후원하셨습니다! "메시지"</code></div>
                 </div>
                 <input
                   type="checkbox"
@@ -809,10 +809,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, update, on
               </div>
             </div>
 
-            {/* B. 무료 활동 칩 메시지 송출 세분화 (도배 방지) */}
+            {/* B. 일반 활동 메시지 송출 세분화 (도배 방지) */}
             <div className="space-y-2 pt-2 border-t border-slate-800/80">
               <div className="text-xs font-bold text-teal-300 flex items-center gap-1 px-1">
-                <span>🛡️ 무료 활동 메시지 송출 (도배 방지)</span>
+                <span>🛡️ 일반 활동 메시지 송출 (도배 방지)</span>
                 <span className="text-[10px] text-slate-400 font-normal">(해제 시 대시보드에만 표시, 채팅창 미송출)</span>
               </div>
 
@@ -892,12 +892,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, update, on
           </div>
         </div>
 
-        {/* 2. 방송 호칭 & 재화 이원화 규칙 & 데이터 백업 카드 */}
+        {/* 2. 방송 호칭 & 재화 규칙 & 데이터 백업 카드 */}
         <div className="space-y-6">
           <div className="witch-card p-5 rounded-2xl space-y-4">
             <div className="flex items-center gap-2 pb-3 border-b border-slate-800">
               <Shield className="w-4 h-4 text-amber-400" />
-              <h3 className="font-bold text-sm text-white">내 방송 맞춤 호칭 & 재화 규칙 (이원화)</h3>
+              <h3 className="font-bold text-sm text-white">내 방송 맞춤 호칭 & 재화 규칙</h3>
             </div>
 
             <form onSubmit={handleSaveSettings} className="space-y-3.5">
@@ -953,44 +953,38 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, update, on
                 </div>
               </div>
 
-              {/* 단위명 설정: 유료 포인트 vs 활동 칩 */}
-              <div className="grid grid-cols-2 gap-3 p-3 rounded-xl bg-slate-950/60 border border-slate-800">
-                <div>
-                  <label className="block text-xs font-bold text-amber-300 mb-1 flex items-center gap-1">
-                    <CircleDollarSign className="w-3.5 h-3.5" /> 유료 포인트 단위명
-                  </label>
-                  <input
-                    type="text"
-                    value={pointName}
-                    onChange={(e) => setPointName(e.target.value)}
-                    placeholder="P / 캐시"
-                    className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-amber-400/40 text-xs text-white text-center focus:outline-none focus:border-amber-400 font-bold"
-                  />
-                  <div className="text-[10px] text-slate-400 mt-1">치즈 후원 연동, 룰렛 유료화 전용</div>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-cyan-300 mb-1 flex items-center gap-1">
-                    <Coins className="w-3.5 h-3.5" /> 활동 칩 단위명
-                  </label>
+              {/* 단일 방송 재화 단위명 설정 */}
+              <div className="p-3.5 rounded-xl bg-slate-950/60 border border-slate-800">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div>
+                    <label className="text-xs font-bold text-amber-300 flex items-center gap-1.5">
+                      <Coins className="w-3.5 h-3.5" /> 방송 재화 단위명 (단일 통합)
+                    </label>
+                    <div className="text-[10px] text-slate-400 mt-0.5">
+                      치즈 후원 적립, 출석·채팅 보상, 룰렛, 모금, 미니게임 등 모든 컨텐츠에서 공통으로 사용됩니다.
+                    </div>
+                  </div>
                   <input
                     type="text"
                     value={chipName}
-                    onChange={(e) => setChipName(e.target.value)}
-                    placeholder="칩 / 쿠키"
-                    className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-cyan-400/40 text-xs text-white text-center focus:outline-none focus:border-cyan-400 font-bold"
+                    onChange={(e) => {
+                      setChipName(e.target.value);
+                      setPointName(e.target.value);
+                    }}
+                    placeholder="칩 / 포인트 / 골드"
+                    className="sm:w-44 px-3 py-2 rounded-xl bg-slate-900 border border-amber-400/40 text-xs text-white text-center focus:outline-none focus:border-amber-400 font-bold"
                   />
-                  <div className="text-[10px] text-slate-400 mt-1">출석·채팅 적립, 모금, 미니게임 전용</div>
                 </div>
               </div>
 
-              {/* 치즈 후원 유료 포인트 적립 세부 설정 */}
+              {/* 치즈 후원 시 방송 재화(칩) 적립 세부 설정 */}
               <div className="p-3.5 rounded-xl bg-slate-950/60 border border-slate-800 space-y-3">
                 <div className="flex items-center justify-between">
                   <div>
                     <div className="text-xs font-bold text-amber-300 flex items-center gap-1.5">
-                      <span>🧀 치즈 후원 시 유료 포인트 자동 적립</span>
+                      <span>🧀 치즈 후원 시 방송 재화({chipName}) 자동 적립</span>
                     </div>
-                    <div className="text-[10px] text-slate-400">시청자가 치즈 후원 시 해당 금액을 포인트로 적립합니다.</div>
+                    <div className="text-[10px] text-slate-400">시청자가 치지직 치즈 후원 시 설정된 비율만큼 {chipName}(으)로 자동 적립합니다.</div>
                   </div>
                   <input
                     type="checkbox"
@@ -1004,7 +998,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, update, on
                   <div className="pt-2 border-t border-slate-800/80 grid grid-cols-2 gap-3 items-center">
                     <div>
                       <label className="block text-[11px] font-bold text-slate-300 mb-1">
-                        치즈 1개당 적립 비율 (%)
+                        치즈 1개당 {chipName} 적립 비율 (%)
                       </label>
                       <div className="flex items-center gap-1.5">
                         <input
@@ -1018,7 +1012,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, update, on
                         <span className="text-xs text-amber-300 font-bold">%</span>
                       </div>
                       <div className="text-[10px] text-slate-400 mt-0.5">
-                        100% = 1,000치즈 후원 시 1,000{pointName} 적립
+                        100% = 1,000치즈 후원 시 1,000{chipName} 적립
                       </div>
                     </div>
 
@@ -1038,8 +1032,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, update, on
                 )}
               </div>
 
-              {/* 활동 칩 무료 적립 보상 (출석/채팅) */}
-              <div className="grid grid-cols-3 gap-3">
+              {/* 출석 및 채팅 적립 보상 */}
+              <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-slate-300 mb-1">
                     출석 보상 ({chipName})
@@ -1061,19 +1055,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, update, on
                     onChange={(e) => setChatPoints(Number(e.target.value))}
                     className="w-full px-3 py-2 rounded-xl bg-slate-950/80 border border-slate-700 text-xs text-white text-center"
                   />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-300 mb-1">
-                    {fullDonateCmd} 기본 재화
-                  </label>
-                  <select
-                    value={donateCurrency}
-                    onChange={(e) => setDonateCurrency(e.target.value as CurrencyType)}
-                    className="w-full px-2 py-2 rounded-xl bg-slate-950/80 border border-slate-700 text-xs text-white text-center"
-                  >
-                    <option value="chips">활동 칩 ({chipName})</option>
-                    <option value="points">유료 포인트 ({pointName})</option>
-                  </select>
                 </div>
               </div>
 

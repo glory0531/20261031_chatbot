@@ -123,9 +123,9 @@ export const DefaultCommandsView: React.FC<DefaultCommandsViewProps> = ({
                       </span>
                     )}
                     {Number(config.cost) > 0 && (
-                      <span className="px-2 py-0.5 rounded-lg text-[10px] font-semibold border bg-emerald-500/10 text-emerald-300 border-emerald-500/20 flex items-center gap-1">
+                      <span className="px-2 py-0.5 rounded-lg text-[10px] font-semibold border bg-amber-500/10 text-amber-300 border-amber-500/20 flex items-center gap-1">
                         <Coins className="w-2.5 h-2.5" />
-                        {(config.cost ?? 0).toLocaleString()}{config.currency === 'points' ? pUnit : cUnit}
+                        {(config.cost ?? 0).toLocaleString()}{cUnit}
                       </span>
                     )}
                     {Number(config.cooldown) > 0 && (

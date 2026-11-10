@@ -375,7 +375,7 @@ export const api = {
     return res.json();
   },
 
-  async updateRoulette(data: { items?: any[]; cost?: number; currency?: 'points' | 'chips' }) {
+  async updateRoulette(data: { items?: any[]; cost?: number; currency?: 'points' | 'chips'; settings?: any }) {
     const res = await fetch(`${API_BASE}/roulette/update`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -384,11 +384,11 @@ export const api = {
     return res.json();
   },
 
-  async spinRoulette(user?: string) {
+  async spinRoulette(user?: string, pulls?: number) {
     const res = await fetch(`${API_BASE}/roulette/spin`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ user })
+      body: JSON.stringify({ user, pulls })
     });
     return res.json();
   },

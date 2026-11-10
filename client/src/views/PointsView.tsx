@@ -9,13 +9,12 @@ import {
   Trash2,
   RotateCcw,
   Sparkles,
-  Gem,
   MessageSquare,
   Video,
   Target,
   Clock
 } from 'lucide-react';
-import { UserWallet, Settings, CurrencyType, LiveDonation, DefaultCommandConfig, getFullCommand } from '../types';
+import { UserWallet, Settings, LiveDonation, DefaultCommandConfig, getFullCommand } from '../types';
 import { api } from '../services/api';
 
 interface PointsViewProps {
@@ -26,8 +25,7 @@ interface PointsViewProps {
 }
 
 export const PointsView: React.FC<PointsViewProps> = ({ users, settings, liveDonations = [], defaultCommands }) => {
-  const pUnit = settings.pointName || 'P';
-  const cUnit = settings.chipName || '칩';
+  const cUnit = settings.chipName || settings.pointName || '칩';
   const prefix = settings.prefix || '!';
   const fullRouletteCmd = getFullCommand('roulette', defaultCommands, prefix, '룰렛');
   const fullFundCmd = getFullCommand('fund', defaultCommands, prefix, '모금');
@@ -35,11 +33,9 @@ export const PointsView: React.FC<PointsViewProps> = ({ users, settings, liveDon
   const [search, setSearch] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState('');
-  const [selectedCurrency, setSelectedCurrency] = useState<CurrencyType>('chips');
   const [amount, setAmount] = useState<number>(500);
   const [isDeduct, setIsDeduct] = useState(false);
   const [reason, setReason] = useState('');
-  const [rankingTab, setRankingTab] = useState<'points' | 'chips'>('points');
   const [donationFilter, setDonationFilter] = useState<'ALL' | 'CHAT' | 'VIDEO' | 'MISSION'>('ALL');
   const [isClearing, setIsClearing] = useState(false);
 
@@ -47,7 +43,7 @@ export const PointsView: React.FC<PointsViewProps> = ({ users, settings, liveDon
   const [chatPoints, setChatPoints] = useState(settings.chatPoints ?? 5);
   const [chatInterval, setChatInterval] = useState(settings.chatIntervalSeconds ?? 60);
 
-  // 치즈 -> 유료 포인트 적립 규칙
+  // 치즈 -> 방송 재화(칩) 적립 규칙
   const [cheeseEnabled, setCheeseEnabled] = useState(settings.cheesePointEnabled !== false);
   const [cheeseRate, setCheeseRate] = useState(settings.cheesePointRatePercent ?? 100);
   const [ruleSaved, setRuleSaved] = useState(false);
@@ -70,10 +66,9 @@ export const PointsView: React.FC<PointsViewProps> = ({ users, settings, liveDon
     setTimeout(() => setRuleSaved(false), 2000);
   };
 
-  const openModifyModal = (username: string, deduct = false, currency: CurrencyType = 'chips') => {
+  const openModifyModal = (username: string, deduct = false) => {
     setSelectedUser(username);
     setIsDeduct(deduct);
-    setSelectedCurrency(currency);
     setAmount(deduct ? 100 : 500);
     setReason('');
     setModalOpen(true);
@@ -83,7 +78,7 @@ export const PointsView: React.FC<PointsViewProps> = ({ users, settings, liveDon
     e.preventDefault();
     if (!selectedUser || isNaN(amount) || amount <= 0) return;
     const finalAmount = isDeduct ? -amount : amount;
-    await api.modifyPoints(selectedUser, finalAmount, reason, selectedCurrency);
+    await api.modifyPoints(selectedUser, finalAmount, reason, 'chips');
     setModalOpen(false);
   };
 
@@ -102,16 +97,10 @@ export const PointsView: React.FC<PointsViewProps> = ({ users, settings, liveDon
     u.nickname.toLowerCase().includes(search.toLowerCase())
   );
 
-  // 유료 치즈 포인트 랭킹
-  const cheeseRanking = [...userList]
-    .filter(u => (u.totalCheeseDonation || 0) > 0 || (u.points || 0) > 0)
-    .sort((a, b) => ((b.totalCheeseDonation || b.points || 0) - (a.totalCheeseDonation || a.points || 0)))
-    .slice(0, 8);
-
-  // 칩 후원 랭킹
-  const chipRanking = [...userList]
-    .filter(u => (u.totalDonation || 0) > 0 || (u.chips || 0) > 0)
-    .sort((a, b) => ((b.totalDonation || 0) - (a.totalDonation || 0)) || ((b.chips || 0) - (a.chips || 0)))
+  // 통합 재화 랭킹 TOP
+  const unifiedRanking = [...userList]
+    .filter(u => (u.chips || 0) > 0 || (u.totalDonation || 0) > 0 || (u.totalCheeseDonation || 0) > 0)
+    .sort((a, b) => ((b.chips || 0) - (a.chips || 0)) || ((b.totalDonation || 0) - (a.totalDonation || 0)))
     .slice(0, 8);
 
   const previewEarned = Math.floor(1000 * (Number(cheeseRate || 0) / 100));
@@ -186,10 +175,10 @@ export const PointsView: React.FC<PointsViewProps> = ({ users, settings, liveDon
         <div>
           <h2 className="text-xl font-black text-white flex items-center gap-2">
             <Coins className="w-5 h-5 text-amber-400" />
-            포인트 & 칩 통합 지갑 관리
+            시청자 재화 & 지갑 관리
           </h2>
           <p className="text-xs text-slate-400 mt-0.5">
-            치즈 후원으로 적립되는 <b className="text-emerald-300">유료 포인트({pUnit})</b>와 출석·채팅으로 모으는 <b className="text-amber-300">활동 칩({cUnit})</b> 잔액을 나란히 관리합니다.
+            치즈 후원·출석·채팅으로 적립되는 <b className="text-amber-300">방송 재화({cUnit})</b> 잔액과 랭킹, 실시간 치즈 후원 내역을 한눈에 관리합니다.
           </p>
         </div>
 
@@ -201,23 +190,17 @@ export const PointsView: React.FC<PointsViewProps> = ({ users, settings, liveDon
             <RotateCcw className="w-3.5 h-3.5 text-amber-400" /> 테스트 계정 정리
           </button>
           <button
-            onClick={() => openModifyModal('', false, 'points')}
-            className="px-3.5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs flex items-center gap-1.5 shadow-lg shadow-emerald-500/20 transition-all cursor-pointer"
-          >
-            <Gem className="w-3.5 h-3.5" /> 유료 포인트 지급/차감
-          </button>
-          <button
-            onClick={() => openModifyModal('', false, 'chips')}
+            onClick={() => openModifyModal('', false)}
             className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs flex items-center gap-1.5 shadow-lg shadow-amber-500/20 transition-all cursor-pointer"
           >
-            <PlusCircle className="w-3.5 h-3.5" /> 활동 칩 지급/차감
+            <PlusCircle className="w-3.5 h-3.5" /> {cUnit} 수동 지급/차감
           </button>
         </div>
       </div>
 
-      {/* 적립 규칙 빠른 설정 바 (유료 치즈 적립 + 무료 채팅 칩 적립) */}
+      {/* 적립 규칙 빠른 설정 바 (치즈 적립 + 실시간 채팅 적립) */}
       <div className="p-4 rounded-2xl bg-slate-900/70 border border-white/10 shadow-lg grid grid-cols-1 xl:grid-cols-12 gap-4 items-center">
-        {/* 좌측: 치즈 -> 유료 포인트 적립 */}
+        {/* 좌측: 치즈 -> 방송 재화 적립 */}
         <div className="xl:col-span-6 flex flex-wrap items-center justify-between gap-3 p-3 rounded-xl bg-slate-950/60 border border-emerald-500/20">
           <div className="flex items-center gap-2.5">
             <input
@@ -228,10 +211,10 @@ export const PointsView: React.FC<PointsViewProps> = ({ users, settings, liveDon
             />
             <div>
               <div className="text-xs font-extrabold text-emerald-300 flex items-center gap-1.5">
-                🧀 치지직 치즈 → 유료 포인트({pUnit}) 적립
+                🧀 치지직 치즈 → 방송 재화({cUnit}) 적립
               </div>
               <div className="text-[11px] text-slate-400">
-                1,000치즈 후원 시 <b className="text-emerald-300">+{previewEarned.toLocaleString()}{pUnit}</b> 자동 적립 ({fullRouletteCmd} 사용)
+                1,000치즈 후원 시 <b className="text-emerald-300">+{previewEarned.toLocaleString()}{cUnit}</b> 자동 적립 ({fullRouletteCmd}·{fullFundCmd} 등 사용)
               </div>
             </div>
           </div>
@@ -250,12 +233,12 @@ export const PointsView: React.FC<PointsViewProps> = ({ users, settings, liveDon
           </div>
         </div>
 
-        {/* 우측: 채팅 -> 무료 칩 적립 + 통합 저장 */}
+        {/* 우측: 채팅 -> 방송 재화 적립 + 통합 저장 */}
         <div className="xl:col-span-6 flex flex-wrap items-center justify-between gap-3 p-3 rounded-xl bg-slate-950/60 border border-amber-500/20">
           <div className="flex items-center gap-2.5">
             <SettingsIcon className="w-4 h-4 text-amber-400 shrink-0" />
             <div>
-              <div className="text-xs font-extrabold text-amber-300">🪙 실시간 채팅 → 활동 칩({cUnit}) 적립</div>
+              <div className="text-xs font-extrabold text-amber-300">🪙 실시간 채팅 → 방송 재화({cUnit}) 적립</div>
               <div className="text-[11px] text-slate-400">출첵·채팅으로 쌓아 {fullFundCmd} 및 미니게임에 사용</div>
             </div>
           </div>
@@ -288,7 +271,7 @@ export const PointsView: React.FC<PointsViewProps> = ({ users, settings, liveDon
         </div>
       </div>
 
-      {/* 메인 2컬럼: 좌측 시청자 통합 지갑 / 우측 유료·칩 랭킹 */}
+      {/* 메인 2컬럼: 좌측 시청자 지갑 / 우측 재화 랭킹 */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* 유저 지갑 목록 (8 cols) */}
         <div className="lg:col-span-8 p-5 rounded-2xl bg-slate-900/70 border border-white/10 shadow-lg flex flex-col h-[520px]">
@@ -330,32 +313,20 @@ export const PointsView: React.FC<PointsViewProps> = ({ users, settings, liveDon
                         {u.role === 'manager' && <span className="px-1.5 py-0.2 rounded bg-blue-500/20 text-blue-300 text-[10px] font-bold">매니저</span>}
                       </div>
                       <div className="text-[11px] text-slate-400">
-                        출석 {u.totalAttends || 0}회 · 치즈적립 {(u.totalCheeseDonation || 0).toLocaleString()}{pUnit} · 후원 {(u.totalDonation || 0).toLocaleString()}{cUnit}
+                        출석 {u.totalAttends || 0}회 · 치즈적립 {(u.totalCheeseDonation || 0).toLocaleString()}{cUnit} · 후원 {(u.totalDonation || 0).toLocaleString()}{cUnit}
                       </div>
                     </div>
                   </div>
 
-                  {/* 유료 포인트 & 보유 칩 나란히 표시 + 조작 버튼 */}
+                  {/* 단일 재화 잔액 + 조작 버튼 */}
                   <div className="flex items-center justify-end gap-2.5 shrink-0">
                     <button
                       type="button"
-                      onClick={() => openModifyModal(u.nickname, false, 'points')}
-                      className="px-2.5 py-1.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-right transition-colors cursor-pointer"
-                      title="클릭하여 유료 포인트 지급/차감"
+                      onClick={() => openModifyModal(u.nickname, false)}
+                      className="px-3 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-right transition-colors cursor-pointer"
+                      title={`클릭하여 ${cUnit} 지급/차감`}
                     >
-                      <div className="text-[10px] text-emerald-400/80 font-bold">🧀 유료 포인트</div>
-                      <div className="text-sm font-black text-emerald-300">
-                        {(u.points || 0).toLocaleString()} <span className="text-[11px] font-semibold">{pUnit}</span>
-                      </div>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => openModifyModal(u.nickname, false, 'chips')}
-                      className="px-2.5 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-right transition-colors cursor-pointer"
-                      title="클릭하여 활동 칩 지급/차감"
-                    >
-                      <div className="text-[10px] text-amber-400/80 font-bold">🪙 보유 칩</div>
+                      <div className="text-[10px] text-amber-400/80 font-bold">🪙 보유 {cUnit}</div>
                       <div className="text-sm font-black text-amber-300">
                         {(u.chips || 0).toLocaleString()} <span className="text-[11px] font-semibold">{cUnit}</span>
                       </div>
@@ -363,14 +334,14 @@ export const PointsView: React.FC<PointsViewProps> = ({ users, settings, liveDon
 
                     <div className="flex items-center gap-1 ml-1">
                       <button
-                        onClick={() => openModifyModal(u.nickname, false, 'chips')}
+                        onClick={() => openModifyModal(u.nickname, false)}
                         className="p-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 cursor-pointer"
                         title="재화 수동 지급"
                       >
                         <PlusCircle className="w-4 h-4" />
                       </button>
                       <button
-                        onClick={() => openModifyModal(u.nickname, true, 'chips')}
+                        onClick={() => openModifyModal(u.nickname, true)}
                         className="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 cursor-pointer"
                         title="재화 수동 차감"
                       >
@@ -393,74 +364,25 @@ export const PointsView: React.FC<PointsViewProps> = ({ users, settings, liveDon
           </div>
         </div>
 
-        {/* 우측: 유료 포인트 / 활동 칩 랭킹 (4 cols) */}
+        {/* 우측: 통합 재화 랭킹 TOP (4 cols) */}
         <div className="lg:col-span-4 p-5 rounded-2xl bg-slate-900/70 border border-white/10 shadow-lg flex flex-col h-[520px]">
           <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-3 gap-2">
             <div className="flex items-center gap-1.5">
               <HeartHandshake className="w-4 h-4 text-rose-400" />
               <h3 className="font-bold text-sm text-white">재화 랭킹 TOP</h3>
             </div>
-            <div className="flex rounded-xl bg-slate-950 p-0.5 border border-white/10 text-[11px] font-bold">
-              <button
-                type="button"
-                onClick={() => setRankingTab('points')}
-                className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
-                  rankingTab === 'points' ? 'bg-emerald-500 text-slate-950 font-black' : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                🧀 포인트
-              </button>
-              <button
-                type="button"
-                onClick={() => setRankingTab('chips')}
-                className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
-                  rankingTab === 'chips' ? 'bg-amber-400 text-slate-950 font-black' : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                🪙 칩
-              </button>
-            </div>
+            <span className="px-2.5 py-0.5 rounded-lg bg-amber-500/15 text-amber-300 border border-amber-500/25 text-[11px] font-bold">
+              🪙 {cUnit} 보유순
+            </span>
           </div>
 
           <div className="flex-1 overflow-y-auto space-y-2.5">
-            {rankingTab === 'points' ? (
-              cheeseRanking.length === 0 ? (
-                <div className="h-full flex items-center justify-center text-slate-500 text-xs text-center px-4">
-                  아직 치즈 후원 유료 포인트 내역이 없습니다.
-                </div>
-              ) : (
-                cheeseRanking.map((u, idx) => (
-                  <div
-                    key={u.nickname}
-                    className="p-3 rounded-xl bg-slate-950/60 border border-white/5 flex items-center justify-between text-xs"
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <span className={`w-5 h-5 rounded-lg font-black flex items-center justify-center text-[11px] ${
-                        idx === 0 ? 'bg-emerald-400 text-slate-950' : 'bg-slate-800 text-slate-400'
-                      }`}>
-                        {idx + 1}
-                      </span>
-                      <span className="font-bold text-white">{u.nickname}</span>
-                    </div>
-                    <div className="text-right">
-                      <div className="font-black text-emerald-300">
-                        보유 {(u.points || 0).toLocaleString()}{pUnit}
-                      </div>
-                      {(u.totalCheeseDonation || 0) > 0 && (
-                        <div className="text-[10px] text-slate-400">
-                          누적 적립 {(u.totalCheeseDonation || 0).toLocaleString()}{pUnit}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ))
-              )
-            ) : chipRanking.length === 0 ? (
+            {unifiedRanking.length === 0 ? (
               <div className="h-full flex items-center justify-center text-slate-500 text-xs text-center px-4">
-                아직 활동 칩 적립/후원 내역이 없습니다.
+                아직 적립/후원 내역이 없습니다.
               </div>
             ) : (
-              chipRanking.map((u, idx) => (
+              unifiedRanking.map((u, idx) => (
                 <div
                   key={u.nickname}
                   className="p-3 rounded-xl bg-slate-950/60 border border-white/5 flex items-center justify-between text-xs"
@@ -477,9 +399,11 @@ export const PointsView: React.FC<PointsViewProps> = ({ users, settings, liveDon
                     <div className="font-black text-amber-300">
                       보유 {(u.chips || 0).toLocaleString()}{cUnit}
                     </div>
-                    {(u.totalDonation || 0) > 0 && (
-                      <div className="text-[10px] text-rose-300">
-                        누적 후원 {(u.totalDonation || 0).toLocaleString()}{cUnit}
+                    {((u.totalCheeseDonation || 0) > 0 || (u.totalDonation || 0) > 0) && (
+                      <div className="text-[10px] text-slate-400">
+                        {(u.totalCheeseDonation || 0) > 0 && `치즈적립 ${(u.totalCheeseDonation || 0).toLocaleString()}${cUnit}`}
+                        {(u.totalCheeseDonation || 0) > 0 && (u.totalDonation || 0) > 0 && ' · '}
+                        {(u.totalDonation || 0) > 0 && <span className="text-rose-300">후원 {(u.totalDonation || 0).toLocaleString()}{cUnit}</span>}
                       </div>
                     )}
                   </div>
@@ -631,14 +555,14 @@ export const PointsView: React.FC<PointsViewProps> = ({ users, settings, liveDon
         </div>
       </div>
 
-      {/* 재화 수동 지급/차감 모달 (유료 포인트 / 활동 칩 선택 지원) */}
+      {/* 재화 수동 지급/차감 모달 */}
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fade-in">
           <div className="w-full max-w-sm rounded-2xl bg-slate-900 border border-white/10 shadow-2xl p-6 space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="font-bold text-base text-white flex items-center gap-1.5">
                 <Sparkles className="w-4 h-4 text-amber-400" />
-                {isDeduct ? '재화 수동 차감 (회수)' : '재화 수동 지급'}
+                {isDeduct ? `${cUnit} 수동 차감 (회수)` : `${cUnit} 수동 지급`}
               </h3>
               <div className="flex rounded-lg bg-slate-950 p-0.5 border border-white/10 text-[11px] font-bold">
                 <button
@@ -659,39 +583,6 @@ export const PointsView: React.FC<PointsViewProps> = ({ users, settings, liveDon
             </div>
 
             <form onSubmit={handleModifyPoints} className="space-y-4">
-              {/* 대상 재화 선택 */}
-              <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1.5">
-                  대상 재화 선택
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setSelectedCurrency('points')}
-                    className={`p-2.5 rounded-xl border text-xs font-bold text-left transition-all cursor-pointer ${
-                      selectedCurrency === 'points'
-                        ? 'bg-emerald-500/20 border-emerald-400 text-emerald-300'
-                        : 'bg-slate-950/60 border-white/10 text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    <div>🧀 유료 포인트 ({pUnit})</div>
-                    <div className="text-[10px] font-normal text-slate-400 mt-0.5">치즈 연동 · !룰렛용</div>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedCurrency('chips')}
-                    className={`p-2.5 rounded-xl border text-xs font-bold text-left transition-all cursor-pointer ${
-                      selectedCurrency === 'chips'
-                        ? 'bg-amber-500/20 border-amber-400 text-amber-300'
-                        : 'bg-slate-950/60 border-white/10 text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    <div>🪙 활동 칩 ({cUnit})</div>
-                    <div className="text-[10px] font-normal text-slate-400 mt-0.5">출첵/채팅 · !모금용</div>
-                  </button>
-                </div>
-              </div>
-
               <div>
                 <label className="block text-xs font-bold text-slate-300 mb-1">
                   대상 시청자 닉네임
@@ -708,7 +599,7 @@ export const PointsView: React.FC<PointsViewProps> = ({ users, settings, liveDon
 
               <div>
                 <label className="block text-xs font-bold text-slate-300 mb-1">
-                  {isDeduct ? '차감할 수량' : '지급할 수량'} ({selectedCurrency === 'points' ? pUnit : cUnit})
+                  {isDeduct ? '차감할 수량' : '지급할 수량'} ({cUnit})
                 </label>
                 <input
                   type="number"
@@ -746,8 +637,6 @@ export const PointsView: React.FC<PointsViewProps> = ({ users, settings, liveDon
                   className={`px-4 py-2 rounded-xl font-bold text-xs cursor-pointer ${
                     isDeduct
                       ? 'bg-rose-500 hover:bg-rose-400 text-white'
-                      : selectedCurrency === 'points'
-                      ? 'bg-emerald-500 hover:bg-emerald-400 text-slate-950'
                       : 'bg-amber-500 hover:bg-amber-400 text-slate-950'
                   }`}
                 >

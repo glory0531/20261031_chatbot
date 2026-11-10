@@ -429,7 +429,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
                     </span>
                     <div>
                       <span className="font-bold text-white">{u.nickname}</span>
-                      <span className="text-[10px] text-slate-500 ml-2">보유: {(u.chips ?? 0).toLocaleString()}{cUnit} · {(u.points ?? 0).toLocaleString()}{pUnit}</span>
+                      <span className="text-[10px] text-slate-500 ml-2">보유: {(u.chips ?? 0).toLocaleString()}{cUnit}</span>
                     </div>
                   </div>
                   <div className="flex items-center gap-1.5 font-bold text-amber-400">

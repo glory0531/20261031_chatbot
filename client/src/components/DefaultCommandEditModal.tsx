@@ -250,8 +250,8 @@ export const DefaultCommandEditModal: React.FC<DefaultCommandEditModalProps> = (
             />
           </div>
 
-          {/* 4. 권한, 쿨다운, 재화, 비용 4개 그리드 */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {/* 4. 권한, 쿨다운, 소모 비용 3개 그리드 */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
               <label className="block font-bold text-slate-200 mb-1">사용 권한</label>
               <select
@@ -280,19 +280,7 @@ export const DefaultCommandEditModal: React.FC<DefaultCommandEditModalProps> = (
             </div>
 
             <div>
-              <label className="block font-bold text-slate-200 mb-1">소모 재화</label>
-              <select
-                value={currency}
-                onChange={(e: any) => setCurrency(e.target.value)}
-                className="w-full px-2.5 py-2 rounded-xl bg-slate-950 border border-white/10 text-xs text-white focus:outline-none font-bold"
-              >
-                <option value="chips">🪙 {cUnit}</option>
-                <option value="points">🧀 {pUnit}</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block font-bold text-slate-200 mb-1">소모 수량</label>
+              <label className="block font-bold text-slate-200 mb-1">소모 재화 ({cUnit})</label>
               <input
                 type="number"
                 min="0"

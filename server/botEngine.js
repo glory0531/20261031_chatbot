@@ -16,35 +16,33 @@ export function setSocketIO(io) {
   ioInstance = io;
 }
 
-export function getPointUnit() {
-  return db.settings.pointName || 'P';
-}
-
 export function getChipUnit() {
-  return db.settings.chipName || '칩';
+  return db.settings.chipName || db.settings.pointName || '칩';
 }
 
-export function getCurrencyUnit(currency = 'chips') {
-  return currency === 'points' ? getPointUnit() : getChipUnit();
+export function getPointUnit() {
+  return getChipUnit();
 }
 
-export function getCurrencyLabel(currency = 'chips') {
-  return currency === 'points' ? '유료 포인트' : '보유 칩';
+export function getCurrencyUnit() {
+  return getChipUnit();
 }
 
-export function getUserBalance(user, currency = 'chips') {
+export function getCurrencyLabel() {
+  return `보유 ${getChipUnit()}`;
+}
+
+export function getUserBalance(user) {
   if (!user) return 0;
-  return currency === 'points' ? (Number(user.points) || 0) : (Number(user.chips) || 0);
+  return (Number(user.chips) || 0) + (Number(user.points) || 0);
 }
 
-export function addUserBalance(user, currency = 'chips', amount = 0) {
+export function addUserBalance(user, _currency = 'chips', amount = 0) {
   if (!user) return;
   const delta = Number(amount) || 0;
-  if (currency === 'points') {
-    user.points = Math.max(0, (Number(user.points) || 0) + delta);
-  } else {
-    user.chips = Math.max(0, (Number(user.chips) || 0) + delta);
-  }
+  const current = (Number(user.chips) || 0) + (Number(user.points) || 0);
+  user.points = 0;
+  user.chips = Math.max(0, current + delta);
 }
 
 export function deductUserBalance(user, currency = 'chips', amount = 0) {
@@ -206,7 +204,257 @@ export function sendBotMessage(text, meta = {}) {
   return botMsg;
 }
 
-// 치지직 치즈(유료 후원) 감지 및 유료 포인트 자동 적립
+// 연차 제한 모드(최대 연차 / 지정 연차) 검증 및 보정
+export function resolveAllowedPullCount(requestedPulls, rSettings = {}) {
+  const mode = rSettings.pullLimitMode || 'max';
+  const pulls = Math.max(0, Math.floor(Number(requestedPulls) || 0));
+  if (pulls <= 0) return { allowed: false, pulls: 0, reason: '연차 횟수는 1회 이상이어야 합니다.' };
+
+  if (mode === 'fixed') {
+    const allowedList = String(rSettings.fixedPullCounts || '1, 5, 10')
+      .split(',')
+      .map((s) => parseInt(s.trim(), 10))
+      .filter((n) => !isNaN(n) && n > 0);
+    if (allowedList.length > 0 && !allowedList.includes(pulls)) {
+      return {
+        allowed: false,
+        pulls: 0,
+        reason: `지정된 연차 횟수(${allowedList.join(', ')}연차)로만 돌릴 수 있습니다.`
+      };
+    }
+    return { allowed: true, pulls };
+  } else {
+    const maxPull = Math.max(0, Number(rSettings.maxPullCount) || 0);
+    if (maxPull > 0 && pulls > maxPull) {
+      return {
+        allowed: true,
+        pulls: maxPull,
+        capped: true,
+        reason: `최대 연차 제한(${maxPull}연차)이 적용되었습니다.`
+      };
+    }
+    return { allowed: true, pulls };
+  }
+}
+
+// 룰렛 실행 통합 엔진 (단일/다중 연차, 보너스 연차, 대표 당첨 스핀 각도 계산, 합산 결과 집계, 채팅/TTS 송출)
+export function executeRoulettePulls({
+  username = '시청자',
+  userObj = null,
+  basePulls = 1,
+  triggerSource = 'command', // 'command' | 'donation' | 'subscription' | 'manual'
+  costDeducted = 0,
+  costUnit = '',
+  ignoreLimitsAndBonus = false
+}) {
+  const items = db.roulette?.items || [];
+  if (items.length === 0) return null;
+
+  const rSettings = db.roulette?.settings || {};
+  const validBasePulls = Math.max(1, Math.floor(Number(basePulls) || 1));
+
+  // 연차 보너스 계산 (구독 1회 작동 등 ignoreLimitsAndBonus가 true면 보너스 미적용)
+  let bonusPulls = 0;
+  if (!ignoreLimitsAndBonus && rSettings.bonusEnabled !== false) {
+    const everyN = Math.max(1, Number(rSettings.bonusEveryN) || 10);
+    const addM = Math.max(1, Number(rSettings.bonusAddM) || 1);
+    if (validBasePulls >= everyN) {
+      bonusPulls = Math.floor(validBasePulls / everyN) * addM;
+    }
+  }
+
+  const totalPulls = validBasePulls + bonusPulls;
+  const totalChance = items.reduce((acc, it) => acc + (Number(it.chance) || 0), 0) || 100;
+
+  // 각 항목의 휠 각도 범위 미리 계산
+  let accChance = 0;
+  const itemMetaList = items.map((item) => {
+    const startPercent = (accChance / totalChance) * 100;
+    accChance += Number(item.chance) || 0;
+    const endPercent = (accChance / totalChance) * 100;
+    const midPercent = (startPercent + endPercent) / 2;
+    const midAngle = (midPercent / 100) * 360;
+    const targetAngle = (360 - midAngle) % 360;
+    return { item, startPercent, endPercent, targetAngle };
+  });
+
+  // totalPulls 횟수만큼 추첨 수행
+  const countsMap = new Map();
+  let totalRefundChips = 0;
+
+  for (let i = 0; i < totalPulls; i++) {
+    const rand = Math.random() * totalChance;
+    let cur = 0;
+    let pickedMeta = itemMetaList[itemMetaList.length - 1];
+    for (const meta of itemMetaList) {
+      cur += Number(meta.item.chance) || 0;
+      if (rand <= cur) {
+        pickedMeta = meta;
+        break;
+      }
+    }
+
+    const pickedItem = pickedMeta.item;
+    const prev = countsMap.get(pickedItem.id);
+    if (prev) {
+      prev.count += 1;
+    } else {
+      countsMap.set(pickedItem.id, { item: pickedItem, meta: pickedMeta, count: 1 });
+    }
+
+    // 항목 이름에 '500P 반환', '300칩 지급', '500개 반환' 등이 있을 경우 자동 페이백
+    const refundMatch = pickedItem.name.match(/(\d+)\s*(?:P|포인트|칩|쿠키|개|골드)?\s*(?:반환|페이백|지급)/i);
+    if (refundMatch && userObj) {
+      totalRefundChips += parseInt(refundMatch[1], 10) || 0;
+    }
+  }
+
+  if (totalRefundChips > 0 && userObj) {
+    addUserBalance(userObj, 'chips', totalRefundChips);
+  }
+
+  // 결과 요약 리스트 생성: 희귀한 항목(확률 낮은 순, '꽝'이 아닌 항목 우선)으로 정렬
+  const summaryEntries = Array.from(countsMap.values()).sort((a, b) => {
+    const aIsLoss = a.item.name.includes('꽝') || a.item.name.includes('다음 기회에');
+    const bIsLoss = b.item.name.includes('꽝') || b.item.name.includes('다음 기회에');
+    if (aIsLoss !== bIsLoss) return aIsLoss ? 1 : -1;
+    return (Number(a.item.chance) || 0) - (Number(b.item.chance) || 0);
+  });
+
+  // 1회 대표 스핀 타겟 항목: 가장 희귀한 최고 당첨 항목
+  const repEntry = summaryEntries[0];
+  const repItem = repEntry.item;
+  const targetAngle = repEntry.meta.targetAngle;
+
+  const resultsSummary = summaryEntries.map((e) => ({
+    name: e.item.name,
+    color: e.item.color,
+    chance: Number(e.item.chance) || 0,
+    count: e.count
+  }));
+
+  const summaryText = resultsSummary
+    .map((r) => (totalPulls > 1 ? `[${r.name}] x${r.count}` : `[${r.name}]`))
+    .join(', ');
+
+  const spinResult = {
+    user: username,
+    winner: repItem.name,
+    prize: totalPulls > 1 ? `${totalPulls}연차: ${summaryText}` : repItem.name,
+    item: repItem,
+    targetAngle,
+    totalPulls,
+    basePulls: validBasePulls,
+    bonusPulls,
+    triggerSource,
+    resultsSummary,
+    readResultTts: rSettings.readResultTts !== false,
+    time: Date.now()
+  };
+
+  if (!db.roulette.history) db.roulette.history = [];
+  db.roulette.history = [spinResult, ...db.roulette.history.slice(0, 19)];
+  commit();
+
+  if (ioInstance) {
+    ioInstance.emit('spin_roulette', spinResult);
+    ioInstance.emit('roulette_update', db.roulette);
+    ioInstance.emit('points_update', db.users);
+  }
+
+  // 결과를 채팅으로 송신 (연차는 집계해서 1회만 전송)
+  if (rSettings.sendResultToChat !== false && triggerSource !== 'manual') {
+    const unit = costUnit || getChipUnit();
+    const remaining = userObj ? getUserBalance(userObj) : 0;
+    const rouletteCfg = db.defaultCommands?.roulette;
+
+    if (totalPulls === 1 && triggerSource === 'command') {
+      const template =
+        rouletteCfg?.response ||
+        `🎰 [{user}]님이 {cost}{unit}로 룰렛을 돌려 [ {winner} ]에 당첨되셨습니다! (남은 잔액: {remaining}{unit})`;
+      const resp = renderResponseTemplate(template, {
+        user: username,
+        cost: costDeducted.toLocaleString(),
+        unit,
+        winner: repItem.name,
+        result: repItem.name,
+        remaining: remaining.toLocaleString()
+      });
+      sendBotMessage(resp, { category: 'roulette', currencyType: 'chips' });
+    } else if (totalPulls === 1) {
+      const prefixLabel =
+        triggerSource === 'donation' ? '🧀 후원 룰렛' : triggerSource === 'subscription' ? '💎 구독 룰렛' : '🎰 룰렛';
+      sendBotMessage(
+        `${prefixLabel} 결과: [${username}]님이 [ ${repItem.name} ]에 당첨되셨습니다! 🎉`,
+        { category: 'roulette', currencyType: 'chips' }
+      );
+    } else {
+      const bonusNote = bonusPulls > 0 ? `(기본 ${validBasePulls}+보너스 ${bonusPulls})` : '';
+      sendBotMessage(
+        `🎰 [${username}]님 ${totalPulls}연차${bonusNote} 룰렛 결과: ${summaryText}`,
+        { category: 'roulette', currencyType: 'chips' }
+      );
+    }
+  }
+
+  return spinResult;
+}
+
+// 치지직 구독 / 구독선물 감지 및 룰렛 트리거 처리
+export function processSubscriptionEvent({
+  user: username = '익명의 구독자',
+  isAnonymous = false,
+  tier = 1,
+  isGift = false,
+  giftCount = 1,
+  role = 'sub'
+}) {
+  const rSettings = db.roulette?.settings || {};
+  if (rSettings.enabled === false) return null;
+
+  const tierKey = Number(tier) === 2 ? 'tier2' : 'tier1';
+  const userObj = (!isAnonymous && username && username !== '익명의 구독자')
+    ? getOrCreateUser(username, role)
+    : null;
+
+  if (!isGift) {
+    // 일반 구독으로 작동: "시청자가 구독하면 1회 돌아가요 (연차 제한·보너스와 상관없이 1회)"
+    if (!rSettings.subEnabled) return null;
+    if (rSettings.subTier && rSettings.subTier !== 'all' && rSettings.subTier !== tierKey) {
+      return null;
+    }
+    return executeRoulettePulls({
+      username: isAnonymous ? '익명 구독자' : username,
+      userObj,
+      basePulls: 1,
+      triggerSource: 'subscription',
+      ignoreLimitsAndBonus: true
+    });
+  } else {
+    // 구독선물로 작동: "선물 수마다 1회 돌아가요"
+    if (!rSettings.subGiftEnabled) return null;
+    if (rSettings.subGiftTier && rSettings.subGiftTier !== 'all' && rSettings.subGiftTier !== tierKey) {
+      return null;
+    }
+    const countPerSpin = Math.max(1, Number(rSettings.subGiftCountPerSpin) || 1);
+    const totalGifts = Math.max(1, Number(giftCount) || 1);
+    const pulls = Math.floor(totalGifts / countPerSpin);
+    if (pulls <= 0) return null;
+
+    const resolved = resolveAllowedPullCount(pulls, rSettings);
+    if (!resolved.allowed || resolved.pulls <= 0) return null;
+
+    return executeRoulettePulls({
+      username: isAnonymous ? '익명 구독선물자' : username,
+      userObj,
+      basePulls: resolved.pulls,
+      triggerSource: 'subscription',
+      ignoreLimitsAndBonus: false
+    });
+  }
+}
+
+// 치지직 치즈(유료 후원) 감지 및 방송 재화(칩) 자동 적립 + 후원 룰렛 트리거
 export function processCheeseDonation({
   user: username,
   isAnonymous = false,
@@ -223,23 +471,66 @@ export function processCheeseDonation({
   const upperType = String(donationType || 'CHAT').toUpperCase();
   const isMission = upperType.includes('MISSION');
 
-  const pUnit = getPointUnit();
+  const cUnit = getChipUnit();
+  const rSettings = db.roulette?.settings || {};
+
+  // 1. 후원 트리거 룰렛 작동 판별
+  let rouletteTriggered = false;
+  let cheeseUsedForRoulette = 0;
+
+  if (rSettings.enabled !== false && rSettings.donationEnabled) {
+    const unitCheese = Math.max(100, Number(rSettings.donationUnitCheese) || 1000);
+    const maxCheese = Math.max(0, Number(rSettings.donationMaxCheese) || 0);
+    const allowNonMultiple = rSettings.donationAllowNonMultiple !== false;
+    const keyword = String(rSettings.donationMessageKeyword || '').trim();
+
+    const withinMax = maxCheese === 0 || cheese <= maxCheese;
+    const keywordMatched = !keyword || String(message || '').includes(keyword);
+    const multipleMatched = allowNonMultiple ? cheese >= unitCheese : (cheese >= unitCheese && cheese % unitCheese === 0);
+
+    if (withinMax && keywordMatched && multipleMatched) {
+      const rawPulls = Math.floor(cheese / unitCheese);
+      const resolved = resolveAllowedPullCount(rawPulls, rSettings);
+      if (resolved.allowed && resolved.pulls > 0) {
+        const userObj = (!isAnonymous && username && username !== '익명의 후원자')
+          ? getOrCreateUser(username, role)
+          : null;
+        executeRoulettePulls({
+          username: username || '익명의 후원자',
+          userObj,
+          basePulls: resolved.pulls,
+          triggerSource: 'donation'
+        });
+        rouletteTriggered = true;
+        cheeseUsedForRoulette = resolved.pulls * unitCheese;
+      }
+    }
+  }
+
+  // 2. 치즈 후원 -> 방송 재화(칩) 적립 계산
+  // 후원 룰렛이 작동했을 때, donationAlsoEarnChips가 꺼져 있으면 룰렛에 사용된 치즈 금액만큼은 중복 적립에서 제외
+  const eligibleCheese = (rouletteTriggered && !rSettings.donationAlsoEarnChips)
+    ? Math.max(0, cheese - cheeseUsedForRoulette)
+    : cheese;
+
   const isEnabled = db.settings.cheesePointEnabled !== false;
   const ratePercent = Number(db.settings.cheesePointRatePercent ?? 100);
-  const shouldEarnPoints = !isMission || Boolean(db.settings.includeMissionCheese);
-  const earnedPoints = (!isAnonymous && isEnabled && shouldEarnPoints) ? Math.max(0, Math.floor(cheese * (ratePercent / 100))) : 0;
+  const shouldEarnChips = !isMission || Boolean(db.settings.includeMissionCheese);
+  const earnedChips = (!isAnonymous && isEnabled && shouldEarnChips)
+    ? Math.max(0, Math.floor(eligibleCheese * (ratePercent / 100)))
+    : 0;
 
-  let currentPoints = 0;
+  let currentChips = 0;
   if (!isAnonymous && username && username !== '익명의 후원자') {
     const user = getOrCreateUser(username, role);
     if (userIdHash && user.userIdHash !== userIdHash) {
       user.userIdHash = userIdHash;
     }
-    if (earnedPoints > 0) {
-      user.points = (Number(user.points) || 0) + earnedPoints;
-      user.totalCheeseDonation = (Number(user.totalCheeseDonation) || 0) + earnedPoints;
+    if (earnedChips > 0) {
+      addUserBalance(user, 'chips', earnedChips);
+      user.totalCheeseDonation = (Number(user.totalCheeseDonation) || 0) + earnedChips;
     }
-    currentPoints = user.points;
+    currentChips = getUserBalance(user);
     commit();
 
     if (ioInstance) {
@@ -275,8 +566,8 @@ export function processCheeseDonation({
   const donationData = {
     id: 'cheese-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4),
     user: username,
-    amount: earnedPoints > 0 ? earnedPoints : cheese,
-    unit: earnedPoints > 0 ? pUnit : '치즈',
+    amount: earnedChips > 0 ? earnedChips : cheese,
+    unit: earnedChips > 0 ? cUnit : '치즈',
     cheeseAmount: cheese,
     donationType: 'cheese',
     message: message || '치즈 후원 감사합니다! 🧀',
@@ -296,22 +587,22 @@ export function processCheeseDonation({
     });
   }
 
-  // 치즈 후원 및 유료 포인트 적립 봇 안내 메시지
+  // 치즈 후원 및 방송 재화(칩) 적립 봇 안내 메시지
   if (db.settings.cheeseChatNotice !== false) {
-    if (!isAnonymous && earnedPoints > 0) {
+    if (!isAnonymous && earnedChips > 0) {
       sendBotMessage(
-        `🧀 [${username}]님 ${cheese.toLocaleString()}치즈 후원 감사합니다! (+${earnedPoints.toLocaleString()}${pUnit} 적립 ➡️ 보유: ${currentPoints.toLocaleString()}${pUnit})`,
-        { currencyType: 'points' }
+        `🧀 [${username}]님 ${cheese.toLocaleString()}치즈 후원 감사합니다! (+${earnedChips.toLocaleString()}${cUnit} 적립 ➡️ 보유: ${currentChips.toLocaleString()}${cUnit})`,
+        { category: 'cheese', currencyType: 'chips' }
       );
-    } else {
+    } else if (!rouletteTriggered) {
       sendBotMessage(
         `🧀 [${username}]님이 ${cheese.toLocaleString()}치즈를 후원하셨습니다! "${message || '감사합니다!'}"`,
-        { currencyType: 'points' }
+        { category: 'cheese', currencyType: 'chips' }
       );
     }
   }
 
-  console.log(`🧀 [치즈 후원 처리 완료] [${username}] ${cheese}치즈 ➔ +${earnedPoints}${pUnit} (보유: ${currentPoints}${pUnit})`);
+  console.log(`🧀 [치즈 후원 처리 완료] [${username}] ${cheese}치즈 ➔ +${earnedChips}${cUnit} (보유: ${currentChips}${cUnit})`);
   return donationData;
 }
 
@@ -479,8 +770,8 @@ function handleCustomCommand(cmd, target, user, role) {
   responseText = responseText.replace(/{bot}/g, rawBot || db.settings.streamerName || '샤봇');
   responseText = responseText.replace(/{streamer}/g, db.settings.streamerName || db.status.channelName || '스트리머');
   responseText = responseText.replace(/{fandom}/g, db.settings.fandomName || '시청자');
-  responseText = responseText.replace(/{points}/g, (user.points || 0).toLocaleString());
-  responseText = responseText.replace(/{chips}/g, (user.chips || 0).toLocaleString());
+  responseText = responseText.replace(/{points}/g, getUserBalance(user).toLocaleString());
+  responseText = responseText.replace(/{chips}/g, getUserBalance(user).toLocaleString());
   responseText = responseText.replace(/{uptime}/g, getUptimeString());
   responseText = responseText.replace(/{title}/g, db.status.title);
   responseText = responseText.replace(/{category}/g, db.status.category);
@@ -692,26 +983,28 @@ async function handleDefaultCommand(cmdName, param, target, user, role) {
     return sendBotMessage(resp, { currencyType: 'chips' });
   }
 
-  // 5. !포인트 / !칩 / !지갑 (두 재화 통합 안내)
+  // 5. !포인트 / !칩 / !지갑 (단일 방송 재화 안내)
   const pointCfg = dCmd.point;
   if (isCmdMatch(pointCfg, cmdName, ['포인트', 'point', '칩', 'chip', '지갑'])) {
     if (!checkCmdPermission(pointCfg, role)) {
-      return sendBotMessage(`[권한 부족] 이 명령어는 ${getPermissionLabel(pointCfg.permission)} 전용입니다.`);
+      return sendBotMessage(`[권한 부족] 이 명령어는 ${getPermissionLabel(pointCfg.permission)} 전용입니다.`, { category: 'insufficient' });
     }
     if (!checkAndApplyCooldown('point', pointCfg, user)) return null;
     const costRes = checkAndDeductCost(pointCfg, user, pointCfg?.name || '포인트');
-    if (!costRes.ok) return sendBotMessage(costRes.message, { currencyType: costRes.currency });
+    if (!costRes.ok) return sendBotMessage(costRes.message, { category: 'insufficient', currencyType: costRes.currency });
 
-    const template = pointCfg?.response || `💰 [{user}]님의 지갑 — 유료 포인트: {points}{pUnit} · 보유 칩: {chips}{cUnit} (총 출석: {totalAttends}회)`;
+    const balStr = getUserBalance(user).toLocaleString();
+    const template = pointCfg?.response || `💰 [{user}]님의 지갑 — 보유 {cUnit}: {chips}{cUnit} (총 출석: {totalAttends}회)`;
     const resp = renderResponseTemplate(template, {
       user: user.nickname,
-      points: (user.points || 0).toLocaleString(),
-      chips: (user.chips || 0).toLocaleString(),
-      pUnit,
+      points: balStr,
+      chips: balStr,
+      pUnit: cUnit,
       cUnit,
+      unit: cUnit,
       totalAttends: user.totalAttends || 0
     });
-    return sendBotMessage(resp, { currencyType: 'chips' });
+    return sendBotMessage(resp, { category: 'wallet', currencyType: 'chips' });
   }
 
   // 6. !도네 [금액] [메시지] (기본: 칩, 스트리머 재화 선택 가능)
@@ -1062,94 +1355,62 @@ async function handleDefaultCommand(cmdName, param, target, user, role) {
     return null;
   }
 
-  // 15. !룰렛 (기본: 유료 포인트 차감, 스트리머 재화 전환 가능)
+  // 15. !룰렛 [연차횟수] (방송 재화 차감 + 다중 연차, 보너스 연차, 연결 명령어 지원)
   const rouletteCfg = dCmd.roulette;
-  if (isCmdMatch(rouletteCfg, cmdName, ['룰렛', 'roulette'])) {
+  const rSettings = db.roulette?.settings || {};
+  const customTriggerCmd = String(rSettings.commandTrigger || '').trim().replace(/^[!/]+/, '').toLowerCase();
+  const isCustomRouletteTrigger = Boolean(customTriggerCmd && String(cmdName || '').trim().toLowerCase() === customTriggerCmd);
+
+  if (isCmdMatch(rouletteCfg, cmdName, ['룰렛', 'roulette']) || isCustomRouletteTrigger) {
+    if (rSettings.enabled === false || rSettings.commandEnabled === false) {
+      return null;
+    }
     if (!checkCmdPermission(rouletteCfg, role)) {
-      return sendBotMessage(`[권한 부족] 이 명령어는 ${getPermissionLabel(rouletteCfg.permission)} 전용입니다.`);
+      return sendBotMessage(`[권한 부족] 이 명령어는 ${getPermissionLabel(rouletteCfg?.permission)} 전용입니다.`, { category: 'insufficient' });
     }
     if (!checkAndApplyCooldown('roulette', rouletteCfg, user)) return null;
 
-    const currency = rouletteCfg?.currency || db.roulette?.currency || 'points';
-    const unit = getCurrencyUnit(currency);
-    const label = getCurrencyLabel(currency);
-    const cost = rouletteCfg?.cost !== undefined ? Number(rouletteCfg.cost) : (db.roulette?.cost ?? 500);
-    const bal = getUserBalance(user, currency);
+    // 연차 횟수 파싱 (예: !룰렛 10 -> 10연차, 기본값 1)
+    const argPulls = param ? parseInt(param.trim().split(/\s+/)[0], 10) : 1;
+    const requestedPulls = (!isNaN(argPulls) && argPulls > 0) ? argPulls : 1;
 
-    if (bal < cost) {
+    const resolved = resolveAllowedPullCount(requestedPulls, rSettings);
+    if (!resolved.allowed || resolved.pulls <= 0) {
+      return sendBotMessage(`[룰렛 안내] ${resolved.reason}`, { category: 'insufficient', currencyType: 'chips' });
+    }
+
+    const basePulls = resolved.pulls;
+    const unit = getChipUnit();
+    const label = getCurrencyLabel();
+    const costPerSpin = db.roulette?.cost !== undefined ? Number(db.roulette.cost) : (rouletteCfg?.cost !== undefined ? Number(rouletteCfg.cost) : 500);
+    const totalCost = Math.max(0, costPerSpin * basePulls);
+    const bal = getUserBalance(user);
+
+    if (bal < totalCost) {
       return sendBotMessage(
-        `[잔액 부족] 룰렛을 돌리려면 ${cost.toLocaleString()}${unit}이(가) 필요해요 (${label}: ${bal.toLocaleString()}${unit}).`,
-        { currencyType: currency }
+        `[잔액 부족] ${basePulls > 1 ? `${basePulls}연차 ` : ''}룰렛을 돌리려면 ${totalCost.toLocaleString()}${unit}이(가) 필요해요 (${label}: ${bal.toLocaleString()}${unit}).`,
+        { category: 'insufficient', currencyType: 'chips' }
       );
     }
 
     const items = db.roulette?.items || [];
     if (items.length === 0) {
-      return sendBotMessage(`현재 설정된 룰렛 항목이 없습니다.`, { currencyType: currency });
+      return sendBotMessage(`현재 설정된 룰렛 항목이 없습니다.`, { currencyType: 'chips' });
     }
 
-    deductUserBalance(user, currency, cost);
-
-    const totalChance = items.reduce((acc, it) => acc + (Number(it.chance) || 0), 0) || 100;
-    const rand = Math.random() * totalChance;
-    let accumulated = 0;
-    let selected = items[items.length - 1];
-    let sliceStartPercent = 0;
-    let sliceEndPercent = 100;
-
-    for (const item of items) {
-      const start = (accumulated / totalChance) * 100;
-      accumulated += Number(item.chance) || 0;
-      const end = (accumulated / totalChance) * 100;
-      if (rand <= accumulated) {
-        selected = item;
-        sliceStartPercent = start;
-        sliceEndPercent = end;
-        break;
-      }
+    if (totalCost > 0) {
+      deductUserBalance(user, 'chips', totalCost);
     }
 
-    // 항목 이름에 '500P 반환' 또는 '300칩 지급' 등이 있을 경우 자동 페이백 호환 처리
-    const pointRefundMatch = selected.name.match(/(\d+)\s*(?:P|포인트)\s*(?:반환|페이백|지급)/i);
-    const chipRewardMatch = selected.name.match(/(\d+)\s*(?:칩|쿠키)\s*(?:반환|페이백|지급)/i);
-    if (pointRefundMatch) {
-      addUserBalance(user, 'points', parseInt(pointRefundMatch[1], 10));
-    } else if (chipRewardMatch) {
-      addUserBalance(user, 'chips', parseInt(chipRewardMatch[1], 10));
-    }
-
-    const sliceMidPercent = (sliceStartPercent + sliceEndPercent) / 2;
-    const sliceMidAngle = (sliceMidPercent / 100) * 360;
-    const targetAngle = (360 - sliceMidAngle) % 360;
-
-    const spinResult = {
-      user: user.nickname,
-      winner: selected.name,
-      item: selected,
-      targetAngle,
-      time: Date.now()
-    };
-
-    if (!db.roulette.history) db.roulette.history = [];
-    db.roulette.history = [spinResult, ...db.roulette.history.slice(0, 19)];
-    commit();
-
-    if (ioInstance) {
-      ioInstance.emit('spin_roulette', spinResult);
-      ioInstance.emit('roulette_update', db.roulette);
-      ioInstance.emit('points_update', db.users);
-    }
-
-    const remaining = getUserBalance(user, currency);
-    const template = rouletteCfg?.response || `🎰 [{user}]님이 {cost}{unit}로 룰렛을 돌려 [ {winner} ]에 당첨되셨습니다! (남은 잔액: {remaining}{unit})`;
-    const resp = renderResponseTemplate(template, {
-      user: user.nickname,
-      cost: cost.toLocaleString(),
-      unit,
-      winner: selected.name,
-      remaining: remaining.toLocaleString()
+    executeRoulettePulls({
+      username: user.nickname,
+      userObj: user,
+      basePulls,
+      triggerSource: 'command',
+      costDeducted: totalCost,
+      costUnit: unit
     });
-    return sendBotMessage(resp, { currencyType: currency });
+    return true;
   }
 
   // 16. !티켓 (보유 티켓 확인)

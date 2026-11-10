@@ -214,11 +214,61 @@ export interface RouletteItem {
   color: string;
 }
 
+export interface RouletteSpinSummaryItem {
+  name: string;
+  color: string;
+  chance: number;
+  count: number;
+}
+
+export interface RouletteTriggerSettings {
+  enabled: boolean;
+  // 1. 명령어 트리거
+  commandEnabled: boolean;
+  commandTrigger: string;
+  // 2. 후원 트리거
+  donationEnabled: boolean;
+  donationUnitCheese: number;
+  donationMaxCheese: number;
+  donationAllowNonMultiple: boolean;
+  donationMessageKeyword: string;
+  donationAlsoEarnChips: boolean;
+  // 3. 구독 트리거
+  subEnabled: boolean;
+  subTier: 'all' | 'tier1' | 'tier2';
+  subGiftEnabled: boolean;
+  subGiftTier: 'all' | 'tier1' | 'tier2';
+  subGiftCountPerSpin: number;
+  // 4. 연차 · 결과 설정
+  pullLimitMode: 'max' | 'fixed';
+  maxPullCount: number;
+  fixedPullCounts: string;
+  bonusEnabled: boolean;
+  bonusEveryN: number;
+  bonusAddM: number;
+  sendResultToChat: boolean;
+  readResultTts: boolean;
+}
+
+export interface RouletteHistoryEntry {
+  user: string;
+  prize?: string;
+  winner?: string;
+  totalPulls?: number;
+  basePulls?: number;
+  bonusPulls?: number;
+  triggerType?: string;
+  triggerSource?: 'command' | 'donation' | 'subscription' | 'manual';
+  resultsSummary?: RouletteSpinSummaryItem[];
+  time: number;
+}
+
 export interface RouletteState {
   items: RouletteItem[];
   cost: number;
   currency?: CurrencyType;
-  history: { user: string; prize?: string; winner?: string; time: number }[];
+  settings?: RouletteTriggerSettings;
+  history: RouletteHistoryEntry[];
 }
 
 

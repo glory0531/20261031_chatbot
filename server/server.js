@@ -16,7 +16,7 @@ import {
   migrateAndMergeData,
   DEFAULT_COMMAND_PRESETS
 } from './db.js';
-import { setSocketIO, startAutoMessageScheduler, sendBotMessage, processChatMessage } from './botEngine.js';
+import { setSocketIO, startAutoMessageScheduler, sendBotMessage, processChatMessage, executeRoulettePulls } from './botEngine.js';
 import {
   connectChzzk,
   startSimulator,
@@ -479,7 +479,7 @@ app.get('/api/points', (req, res) => {
 });
 
 app.post('/api/points/modify', requireLocalAdmin, (req, res) => {
-  const { username, amount, currency = 'chips', reason = '' } = req.body;
+  const { username, amount, reason = '' } = req.body;
   if (!username || isNaN(amount)) {
     return res.status(400).json({ success: false, message: '올바른 사용자명과 수량을 입력하세요.' });
   }
@@ -499,23 +499,19 @@ app.post('/api/points/modify', requireLocalAdmin, (req, res) => {
     };
   }
 
-  const targetCurrency = currency === 'points' ? 'points' : 'chips';
   const delta = Number(amount);
-  if (targetCurrency === 'points') {
-    db.users[username].points = Math.max(0, (Number(db.users[username].points) || 0) + delta);
-  } else {
-    db.users[username].chips = Math.max(0, (Number(db.users[username].chips) || 0) + delta);
-  }
+  const currentBal = (Number(db.users[username].chips) || 0) + (Number(db.users[username].points) || 0);
+  db.users[username].points = 0;
+  db.users[username].chips = Math.max(0, currentBal + delta);
 
   commit();
   io.emit('points_update', db.users);
-  const unit = targetCurrency === 'points' ? (db.settings.pointName || 'P') : (db.settings.chipName || '칩');
-  const label = targetCurrency === 'points' ? '유료 포인트' : '활동 칩';
-  const newBal = targetCurrency === 'points' ? db.users[username].points : db.users[username].chips;
+  const unit = db.settings.chipName || db.settings.pointName || '칩';
+  const newBal = db.users[username].chips;
   const reasonSuffix = reason ? ` (${reason})` : '';
   sendBotMessage(
-    `💰 [관리자 ${label} 조정] [${username}]님에게 ${delta > 0 ? '+' + delta.toLocaleString() : delta.toLocaleString()}${unit} 반영${reasonSuffix} (보유: ${newBal.toLocaleString()}${unit})`,
-    { currencyType: targetCurrency }
+    `💰 [관리자 재화 조정] [${username}]님에게 ${delta > 0 ? '+' + delta.toLocaleString() : delta.toLocaleString()}${unit} 반영${reasonSuffix} (보유: ${newBal.toLocaleString()}${unit})`,
+    { currencyType: 'chips' }
   );
   res.json({ success: true, user: db.users[username] });
 });
@@ -1080,59 +1076,33 @@ app.post('/api/prediction/test-bet', requireLocalAdmin, (req, res) => {
 });
 
 app.post('/api/roulette/update', requireLocalAdmin, (req, res) => {
-  const { items, cost, currency } = req.body;
-  if (!db.roulette) db.roulette = { items: [], cost: 500, currency: 'points', history: [] };
+  const { items, cost, settings } = req.body;
+  if (!db.roulette) db.roulette = { items: [], cost: 500, currency: 'chips', settings: {}, history: [] };
   if (items && Array.isArray(items)) db.roulette.items = items;
   if (cost !== undefined) db.roulette.cost = Number(cost);
-  if (currency === 'points' || currency === 'chips') db.roulette.currency = currency;
+  db.roulette.currency = 'chips';
+  if (settings && typeof settings === 'object') {
+    db.roulette.settings = {
+      ...(db.roulette.settings || {}),
+      ...settings
+    };
+  }
   commit();
   io.emit('roulette_update', db.roulette);
   res.json({ success: true, data: db.roulette });
 });
 
 app.post('/api/roulette/spin', requireLocalAdmin, (req, res) => {
-  const { user = getStreamerDisplayName() } = req.body;
+  const { user = getStreamerDisplayName(), pulls = 1 } = req.body;
   const items = db.roulette?.items || [];
   if (items.length === 0) return res.status(400).json({ success: false, message: '룰렛 항목이 없습니다.' });
 
-  const totalChance = items.reduce((acc, it) => acc + (Number(it.chance) || 0), 0) || 100;
-  const rand = Math.random() * totalChance;
-  let accumulated = 0;
-  let selected = items[items.length - 1];
-  let sliceStartPercent = 0;
-  let sliceEndPercent = 100;
-
-  for (const item of items) {
-    const start = (accumulated / totalChance) * 100;
-    accumulated += Number(item.chance) || 0;
-    const end = (accumulated / totalChance) * 100;
-    if (rand <= accumulated) {
-      selected = item;
-      sliceStartPercent = start;
-      sliceEndPercent = end;
-      break;
-    }
-  }
-
-  const sliceMidPercent = (sliceStartPercent + sliceEndPercent) / 2;
-  const sliceMidAngle = (sliceMidPercent / 100) * 360;
-  const targetAngle = (360 - sliceMidAngle) % 360;
-
-  const spinResult = {
-    user,
-    winner: selected.name,
-    item: selected,
-    targetAngle,
-    time: Date.now()
-  };
-
-  if (!db.roulette.history) db.roulette.history = [];
-  db.roulette.history = [spinResult, ...db.roulette.history.slice(0, 19)];
-  commit();
-
-  io.emit('spin_roulette', spinResult);
-  io.emit('roulette_update', db.roulette);
-  sendBotMessage(`🎰 [${user}]님의 룰렛 결과: 🎉 '${selected.name}' 당첨!`);
+  const spinResult = executeRoulettePulls({
+    username: user,
+    basePulls: Math.max(1, Number(pulls) || 1),
+    triggerSource: 'command',
+    costDeducted: 0
+  });
 
   res.json({ success: true, data: spinResult });
 });

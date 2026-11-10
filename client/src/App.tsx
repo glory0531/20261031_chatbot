@@ -446,6 +446,7 @@ export function App() {
               roulette={roulette}
               settings={settings}
               defaultCommands={defaultCommands}
+              commands={commands}
             />
           )}
 

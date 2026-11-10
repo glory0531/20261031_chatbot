@@ -154,8 +154,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const todayStr = new Date().toISOString().split('T')[0];
   const userList = Object.values(users);
   const todayAttends = userList.filter(u => u.lastAttend === todayStr).length;
-  const totalPoints = userList.reduce((acc, u) => acc + (u.points || 0), 0);
-  const totalChips = userList.reduce((acc, u) => acc + (u.chips || 0), 0);
+  const totalChips = userList.reduce((acc, u) => acc + (u.chips || 0) + (u.points || 0), 0);
   const totalDonations = userList.reduce((acc, u) => acc + (u.totalDonation || 0), 0);
 
   return (
@@ -312,14 +311,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
               <Coins className="w-4 h-4" />
             </div>
           </div>
-          <div className="flex flex-wrap items-baseline gap-1.5">
-            <span className="text-lg sm:text-xl font-black text-amber-300">
-              {totalPoints.toLocaleString()}<span className="text-xs text-slate-400 font-normal ml-0.5">{pointName}</span>
-            </span>
-            <span className="text-slate-600 font-bold">/</span>
-            <span className="text-base sm:text-lg font-black text-cyan-300">
-              {totalChips.toLocaleString()}<span className="text-xs text-slate-400 font-normal ml-0.5">{chipName}</span>
-            </span>
+          <div className="text-2xl font-black text-amber-300">
+            {totalChips.toLocaleString()}<span className="text-xs text-slate-400 font-normal ml-1">{chipName}</span>
           </div>
           <div className="text-[11px] text-slate-400 font-medium mt-1">총 {userList.length}명의 {fandomName} 지갑</div>
         </div>
@@ -329,12 +322,12 @@ export const HomeView: React.FC<HomeViewProps> = ({
           className="p-4 sm:p-5 rounded-2xl witch-card cursor-pointer group transition-all"
         >
           <div className="flex items-center justify-between text-slate-400 mb-2">
-            <span className="text-xs font-bold">누적 포인트 후원</span>
+            <span className="text-xs font-bold">누적 재화 후원</span>
             <div className="p-2 rounded-xl bg-rose-500/15 text-rose-400 group-hover:scale-110 transition-transform">
               <HeartHandshake className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-2xl font-black text-rose-300">{totalDonations.toLocaleString()}<span className="text-xs text-slate-400 font-normal ml-1">{pointName}</span></div>
+          <div className="text-2xl font-black text-rose-300">{totalDonations.toLocaleString()}<span className="text-xs text-slate-400 font-normal ml-1">{chipName}</span></div>
           <div className="text-[11px] text-amber-300 font-semibold mt-1">
             모금 달성률 {fund.goalPoints > 0 ? Math.min(100, Math.floor((fund.currentPoints / fund.goalPoints) * 100)) : 0}%
           </div>

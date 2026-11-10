@@ -1,7 +1,7 @@
 import WebSocket from 'ws';
 import axios from 'axios';
 import { db, commit } from './db.js';
-import { processChatMessage, processCheeseDonation } from './botEngine.js';
+import { processChatMessage, processCheeseDonation, processSubscriptionEvent } from './botEngine.js';
 
 let wsClient = null;
 let pingInterval = null;
@@ -245,6 +245,7 @@ export async function connectChzzk(rawChannelId) {
             const payAmount = Number(extras.payAmount || (c.msgTypeCode === 10 ? extras.cheese : 0) || 0);
             const donationType = String(extras.donationType || (c.msgTypeCode === 10 ? 'CHAT' : '')).toUpperCase();
             const isCheeseDonation = (parsed.cmd === 93102 || c.msgTypeCode === 10) && payAmount > 0;
+            const isSubscription = c.msgTypeCode === 11 || Boolean(extras.month || extras.tierNo || extras.giftTierNo || extras.subscriptionType);
 
             if (isCheeseDonation) {
               console.log(`🧀 [치지직 치즈 후원 감지] ${nickname} (${donationType || 'CHAT'}): ${payAmount}치즈 | "${message}"`);
@@ -257,6 +258,19 @@ export async function connectChzzk(rawChannelId) {
                 message,
                 role: userRole,
                 source: 'chzzk'
+              });
+            } else if (isSubscription) {
+              const isGift = Boolean(extras.giftTierNo || extras.quantity > 1 || extras.giftCount || String(extras.subscriptionType || '').includes('GIFT'));
+              const tier = Number(extras.giftTierNo || extras.tierNo || 1);
+              const giftCount = Number(extras.quantity || extras.giftCount || 1);
+              console.log(`💎 [치지직 구독 감지] ${nickname} (${isGift ? `구독선물 ${giftCount}개` : '일반구독'}, ${tier}티어)`);
+              processSubscriptionEvent({
+                user: nickname,
+                isAnonymous,
+                tier,
+                isGift,
+                giftCount,
+                role: 'sub'
               });
             } else {
               console.log(`💬 [치지직 수신] ${nickname}: ${message}`);

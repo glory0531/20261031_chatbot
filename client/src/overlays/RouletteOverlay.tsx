@@ -1,40 +1,80 @@
 import React, { useState, useEffect } from 'react';
 import confetti from 'canvas-confetti';
 import { socket } from '../services/socket';
-import { RouletteState } from '../types';
+import { RouletteState, RouletteSpinSummaryItem } from '../types';
 
 export const RouletteOverlay: React.FC = () => {
   const [roulette, setRoulette] = useState<RouletteState | null>(null);
   const [rotation, setRotation] = useState(0);
   const [isSpinning, setIsSpinning] = useState(false);
   const [winner, setWinner] = useState<string | null>(null);
+  const [spinUser, setSpinUser] = useState<string | null>(null);
+  const [totalPulls, setTotalPulls] = useState<number>(1);
+  const [bonusPulls, setBonusPulls] = useState<number>(0);
+  const [summary, setSummary] = useState<RouletteSpinSummaryItem[]>([]);
 
   useEffect(() => {
     socket.on('initial_state', (data: any) => {
       if (data.roulette) setRoulette(data.roulette);
     });
 
-    socket.on('spin_roulette', (data: { winner: string; targetAngle: number }) => {
+    socket.on('roulette_update', (data: RouletteState) => {
+      setRoulette(data);
+    });
+
+    socket.on('spin_roulette', (data: {
+      user?: string;
+      winner: string;
+      targetAngle: number;
+      totalPulls?: number;
+      bonusPulls?: number;
+      resultsSummary?: RouletteSpinSummaryItem[];
+      readResultTts?: boolean;
+    }) => {
       setIsSpinning(true);
       setWinner(null);
-      const totalRot = rotation + 360 * 5 + data.targetAngle;
-      setRotation(totalRot);
+      setSummary([]);
+      setSpinUser(data.user || null);
+      setTotalPulls(data.totalPulls || 1);
+      setBonusPulls(data.bonusPulls || 0);
+
+      setRotation(prev => prev + 360 * 5 + (data.targetAngle || 0));
 
       setTimeout(() => {
         setIsSpinning(false);
         setWinner(data.winner);
+        if (Array.isArray(data.resultsSummary)) {
+          setSummary(data.resultsSummary);
+        }
         confetti({
-          particleCount: 100,
+          particleCount: (data.totalPulls || 1) > 1 ? 140 : 100,
           spread: 70,
           origin: { y: 0.6 }
         });
+
+        // 결과 TTS 읽기
+        if (data.readResultTts !== false && typeof window !== 'undefined' && 'speechSynthesis' in window) {
+          try {
+            window.speechSynthesis.cancel();
+            const summaryText = Array.isArray(data.resultsSummary) && data.resultsSummary.length > 0 && (data.totalPulls || 1) > 1
+              ? `${data.user ? `${data.user}님 ` : ''}${data.totalPulls}연차 결과! ` +
+                data.resultsSummary.map(s => `${s.name} ${s.count}개`).join(', ')
+              : `${data.user ? `${data.user}님 ` : ''}룰렛 당첨! ${data.winner}`;
+            const utter = new SpeechSynthesisUtterance(summaryText);
+            utter.lang = 'ko-KR';
+            utter.rate = 1.05;
+            window.speechSynthesis.speak(utter);
+          } catch {}
+        }
       }, 3500);
     });
 
     return () => {
+      socket.off('initial_state');
+      socket.off('roulette_update');
       socket.off('spin_roulette');
     };
-  }, [rotation]);
+  }, []);
 
   if (!roulette || !roulette.items || roulette.items.length === 0) return null;
 
@@ -52,7 +92,7 @@ export const RouletteOverlay: React.FC = () => {
 
   return (
     <div className="fixed inset-0 flex items-center justify-center p-6 bg-transparent select-none pointer-events-none">
-      <div className="flex flex-col items-center">
+      <div className="flex flex-col items-center max-w-md">
         <div className="w-0 h-0 border-l-[14px] border-l-transparent border-r-[14px] border-r-transparent border-t-[24px] border-t-amber-400 z-10 -mb-4 drop-shadow-lg"></div>
 
         <div className="relative w-80 h-80 rounded-full border-4 border-amber-400 shadow-2xl overflow-hidden flex items-center justify-center bg-slate-950">
@@ -92,8 +132,29 @@ export const RouletteOverlay: React.FC = () => {
         </div>
 
         {winner && (
-          <div className="mt-4 px-6 py-2.5 rounded-2xl bg-slate-950/90 border-2 border-amber-400 text-amber-300 font-black text-xl shadow-2xl animate-bounce">
-            🎉 당첨: {winner}
+          <div className="mt-4 px-6 py-3 rounded-2xl bg-slate-950/90 border-2 border-amber-400 text-center shadow-2xl space-y-2 animate-bounce">
+            {spinUser && (
+              <div className="text-xs font-extrabold text-slate-300">
+                [{spinUser}] {totalPulls > 1 ? `총 ${totalPulls}연차${bonusPulls > 0 ? ` (보너스 +${bonusPulls})` : ''}` : '룰렛 결과'}
+              </div>
+            )}
+            <div className="text-amber-300 font-black text-xl">
+              🎉 당첨: {winner}
+            </div>
+            {totalPulls > 1 && summary.length > 0 && (
+              <div className="pt-1.5 border-t border-white/10 flex flex-wrap justify-center gap-1.5">
+                {summary.map((s, idx) => (
+                  <span
+                    key={idx}
+                    className="px-2 py-0.5 rounded-lg bg-slate-900 border border-white/15 text-xs font-bold text-white flex items-center gap-1"
+                  >
+                    <span className="w-2 h-2 rounded-full" style={{ background: s.color || '#f59e0b' }} />
+                    <span>{s.name}</span>
+                    <span className="text-amber-400 font-black">x{s.count}</span>
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>

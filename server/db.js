@@ -8,24 +8,24 @@ export const DATA_DIR = path.join(__dirname, '../data');
 export const BACKUP_DIR = path.join(DATA_DIR, 'backups');
 export const DB_FILE = path.join(DATA_DIR, 'storage.json');
 
-export const CURRENT_SCHEMA_VERSION = 3;
+export const CURRENT_SCHEMA_VERSION = 4;
 
-// 오픈 샤봇 공식 배포판 깨끗한 초기 데이터 스키마 (유료 포인트 + 활동 칩 이원화)
+// 오픈 샤봇 공식 배포판 깨끗한 초기 데이터 스키마 (단일 방송 재화 '칩' 통합)
 export const DEFAULT_COMMAND_PRESETS = {
   uptime: { enabled: true, name: '업타임', aliases: ['업타임', 'uptime', '방송시간'], desc: '방송 켠 시간 확인', response: '⏱️ 현재 방송 시작 후 [ {uptime} ] 동안 달리는 중입니다!', permission: 'all', cooldown: 5, cost: 0, currency: 'chips', visibleInViewer: true },
   title: { enabled: true, name: '방제', aliases: ['방제', 'title', '제목'], desc: '방송 제목 변경 (매니저/스트리머)', response: '📢 방송 제목이 "{title}"(으)로 변경되었습니다!', permission: 'manager', cooldown: 5, cost: 0, currency: 'chips', visibleInViewer: true },
   category: { enabled: true, name: '카테고리', aliases: ['카테고리', 'category'], desc: '카테고리 변경 (매니저/스트리머)', response: '🎮 방송 카테고리가 [ {category} ](으)로 변경되었습니다!', permission: 'manager', cooldown: 5, cost: 0, currency: 'chips', visibleInViewer: true },
-  attend: { enabled: true, name: '출첵', aliases: ['출첵', '출석', 'attend', 'check'], desc: '일일 출석 체크 및 활동 칩 적립', response: '🎉 [{user}]님 출석 완료! (+{earned}{unit} 지급, {streak}일 연속 출석! 보유: {chips}{unit})', permission: 'all', cooldown: 5, cost: 0, currency: 'chips', visibleInViewer: true },
-  point: { enabled: true, name: '포인트', aliases: ['포인트', 'point', '칩', 'chip', '지갑'], desc: '보유 유료 포인트 및 칩 잔액 통합 확인', response: '💰 [{user}]님의 지갑 — 유료 포인트: {points}{pUnit} · 보유 칩: {chips}{cUnit} (총 출석: {totalAttends}회)', permission: 'all', cooldown: 5, cost: 0, currency: 'chips', visibleInViewer: true },
-  donate: { enabled: true, name: '도네', aliases: ['도네', 'donate', '후원'], desc: '칩/포인트 방송 후원 및 TTS 재생', response: '⚔️ [{user}]님이 {amount}{unit}을(를) 후원하셨습니다! "{message}"', permission: 'all', cooldown: 5, cost: 0, currency: 'chips', visibleInViewer: true },
-  fund: { enabled: true, name: '모금', aliases: ['모금', 'fund', '기부'], desc: '활동 칩 모금함 기부', response: '💖 [{user}]님이 모금함에 {amount}{unit}을(를) 기부하셨습니다! (진행률: {percent}%)', permission: 'all', cooldown: 5, cost: 0, currency: 'chips', visibleInViewer: true },
-  vote: { enabled: true, name: '투표', aliases: ['투표', 'vote', '배팅'], desc: '활동 칩 승부예측/투표 배팅', response: '🗳️ [{user}]님이 [{option}]에 {amount}{unit}을(를) 걸었습니다!', permission: 'all', cooldown: 5, cost: 0, currency: 'chips', visibleInViewer: true },
+  attend: { enabled: true, name: '출첵', aliases: ['출첵', '출석', 'attend', 'check'], desc: '일일 출석 체크 및 재화 적립', response: '🎉 [{user}]님 출석 완료! (+{earned}{unit} 지급, {streak}일 연속 출석! 보유: {chips}{unit})', permission: 'all', cooldown: 5, cost: 0, currency: 'chips', visibleInViewer: true },
+  point: { enabled: true, name: '포인트', aliases: ['포인트', 'point', '칩', 'chip', '지갑'], desc: '보유 방송 재화 잔액 확인', response: '💰 [{user}]님의 지갑 — 보유 {cUnit}: {chips}{cUnit} (총 출석: {totalAttends}회)', permission: 'all', cooldown: 5, cost: 0, currency: 'chips', visibleInViewer: true },
+  donate: { enabled: true, name: '도네', aliases: ['도네', 'donate', '후원'], desc: '방송 재화 후원 및 TTS 재생', response: '⚔️ [{user}]님이 {amount}{unit}을(를) 후원하셨습니다! "{message}"', permission: 'all', cooldown: 5, cost: 0, currency: 'chips', visibleInViewer: true },
+  fund: { enabled: true, name: '모금', aliases: ['모금', 'fund', '기부'], desc: '방송 재화 모금함 기부', response: '💖 [{user}]님이 모금함에 {amount}{unit}을(를) 기부하셨습니다! (진행률: {percent}%)', permission: 'all', cooldown: 5, cost: 0, currency: 'chips', visibleInViewer: true },
+  vote: { enabled: true, name: '투표', aliases: ['투표', 'vote', '배팅'], desc: '방송 재화 승부예측/투표 배팅', response: '🗳️ [{user}]님이 [{option}]에 {amount}{unit}을(를) 걸었습니다!', permission: 'all', cooldown: 5, cost: 0, currency: 'chips', visibleInViewer: true },
   sr: { enabled: true, name: 'sr', aliases: ['sr', '신청곡', '노래신청'], desc: '유튜브 노래 신청', response: '🎶 [{user}]님의 신청곡 [{title}]이(가) 등록되었습니다!', permission: 'all', cooldown: 5, cost: 0, currency: 'chips', visibleInViewer: true },
   request: { enabled: true, name: '신청', aliases: ['신청', 'request', '미션'], desc: '시청자 참여/미션 신청', response: '📋 [{user}]님의 신청 [{content}]이(가) 등록되었습니다!', permission: 'all', cooldown: 5, cost: 0, currency: 'chips', visibleInViewer: true },
   dice: { enabled: true, name: '주사위', aliases: ['주사위', 'dice'], desc: '1~100 랜덤 주사위 굴리기', response: '🎲 [{user}]님의 주사위 결과: {dice} (1~100)', permission: 'all', cooldown: 5, cost: 0, currency: 'chips', visibleInViewer: true },
-  fishing: { enabled: true, name: '낚시', aliases: ['낚시', 'fish', 'fishing'], desc: '칩 미끼 랜덤 낚시 미니게임', response: '🎣 [{user}]님의 낚시 결과: {result}', permission: 'all', cooldown: 5, cost: 20, currency: 'chips', visibleInViewer: true },
-  rps: { enabled: true, name: '가위바위보', aliases: ['가위바위보', 'rps'], desc: '활동 칩 가위바위보 대결', response: '✌️✊🖐️ [{user}]: {choice} vs {bot}: {botChoice} ➡️ {result}', permission: 'all', cooldown: 5, cost: 0, currency: 'chips', visibleInViewer: true },
-  roulette: { enabled: true, name: '룰렛', aliases: ['룰렛', 'roulette'], desc: '유료 포인트 행운의 룰렛 돌리기', response: '🎰 [{user}]님이 {cost}{unit}로 룰렛을 돌려 [ {result} ]에 당첨되셨습니다!', permission: 'all', cooldown: 5, cost: 100, currency: 'points', visibleInViewer: true },
+  fishing: { enabled: true, name: '낚시', aliases: ['낚시', 'fish', 'fishing'], desc: '미끼 랜덤 낚시 미니게임', response: '🎣 [{user}]님의 낚시 결과: {result}', permission: 'all', cooldown: 5, cost: 20, currency: 'chips', visibleInViewer: true },
+  rps: { enabled: true, name: '가위바위보', aliases: ['가위바위보', 'rps'], desc: '가위바위보 배팅 대결', response: '✌️✊🖐️ [{user}]: {choice} vs {bot}: {botChoice} ➡️ {result}', permission: 'all', cooldown: 5, cost: 0, currency: 'chips', visibleInViewer: true },
+  roulette: { enabled: true, name: '룰렛', aliases: ['룰렛', 'roulette'], desc: '행운의 룰렛 돌리기', response: '🎰 [{user}]님이 {cost}{unit}로 룰렛을 돌려 [ {result} ]에 당첨되셨습니다!', permission: 'all', cooldown: 5, cost: 500, currency: 'chips', visibleInViewer: true },
   ticket: { enabled: true, name: '티켓', aliases: ['티켓', 'ticket'], desc: '보유 티켓 확인 및 사용', response: '🎫 [{user}]님의 보유 티켓: {count}장', permission: 'all', cooldown: 5, cost: 0, currency: 'chips', visibleInViewer: true },
   jump: { enabled: true, name: '점프', aliases: ['점프', 'jump'], desc: '채팅 아바타 점프 모션', response: '', permission: 'all', cooldown: 2, cost: 0, currency: 'chips', visibleInViewer: true }
 };
@@ -232,11 +232,35 @@ export const defaultData = {
       { id: 'r-1', name: '치킨 기프티콘', chance: 2, color: '#f59e0b' },
       { id: 'r-2', name: '노래 1곡 신청권', chance: 20, color: '#3b82f6' },
       { id: 'r-3', name: '소원권 (방제/게임 정하기)', chance: 5, color: '#ec4899' },
-      { id: 'r-4', name: '포인트 500P 반환', chance: 30, color: '#10b981' },
+      { id: 'r-4', name: '칩 500개 반환', chance: 30, color: '#10b981' },
       { id: 'r-5', name: '꽝 (다음 기회에)', chance: 43, color: '#6b7280' }
     ],
     cost: 500,
-    currency: 'points',
+    currency: 'chips',
+    settings: {
+      enabled: true,
+      commandEnabled: true,
+      commandTrigger: '',
+      donationEnabled: false,
+      donationUnitCheese: 1000,
+      donationMaxCheese: 0,
+      donationAllowNonMultiple: true,
+      donationMessageKeyword: '',
+      donationAlsoEarnChips: false,
+      subEnabled: false,
+      subTier: 'all',
+      subGiftEnabled: false,
+      subGiftTier: 'all',
+      subGiftCountPerSpin: 1,
+      pullLimitMode: 'max',
+      maxPullCount: 0,
+      fixedPullCounts: '1, 5, 10',
+      bonusEnabled: true,
+      bonusEveryN: 10,
+      bonusAddM: 1,
+      sendResultToChat: true,
+      readResultTts: true
+    },
     history: []
   },
   schedules: [
@@ -307,20 +331,26 @@ export function migrateAndMergeData(parsed) {
     mergedSettings.onboardingCompleted = true;
   }
 
-  // 기본 명령어 딥 머지 (기본 프리셋 누락 필드 보완)
+  // 기본 명령어 딥 머지 (기본 프리셋 누락 필드 보완 및 단일 재화 일원화)
   const mergedDefaultCommands = { ...base.defaultCommands };
   if (parsed.defaultCommands && typeof parsed.defaultCommands === 'object') {
     for (const [key, val] of Object.entries(parsed.defaultCommands)) {
-      mergedDefaultCommands[key] = {
+      const merged = {
         ...(DEFAULT_COMMAND_PRESETS[key] || base.defaultCommands[key] || {}),
-        ...val
+        ...val,
+        currency: 'chips'
       };
+      // 구버전 이원화 응답 문구 자동 업그레이드
+      if (key === 'point' && typeof merged.response === 'string' && merged.response.includes('유료 포인트:')) {
+        merged.response = DEFAULT_COMMAND_PRESETS.point.response;
+      }
+      mergedDefaultCommands[key] = merged;
     }
   }
 
   // 커스텀 명령어 currency 기본값 보정 ('chips')
   const mergedCommands = Array.isArray(parsed.commands)
-    ? parsed.commands.map(c => ({ currency: 'chips', ...c }))
+    ? parsed.commands.map(c => ({ ...c, currency: 'chips' }))
     : base.commands;
 
   const mergedStatus = {
@@ -337,48 +367,41 @@ export function migrateAndMergeData(parsed) {
     settings: {
       ...base.songRequests.settings,
       ...(parsed.songRequests?.settings || {}),
-      currency: parsed.songRequests?.settings?.currency || 'chips'
+      currency: 'chips'
     }
   };
 
   const mergedFund = {
     ...base.fund,
     ...(parsed.fund || {}),
-    currency: parsed.fund?.currency || 'chips'
+    currency: 'chips'
   };
 
   const mergedRoulette = {
     ...base.roulette,
     ...(parsed.roulette || {}),
-    currency: parsed.roulette?.currency || 'points'
+    currency: 'chips',
+    settings: {
+      ...base.roulette.settings,
+      ...(parsed.roulette?.settings || {})
+    }
   };
 
-  // 시청자 지갑 마이그레이션: 구버전 단일 points -> chips로 이관 & 유료 points는 0P 시작
+  // 시청자 지갑 마이그레이션: 기존 points 잔액을 chips로 1:1 자동 합산 (단일 재화 완전 통합)
   const mergedUsers = {};
   if (parsed.users && typeof parsed.users === 'object') {
     for (const [nick, rawUser] of Object.entries(parsed.users)) {
       if (!rawUser || typeof rawUser !== 'object') continue;
-      if (rawUser.chips === undefined) {
-        mergedUsers[nick] = {
-          ...rawUser,
-          nickname: rawUser.nickname || nick,
-          points: 0,
-          chips: Number(rawUser.points) || 0,
-          totalCheeseDonation: Number(rawUser.totalCheeseDonation) || 0,
-          totalDonation: Number(rawUser.totalDonation) || 0,
-          tickets: Array.isArray(rawUser.tickets) ? rawUser.tickets : []
-        };
-      } else {
-        mergedUsers[nick] = {
-          ...rawUser,
-          nickname: rawUser.nickname || nick,
-          points: Number(rawUser.points) || 0,
-          chips: Number(rawUser.chips) || 0,
-          totalCheeseDonation: Number(rawUser.totalCheeseDonation) || 0,
-          totalDonation: Number(rawUser.totalDonation) || 0,
-          tickets: Array.isArray(rawUser.tickets) ? rawUser.tickets : []
-        };
-      }
+      const combinedChips = (Number(rawUser.chips) || 0) + (Number(rawUser.points) || 0);
+      mergedUsers[nick] = {
+        ...rawUser,
+        nickname: rawUser.nickname || nick,
+        points: 0,
+        chips: combinedChips,
+        totalCheeseDonation: Number(rawUser.totalCheeseDonation) || 0,
+        totalDonation: Number(rawUser.totalDonation) || 0,
+        tickets: Array.isArray(rawUser.tickets) ? rawUser.tickets : []
+      };
     }
   }
 
@@ -486,23 +509,25 @@ export function resetToDefaultData() {
   return db;
 }
 
-// 포인트 & 칩 CSV 내보내기
+// 방송 재화(칩) CSV 내보내기
 export function exportPointsCSV() {
-  const header = '닉네임,보유포인트(유료),보유칩,연속출석일수,총출석수,누적치즈포인트,누적칩후원,역할\n';
+  const header = '닉네임,보유재화(칩),연속출석일수,총출석수,누적치즈후원적립,누적재화후원,역할\n';
   const rows = Object.values(db.users || {}).map(u => {
-    return `"${(u.nickname || '').replace(/"/g, '""')}",${u.points || 0},${u.chips || 0},${u.attendStreak || 0},${u.totalAttends || 0},${u.totalCheeseDonation || 0},${u.totalDonation || 0},"${u.role || 'viewer'}"`;
+    const totalChips = (Number(u.chips) || 0) + (Number(u.points) || 0);
+    return `"${(u.nickname || '').replace(/"/g, '""')}",${totalChips},${u.attendStreak || 0},${u.totalAttends || 0},${u.totalCheeseDonation || 0},${u.totalDonation || 0},"${u.role || 'viewer'}"`;
   }).join('\n');
   return header + rows;
 }
 
-// 포인트 & 칩 CSV 가져오기 (신버전 2재화 및 구버전 단일재화 CSV 모두 자동 호환)
+// 방송 재화 CSV 가져오기 (단일재화 및 구버전 2재화 CSV 모두 자동 호환하여 chips로 통합)
 export function importPointsCSV(csvText) {
   if (!csvText) return { success: false, count: 0 };
   const lines = csvText.trim().split(/\r?\n/);
   if (lines.length <= 1) return { success: false, count: 0 };
 
   const headerLine = lines[0];
-  const isDualCurrencyCSV = headerLine.includes('보유칩') || headerLine.split(',').length >= 7;
+  const isLegacyDualCSV = headerLine.includes('보유포인트(유료)');
+  const isNewSingleCSV = headerLine.includes('보유재화(칩)');
 
   let count = 0;
   for (let i = 1; i < lines.length; i++) {
@@ -516,9 +541,10 @@ export function importPointsCSV(csvText) {
     const nickname = parts[0];
     if (!nickname) continue;
 
-    if (isDualCurrencyCSV) {
+    if (isLegacyDualCSV) {
       const points = parseInt(parts[1], 10) || 0;
       const chips = parseInt(parts[2], 10) || 0;
+      const combinedChips = points + chips;
       const attendStreak = parseInt(parts[3], 10) || 0;
       const totalAttends = parseInt(parts[4], 10) || 0;
       const totalCheeseDonation = parseInt(parts[5], 10) || 0;
@@ -528,7 +554,38 @@ export function importPointsCSV(csvText) {
       if (!db.users[nickname]) {
         db.users[nickname] = {
           nickname,
-          points,
+          points: 0,
+          chips: combinedChips,
+          attendStreak,
+          totalAttends,
+          lastAttend: '',
+          totalCheeseDonation,
+          totalDonation,
+          tickets: [],
+          role
+        };
+      } else {
+        db.users[nickname].points = 0;
+        db.users[nickname].chips = combinedChips;
+        db.users[nickname].attendStreak = attendStreak;
+        db.users[nickname].totalAttends = totalAttends;
+        db.users[nickname].totalCheeseDonation = totalCheeseDonation;
+        db.users[nickname].totalDonation = totalDonation;
+        if (role) db.users[nickname].role = role;
+      }
+      count++;
+    } else if (isNewSingleCSV) {
+      const chips = parseInt(parts[1], 10) || 0;
+      const attendStreak = parseInt(parts[2], 10) || 0;
+      const totalAttends = parseInt(parts[3], 10) || 0;
+      const totalCheeseDonation = parseInt(parts[4], 10) || 0;
+      const totalDonation = parseInt(parts[5], 10) || 0;
+      const role = parts[6] || 'viewer';
+
+      if (!db.users[nickname]) {
+        db.users[nickname] = {
+          nickname,
+          points: 0,
           chips,
           attendStreak,
           totalAttends,
@@ -539,7 +596,7 @@ export function importPointsCSV(csvText) {
           role
         };
       } else {
-        db.users[nickname].points = points;
+        db.users[nickname].points = 0;
         db.users[nickname].chips = chips;
         db.users[nickname].attendStreak = attendStreak;
         db.users[nickname].totalAttends = totalAttends;
@@ -571,6 +628,7 @@ export function importPointsCSV(csvText) {
           role
         };
       } else {
+        db.users[nickname].points = 0;
         db.users[nickname].chips = legacyVal;
         db.users[nickname].attendStreak = attendStreak;
         db.users[nickname].totalAttends = totalAttends;
