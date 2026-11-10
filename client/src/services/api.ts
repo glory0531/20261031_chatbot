@@ -124,6 +124,26 @@ export const api = {
     return res.json();
   },
 
+  // 기본 명령어 전체 설정 업데이트 (호출어, 응답 멘트, 쿨타임, 권한, 비용 등)
+  async updateDefaultCommand(key: string, updates: any) {
+    const res = await fetch(`${API_BASE}/commands/default/update`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key, updates })
+    });
+    return res.json();
+  },
+
+  // 기본 명령어 기본값으로 복구
+  async resetDefaultCommand(key: string) {
+    const res = await fetch(`${API_BASE}/commands/default/reset`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key })
+    });
+    return res.json();
+  },
+
   // 자동 메시지 생성
   async createAutoMessage(msg: any) {
     const res = await fetch(`${API_BASE}/automessages`, {
@@ -171,6 +191,12 @@ export const api = {
   // 유저 목록 전체 초기화
   async clearDummyUsers() {
     const res = await fetch(`${API_BASE}/users/clear-dummy`, { method: 'POST' });
+    return res.json();
+  },
+
+  // 라이브 후원 내역 초기화
+  async clearLiveDonations() {
+    const res = await fetch(`${API_BASE}/donations/clear`, { method: 'POST' });
     return res.json();
   },
 

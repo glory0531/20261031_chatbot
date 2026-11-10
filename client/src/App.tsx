@@ -16,7 +16,8 @@ import {
   ChatMessage,
   ScheduleItem,
   TunnelState,
-  UpdateState
+  UpdateState,
+  LiveDonation
 } from './types';
 
 import { Header } from './components/Header';
@@ -145,6 +146,7 @@ export function App() {
   const [weeklySchedules, setWeeklySchedules] = useState<Record<string, ScheduleItem[]>>({});
   const [activeWeekKey, setActiveWeekKey] = useState<string>('');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [liveDonations, setLiveDonations] = useState<LiveDonation[]>([]);
 
   useEffect(() => {
     socket.on('initial_state', (data: any) => {
@@ -167,6 +169,7 @@ export function App() {
       if (data.schedules) setSchedules(data.schedules);
       if (data.weeklySchedules) setWeeklySchedules(data.weeklySchedules);
       if (data.activeWeekKey !== undefined) setActiveWeekKey(data.activeWeekKey);
+      if (data.liveDonations && Array.isArray(data.liveDonations)) setLiveDonations(data.liveDonations);
       if (data.messages && Array.isArray(data.messages)) setMessages(data.messages);
       if (data.tunnel) setTunnel(data.tunnel);
       if (data.update) setUpdateState(data.update);
@@ -188,6 +191,7 @@ export function App() {
     socket.on('schedules_update', (data: ScheduleItem[]) => setSchedules(data));
     socket.on('weekly_schedules_update', (data: Record<string, ScheduleItem[]>) => setWeeklySchedules(data));
     socket.on('active_week_update', (key: string) => setActiveWeekKey(key));
+    socket.on('donations_update', (data: LiveDonation[]) => setLiveDonations(data));
     socket.on('tunnel_update', (data: TunnelState) => setTunnel(data));
     socket.on('update_state', (data: UpdateState) => setUpdateState(data));
     socket.on('simulator_status', (running: boolean) => setSimulatorRunning(running));
@@ -215,6 +219,7 @@ export function App() {
       socket.off('schedules_update');
       socket.off('weekly_schedules_update');
       socket.off('active_week_update');
+      socket.off('donations_update');
       socket.off('tunnel_update');
       socket.off('update_state');
       socket.off('simulator_status');
@@ -375,6 +380,7 @@ export function App() {
             <HomeView
               status={status}
               settings={settings}
+              defaultCommands={defaultCommands}
               messages={messages}
               users={users}
               songRequests={songRequests}
@@ -388,7 +394,7 @@ export function App() {
           )}
 
           {currentTab === 'default-commands' && (
-            <DefaultCommandsView defaultCommands={defaultCommands} prefix={settings.prefix} />
+            <DefaultCommandsView defaultCommands={defaultCommands} prefix={settings.prefix} settings={settings} />
           )}
 
           {currentTab === 'automessages' && (
@@ -405,7 +411,12 @@ export function App() {
           )}
 
           {currentTab === 'points' && (
-            <PointsView users={users} settings={settings} />
+            <PointsView
+              users={users}
+              settings={settings}
+              liveDonations={liveDonations}
+              defaultCommands={defaultCommands}
+            />
           )}
 
           {currentTab === 'fund-prediction' && (
@@ -423,11 +434,19 @@ export function App() {
           )}
 
           {currentTab === 'requests' && (
-            <RequestsView requests={generalRequests} />
+            <RequestsView
+              requests={generalRequests}
+              defaultCommands={defaultCommands}
+              prefix={settings.prefix}
+            />
           )}
 
           {currentTab === 'games' && (
-            <GamesView roulette={roulette} settings={settings} />
+            <GamesView
+              roulette={roulette}
+              settings={settings}
+              defaultCommands={defaultCommands}
+            />
           )}
 
           {currentTab === 'schedule' && (
@@ -449,6 +468,7 @@ export function App() {
               settings={settings}
               update={updateState}
               onOpenOnboarding={() => setIsOnboardingOpen(true)}
+              defaultCommands={defaultCommands}
             />
           )}
         </main>

@@ -1,4 +1,4 @@
-# 🍪 오픈 샤봇 (ShaBot) Multi-Stage Dockerfile
+# 🐻 오픈 샤봇 (ShaBot) Multi-Stage Dockerfile
 # 치지직 스트리머용 방송 챗봇 & 통합 대시보드 올인원 이미지
 
 FROM node:22-alpine AS builder

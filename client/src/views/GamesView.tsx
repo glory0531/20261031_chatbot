@@ -4,12 +4,13 @@ import {
   Check, AlertCircle, Palette, ChevronRight
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import { RouletteState, RouletteItem, Settings } from '../types';
+import { RouletteState, RouletteItem, Settings, DefaultCommandConfig, getFullCommand } from '../types';
 import { api } from '../services/api';
 
 interface GamesViewProps {
   roulette: RouletteState;
   settings?: Settings;
+  defaultCommands?: Record<string, DefaultCommandConfig>;
 }
 
 // 룰렛 추천 프리셋 템플릿
@@ -56,9 +57,11 @@ const COLOR_PRESETS = [
   '#3b82f6', '#06b6d4', '#10b981', '#6b7280'
 ];
 
-export const GamesView: React.FC<GamesViewProps> = ({ roulette, settings }) => {
+export const GamesView: React.FC<GamesViewProps> = ({ roulette, settings, defaultCommands }) => {
   const pUnit = settings?.pointName || 'P';
   const cUnit = settings?.chipName || '칩';
+  const prefix = settings?.prefix || '!';
+  const fullRouletteCmd = getFullCommand('roulette', defaultCommands, prefix, '룰렛');
 
   // --- 룰렛 상태 ---
   const [rouletteItems, setRouletteItems] = useState<RouletteItem[]>(roulette.items || []);
@@ -409,7 +412,7 @@ export const GamesView: React.FC<GamesViewProps> = ({ roulette, settings }) => {
                   {isSpinning ? '룰렛 회전 중...' : `룰렛 돌리기! (${rouletteCost}P)`}
                 </button>
                 <p className="text-[10px] text-slate-400 mt-1.5">
-                  💡 시청자는 방송 채팅창에 <span className="text-amber-300 font-mono">!룰렛</span> 을 입력하여 참여할 수 있습니다.
+                  💡 시청자는 방송 채팅창에 <span className="text-amber-300 font-mono">{fullRouletteCmd}</span> 을(를) 입력하여 참여할 수 있습니다.
                 </p>
               </div>
             </div>

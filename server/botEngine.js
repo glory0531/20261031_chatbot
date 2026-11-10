@@ -111,6 +111,65 @@ export function isPointRelatedMessage(text = '', meta = {}) {
   return pointPatterns.some(pattern => pattern.test(text));
 }
 
+// 세분화된 치지직 채팅 송출 허용 여부 판별
+export function shouldSendToChzzkChat(text = '', meta = {}) {
+  // 마스터 스위치 꺼져있으면 전송 금지
+  if (!db.settings.chzzkWriteEnabled) return false;
+
+  // 공지, 커스텀 명령어, 노래 신청 등은 언제나 송출 허용
+  if (meta.isNotice || meta.isCustomCommand || meta.isSongRequest || meta.isGeneralRequest) {
+    return true;
+  }
+
+  // 1. 유료 항목 세분화 체크 (기본값: true / 송출 허용)
+  // (1) 치즈 후원 적립 알림
+  if (meta.category === 'cheese' || text.includes('치즈 후원 감사합니다') || text.includes('치즈를 후원하셨습니다')) {
+    return db.settings.sendChatCheeseDonation ?? (db.settings.sendPaidPointMessagesInChat !== false);
+  }
+
+  // (2) 룰렛 당첨 결과 알림
+  if (meta.category === 'roulette' || text.includes('룰렛을 돌려') || text.includes('룰렛 결과:')) {
+    return db.settings.sendChatRoulette ?? (db.settings.sendPaidPointMessagesInChat !== false);
+  }
+
+  // (3) 포인트/칩 도네이션(!도네) 후원 알림
+  if (meta.category === 'donation' || text.includes('을(를) 후원하셨습니다!') || text.includes('기부하셨습니다!')) {
+    return db.settings.sendChatDonation ?? (db.settings.sendPaidPointMessagesInChat !== false);
+  }
+
+  // 2. 무료 활동 칩 (도배 방지) 세분화 체크 (기본값: false / 대시보드에만 표시)
+  // (1) 잔액 부족 및 권한 오류 안내
+  if (meta.category === 'insufficient' || text.includes('[잔액 부족]') || text.includes('[칩 부족]') || text.includes('[권한 부족]') || text.includes('잔액이 부족')) {
+    return db.settings.sendChatInsufficient ?? false;
+  }
+
+  // (2) 출석체크 알림
+  if (meta.category === 'attendance' || text.includes('출석 완료!') || text.includes('출석체크를 완료')) {
+    return db.settings.sendChatAttendance ?? false;
+  }
+
+  // (3) 지갑 및 잔액 조회 알림
+  if (meta.category === 'wallet' || text.includes('님의 지갑') || text.includes('보유 칩:')) {
+    return db.settings.sendChatWallet ?? false;
+  }
+
+  // (4) 미니게임 결과 알림 (가위바위보, 주사위 등)
+  if (meta.category === 'minigame' || text.includes('✌️✊🖐️') || text.includes('🎲 주사위')) {
+    return db.settings.sendChatMiniGames ?? false;
+  }
+
+  // 기타 포인트 관련 메시지 fallback
+  if (meta.currencyType === 'points') {
+    return db.settings.sendPaidPointMessagesInChat !== false;
+  }
+  if (meta.currencyType === 'chips' || isPointRelatedMessage(text, meta)) {
+    return !db.settings.suppressPointMessagesInChat;
+  }
+
+  // 그 외 일반 봇 응답은 송출 허용
+  return true;
+}
+
 // 봇 메시지 발송 함수 (유료 포인트 메시지 vs 무료 활동 칩 메시지 치지직 송출 분리 제어)
 export function sendBotMessage(text, meta = {}) {
   const bName = typeof db.settings.botName === 'string' ? db.settings.botName.trim() : '';
@@ -135,25 +194,12 @@ export function sendBotMessage(text, meta = {}) {
     ioInstance.emit('chat_message', botMsg);
   }
 
-  // 치지직 공식 개발자 센터 API 활성화 시 실제 방송 채팅창으로 답장 전송
+  // 치지직 공식 개발자 센터 API 활성화 시 실제 방송 채팅창으로 답장 전송 (세분화 규칙 적용)
   if (db.settings.chzzkClientId && db.settings.chzzkClientSecret && db.settings.chzzkWriteEnabled) {
-    if (meta.currencyType === 'points') {
-      // 유료 포인트(치즈 적립 안내·유료 룰렛 당첨 등)는 별도 토글(기본 ON) 적용
-      const allowPaidInChat = db.settings.sendPaidPointMessagesInChat !== false;
-      if (!allowPaidInChat) {
-        console.log(`🔇 [치지직 송출 제외 - 유료 포인트 설정 OFF] ${text}`);
-      } else {
-        sendChzzkChatMessage(text).catch((e) => console.warn('[Chzzk Send Error]', e.message));
-      }
+    if (shouldSendToChzzkChat(text, meta)) {
+      sendChzzkChatMessage(text).catch((e) => console.warn('[Chzzk Send Error]', e.message));
     } else {
-      // 무료 활동 칩 메시지(출첵·지갑 조회·미니게임·모금 등)는 도배 방지 토글(기본 ON) 적용
-      const suppressFreeChip = db.settings.suppressPointMessagesInChat !== false;
-      const isPointOrChip = meta.currencyType === 'chips' || isPointRelatedMessage(text, meta);
-      if (suppressFreeChip && isPointOrChip) {
-        console.log(`🔇 [치지직 송출 제외 - 칩 도배 방지] ${text}`);
-      } else {
-        sendChzzkChatMessage(text).catch((e) => console.warn('[Chzzk Send Error]', e.message));
-      }
+      console.log(`🔇 [치지직 송출 제외 - 설정 OFF] ${text}`);
     }
   }
 
@@ -177,16 +223,11 @@ export function processCheeseDonation({
   const upperType = String(donationType || 'CHAT').toUpperCase();
   const isMission = upperType.includes('MISSION');
 
-  // 미션 치즈 적립 제외 정책 확인
-  if (isMission && !db.settings.includeMissionCheese) {
-    console.log(`ℹ️ [미션 치즈 적립 제외] ${username}: ${cheese}치즈 (${upperType})`);
-    return null;
-  }
-
   const pUnit = getPointUnit();
   const isEnabled = db.settings.cheesePointEnabled !== false;
   const ratePercent = Number(db.settings.cheesePointRatePercent ?? 100);
-  const earnedPoints = (!isAnonymous && isEnabled) ? Math.max(0, Math.floor(cheese * (ratePercent / 100))) : 0;
+  const shouldEarnPoints = !isMission || Boolean(db.settings.includeMissionCheese);
+  const earnedPoints = (!isAnonymous && isEnabled && shouldEarnPoints) ? Math.max(0, Math.floor(cheese * (ratePercent / 100))) : 0;
 
   let currentPoints = 0;
   if (!isAnonymous && username && username !== '익명의 후원자') {
@@ -204,6 +245,30 @@ export function processCheeseDonation({
     if (ioInstance) {
       ioInstance.emit('points_update', db.users);
     }
+  }
+
+  // 라이브 방송 후원 내역(liveDonations) 기록
+  const normalizedType = upperType.includes('VIDEO') ? 'VIDEO' : upperType.includes('MISSION') ? 'MISSION' : 'CHAT';
+  const liveDonationRecord = {
+    id: 'ld-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4),
+    user: username || '익명의 후원자',
+    cheese,
+    donationType: normalizedType,
+    message: message || '',
+    timestamp: Date.now()
+  };
+
+  if (!Array.isArray(db.liveDonations)) {
+    db.liveDonations = [];
+  }
+  db.liveDonations.unshift(liveDonationRecord);
+  if (db.liveDonations.length > 200) {
+    db.liveDonations.pop();
+  }
+  commit();
+
+  if (ioInstance) {
+    ioInstance.emit('donations_update', db.liveDonations);
   }
 
   // OBS 오버레이 후원 알림 (AlertOverlay)
@@ -431,6 +496,86 @@ function handleCustomCommand(cmd, target, user, role) {
   return sendBotMessage(responseText, { isCustomCommand: true });
 }
 
+// 기본 내장 명령어 보조 함수들
+function isCmdMatch(cfg, cmdName, fallbackAliases = []) {
+  if (!cfg || cfg.enabled === false) return false;
+  const lower = String(cmdName || '').trim().toLowerCase();
+  const list = (Array.isArray(cfg.aliases) && cfg.aliases.length > 0)
+    ? cfg.aliases
+    : fallbackAliases;
+  return list.some(a => String(a || '').trim().replace(/^!/, '').toLowerCase() === lower);
+}
+
+function checkCmdPermission(cfg, role) {
+  const roleHierarchy = { viewer: 1, follower: 2, all: 1, sub: 3, manager: 4, streamer: 5 };
+  const req = roleHierarchy[cfg?.permission || 'all'] || 1;
+  const cur = roleHierarchy[role] || 1;
+  return cur >= req;
+}
+
+function getPermissionLabel(perm) {
+  switch (perm) {
+    case 'follower': return '팔로워';
+    case 'sub': return '구독자';
+    case 'manager': return '매니저';
+    case 'streamer': return '스트리머';
+    default: return '모든 시청자';
+  }
+}
+
+function checkAndApplyCooldown(cmdKey, cfg, user) {
+  const cdSec = Number(cfg?.cooldown) || 0;
+  if (cdSec <= 0) return true;
+  const cdKey = `def_${cmdKey}_${user.nickname}`;
+  const now = Date.now();
+  const lastUsed = cooldowns.get(cdKey) || 0;
+  if (now - lastUsed < cdSec * 1000) {
+    return false;
+  }
+  cooldowns.set(cdKey, now);
+  return true;
+}
+
+function checkAndDeductCost(cfg, user, cmdLabel) {
+  const cost = Number(cfg?.cost) || 0;
+  if (cost <= 0) return { ok: true, cost: 0 };
+  const currency = cfg?.currency || 'chips';
+  const unit = getCurrencyUnit(currency);
+  const label = getCurrencyLabel(currency);
+  const bal = getUserBalance(user, currency);
+  if (bal < cost) {
+    return {
+      ok: false,
+      message: `[잔액 부족] ${cmdLabel} 명령어를 쓰려면 ${cost.toLocaleString()}${unit}이(가) 필요해요 (${label}: ${bal.toLocaleString()}${unit}).`,
+      currency
+    };
+  }
+  deductUserBalance(user, currency, cost);
+  if (ioInstance) ioInstance.emit('points_update', db.users);
+  return { ok: true, cost, currency, unit };
+}
+
+function renderResponseTemplate(template, vars = {}) {
+  let text = String(template || '');
+  for (const [k, v] of Object.entries(vars)) {
+    text = text.replace(new RegExp(`{${k}}`, 'g'), v !== undefined ? String(v) : '');
+  }
+  const rawBot = typeof db.settings.botName === 'string' ? db.settings.botName.trim() : '';
+  text = text.replace(/{bot}/g, rawBot || db.settings.streamerName || '샤봇');
+  text = text.replace(/{streamer}/g, db.settings.streamerName || db.status.channelName || '스트리머');
+  text = text.replace(/{fandom}/g, db.settings.fandomName || '시청자');
+  text = text.replace(/{uptime}/g, getUptimeString());
+  text = text.replace(/{title}/g, db.status.title || '');
+  text = text.replace(/{category}/g, db.status.category || '');
+  text = text.replace(/{time}/g, new Date().toLocaleTimeString('ko-KR'));
+  text = text.replace(/{random:(\d+)-(\d+)}/g, (match, min, max) => {
+    const minN = parseInt(min);
+    const maxN = parseInt(max);
+    return Math.floor(Math.random() * (maxN - minN + 1)) + minN;
+  });
+  return text;
+}
+
 // 기본 명령어 처리
 async function handleDefaultCommand(cmdName, param, target, user, role) {
   const dCmd = db.defaultCommands;
@@ -438,18 +583,40 @@ async function handleDefaultCommand(cmdName, param, target, user, role) {
   const cUnit = getChipUnit();
 
   // 1. !업타임
-  if (dCmd.uptime?.enabled && (cmdName === '업타임' || cmdName === 'uptime')) {
-    return sendBotMessage(`⏱️ 현재 방송 시작 후 [ ${getUptimeString()} ] 동안 달리는 중입니다!`);
+  const uptimeCfg = dCmd.uptime;
+  if (isCmdMatch(uptimeCfg, cmdName, ['업타임', 'uptime'])) {
+    if (!checkCmdPermission(uptimeCfg, role)) {
+      return sendBotMessage(`[권한 부족] 이 명령어는 ${getPermissionLabel(uptimeCfg.permission)} 전용입니다.`);
+    }
+    if (!checkAndApplyCooldown('uptime', uptimeCfg, user)) return null;
+    const costRes = checkAndDeductCost(uptimeCfg, user, uptimeCfg?.name || '업타임');
+    if (!costRes.ok) return sendBotMessage(costRes.message, { currencyType: costRes.currency });
+
+    const uptimeStr = getUptimeString();
+    const template = uptimeCfg?.response || `⏱️ 현재 방송 시작 후 [ {uptime} ] 동안 달리는 중입니다!`;
+    const resp = renderResponseTemplate(template, { user: user.nickname, uptime: uptimeStr });
+    return sendBotMessage(resp);
   }
 
   // 2. !방제
-  if (dCmd.title?.enabled && (cmdName === '방제' || cmdName === 'title')) {
-    if (role !== 'manager' && role !== 'streamer') {
-      return sendBotMessage(`[권한 부족] 방송 제목 변경은 매니저/스트리머만 가능해요.`);
-    }
+  const titleCfg = dCmd.title;
+  if (isCmdMatch(titleCfg, cmdName, ['방제', 'title'])) {
     if (!param) {
-      return sendBotMessage(`현재 방제: "${db.status.title}"`);
+      if (!checkCmdPermission(titleCfg, role)) {
+        return sendBotMessage(`[권한 부족] 이 명령어는 ${getPermissionLabel(titleCfg.permission)} 전용입니다.`);
+      }
+      if (!checkAndApplyCooldown('title', titleCfg, user)) return null;
+      const template = titleCfg?.response || `현재 방제: "{title}"`;
+      return sendBotMessage(renderResponseTemplate(template, { user: user.nickname, title: db.status.title }));
     }
+    const minRole = titleCfg?.permission && titleCfg.permission !== 'all' ? titleCfg.permission : 'manager';
+    if (!checkCmdPermission({ permission: minRole }, role)) {
+      return sendBotMessage(`[권한 부족] 방송 제목 변경은 ${getPermissionLabel(minRole)} 이상만 가능해요.`);
+    }
+    if (!checkAndApplyCooldown('title', titleCfg, user)) return null;
+    const costRes = checkAndDeductCost(titleCfg, user, titleCfg?.name || '방제');
+    if (!costRes.ok) return sendBotMessage(costRes.message, { currencyType: costRes.currency });
+
     db.status.title = param;
     commit();
     if (ioInstance) ioInstance.emit('status_update', db.status);
@@ -457,13 +624,24 @@ async function handleDefaultCommand(cmdName, param, target, user, role) {
   }
 
   // 3. !카테고리
-  if (dCmd.category?.enabled && (cmdName === '카테고리' || cmdName === 'category')) {
-    if (role !== 'manager' && role !== 'streamer') {
-      return sendBotMessage(`[권한 부족] 방송 카테고리 변경은 매니저/스트리머만 가능해요.`);
-    }
+  const categoryCfg = dCmd.category;
+  if (isCmdMatch(categoryCfg, cmdName, ['카테고리', 'category'])) {
     if (!param) {
-      return sendBotMessage(`현재 카테고리: [ ${db.status.category} ]`);
+      if (!checkCmdPermission(categoryCfg, role)) {
+        return sendBotMessage(`[권한 부족] 이 명령어는 ${getPermissionLabel(categoryCfg.permission)} 전용입니다.`);
+      }
+      if (!checkAndApplyCooldown('category', categoryCfg, user)) return null;
+      const template = categoryCfg?.response || `현재 카테고리: [ {category} ]`;
+      return sendBotMessage(renderResponseTemplate(template, { user: user.nickname, category: db.status.category }));
     }
+    const minRole = categoryCfg?.permission && categoryCfg.permission !== 'all' ? categoryCfg.permission : 'manager';
+    if (!checkCmdPermission({ permission: minRole }, role)) {
+      return sendBotMessage(`[권한 부족] 방송 카테고리 변경은 ${getPermissionLabel(minRole)} 이상만 가능해요.`);
+    }
+    if (!checkAndApplyCooldown('category', categoryCfg, user)) return null;
+    const costRes = checkAndDeductCost(categoryCfg, user, categoryCfg?.name || '카테고리');
+    if (!costRes.ok) return sendBotMessage(costRes.message, { currencyType: costRes.currency });
+
     db.status.category = param;
     commit();
     if (ioInstance) ioInstance.emit('status_update', db.status);
@@ -471,7 +649,15 @@ async function handleDefaultCommand(cmdName, param, target, user, role) {
   }
 
   // 4. !출첵 / !출석 (활동 칩 적립 고정)
-  if (dCmd.attend?.enabled && (cmdName === '출첵' || cmdName === '출석' || cmdName === 'check')) {
+  const attendCfg = dCmd.attend;
+  if (isCmdMatch(attendCfg, cmdName, ['출첵', '출석', 'check'])) {
+    if (!checkCmdPermission(attendCfg, role)) {
+      return sendBotMessage(`[권한 부족] 이 명령어는 ${getPermissionLabel(attendCfg.permission)} 전용입니다.`);
+    }
+    if (!checkAndApplyCooldown('attend', attendCfg, user)) return null;
+    const costRes = checkAndDeductCost(attendCfg, user, attendCfg?.name || '출석');
+    if (!costRes.ok) return sendBotMessage(costRes.message, { currencyType: costRes.currency });
+
     const today = new Date().toISOString().split('T')[0];
     if (user.lastAttend === today) {
       return sendBotMessage(
@@ -495,22 +681,47 @@ async function handleDefaultCommand(cmdName, param, target, user, role) {
     commit();
     if (ioInstance) ioInstance.emit('points_update', db.users);
 
-    return sendBotMessage(
-      `🎉 [${user.nickname}]님 출석 완료! (+${earned.toLocaleString()}${cUnit} 지급, ${user.attendStreak}일 연속 출석! 보유: ${user.chips.toLocaleString()}${cUnit})`,
-      { currencyType: 'chips' }
-    );
+    const template = attendCfg?.response || `🎉 [{user}]님 출석 완료! (+{earned}{unit} 지급, {streak}일 연속 출석! 보유: {chips}{unit})`;
+    const resp = renderResponseTemplate(template, {
+      user: user.nickname,
+      earned: earned.toLocaleString(),
+      streak: user.attendStreak,
+      chips: user.chips.toLocaleString(),
+      unit: cUnit
+    });
+    return sendBotMessage(resp, { currencyType: 'chips' });
   }
 
   // 5. !포인트 / !칩 / !지갑 (두 재화 통합 안내)
-  if (dCmd.point?.enabled && (cmdName === '포인트' || cmdName === 'point' || cmdName === '칩' || cmdName === 'chip' || cmdName === '지갑')) {
-    return sendBotMessage(
-      `💰 [${user.nickname}]님의 지갑 — 유료 포인트: ${(user.points || 0).toLocaleString()}${pUnit} · 보유 칩: ${(user.chips || 0).toLocaleString()}${cUnit} (총 출석: ${user.totalAttends || 0}회)`,
-      { currencyType: 'chips' }
-    );
+  const pointCfg = dCmd.point;
+  if (isCmdMatch(pointCfg, cmdName, ['포인트', 'point', '칩', 'chip', '지갑'])) {
+    if (!checkCmdPermission(pointCfg, role)) {
+      return sendBotMessage(`[권한 부족] 이 명령어는 ${getPermissionLabel(pointCfg.permission)} 전용입니다.`);
+    }
+    if (!checkAndApplyCooldown('point', pointCfg, user)) return null;
+    const costRes = checkAndDeductCost(pointCfg, user, pointCfg?.name || '포인트');
+    if (!costRes.ok) return sendBotMessage(costRes.message, { currencyType: costRes.currency });
+
+    const template = pointCfg?.response || `💰 [{user}]님의 지갑 — 유료 포인트: {points}{pUnit} · 보유 칩: {chips}{cUnit} (총 출석: {totalAttends}회)`;
+    const resp = renderResponseTemplate(template, {
+      user: user.nickname,
+      points: (user.points || 0).toLocaleString(),
+      chips: (user.chips || 0).toLocaleString(),
+      pUnit,
+      cUnit,
+      totalAttends: user.totalAttends || 0
+    });
+    return sendBotMessage(resp, { currencyType: 'chips' });
   }
 
   // 6. !도네 [금액] [메시지] (기본: 칩, 스트리머 재화 선택 가능)
-  if (dCmd.donate?.enabled && (cmdName === '도네' || cmdName === 'donate')) {
+  const donateCfg = dCmd.donate;
+  if (isCmdMatch(donateCfg, cmdName, ['도네', 'donate'])) {
+    if (!checkCmdPermission(donateCfg, role)) {
+      return sendBotMessage(`[권한 부족] 이 명령어는 ${getPermissionLabel(donateCfg.permission)} 전용입니다.`);
+    }
+    if (!checkAndApplyCooldown('donate', donateCfg, user)) return null;
+
     const currency = db.settings.donateCurrency || 'chips';
     const unit = getCurrencyUnit(currency);
     const label = getCurrencyLabel(currency);
@@ -546,11 +757,24 @@ async function handleDefaultCommand(cmdName, param, target, user, role) {
       ioInstance.emit('donation_alert', donationData);
     }
 
-    return sendBotMessage(`⚔️ [${user.nickname}]님이 ${amount.toLocaleString()}${unit}을(를) 후원하셨습니다! "${message}"`, { currencyType: currency });
+    const template = donateCfg?.response || `⚔️ [{user}]님이 {amount}{unit}을(를) 후원하셨습니다! "{message}"`;
+    const resp = renderResponseTemplate(template, {
+      user: user.nickname,
+      amount: amount.toLocaleString(),
+      unit,
+      message
+    });
+    return sendBotMessage(resp, { currencyType: currency });
   }
 
   // 7. !모금 [금액] (기본: 활동 칩, 스트리머 재화 선택 가능)
-  if (dCmd.fund?.enabled && (cmdName === '모금' || cmdName === 'fund')) {
+  const fundCfg = dCmd.fund;
+  if (isCmdMatch(fundCfg, cmdName, ['모금', 'fund'])) {
+    if (!checkCmdPermission(fundCfg, role)) {
+      return sendBotMessage(`[권한 부족] 이 명령어는 ${getPermissionLabel(fundCfg.permission)} 전용입니다.`);
+    }
+    if (!checkAndApplyCooldown('fund', fundCfg, user)) return null;
+
     const currency = db.fund?.currency || 'chips';
     const unit = getCurrencyUnit(currency);
     const label = getCurrencyLabel(currency);
@@ -582,14 +806,24 @@ async function handleDefaultCommand(cmdName, param, target, user, role) {
     }
 
     const percent = db.fund.goalPoints > 0 ? Math.min(100, Math.floor((db.fund.currentPoints / db.fund.goalPoints) * 100)) : 0;
-    return sendBotMessage(
-      `💖 [${user.nickname}]님이 모금함에 ${amount.toLocaleString()}${unit}을(를) 기부하셨습니다! (진행률: ${percent}%)`,
-      { currencyType: currency }
-    );
+    const template = fundCfg?.response || `💖 [{user}]님이 모금함에 {amount}{unit}을(를) 기부하셨습니다! (진행률: ${percent}%)`;
+    const resp = renderResponseTemplate(template, {
+      user: user.nickname,
+      amount: amount.toLocaleString(),
+      unit,
+      percent
+    });
+    return sendBotMessage(resp, { currencyType: currency });
   }
 
   // 8. !투표 [선택지번호] [칩] (증식/배팅형: 활동 칩 고정)
-  if (dCmd.vote?.enabled && (cmdName === '투표' || cmdName === 'vote')) {
+  const voteCfg = dCmd.vote;
+  if (isCmdMatch(voteCfg, cmdName, ['투표', 'vote'])) {
+    if (!checkCmdPermission(voteCfg, role)) {
+      return sendBotMessage(`[권한 부족] 이 명령어는 ${getPermissionLabel(voteCfg.permission)} 전용입니다.`);
+    }
+    if (!checkAndApplyCooldown('vote', voteCfg, user)) return null;
+
     const parts = param.split(/\s+/);
     const optionIdx = parseInt(parts[0]) - 1;
     const amount = parseInt(parts[1]);
@@ -617,11 +851,24 @@ async function handleDefaultCommand(cmdName, param, target, user, role) {
       ioInstance.emit('prediction_update', db.prediction);
       ioInstance.emit('points_update', db.users);
     }
-    return sendBotMessage(`🗳️ [${user.nickname}]님이 [${opt.title}]에 ${amount.toLocaleString()}${cUnit}을(를) 걸었습니다!`, { currencyType: 'chips' });
+
+    const template = voteCfg?.response || `🗳️ [{user}]님이 [${opt.title}]에 {amount}{unit}을(를) 걸었습니다!`;
+    const resp = renderResponseTemplate(template, {
+      user: user.nickname,
+      amount: amount.toLocaleString(),
+      unit: cUnit
+    });
+    return sendBotMessage(resp, { currencyType: 'chips' });
   }
 
-  // 9. !sr [노래제목 또는 유튜브링크] (최소 비용 설정 시 선택된 재화 차감)
-  if (dCmd.sr?.enabled && (cmdName === 'sr' || cmdName === '노래' || cmdName === '신청곡')) {
+  // 9. !sr [노래제목 또는 유튜브링크]
+  const srCfg = dCmd.sr;
+  if (isCmdMatch(srCfg, cmdName, ['sr', '노래', '신청곡'])) {
+    if (!checkCmdPermission(srCfg, role)) {
+      return sendBotMessage(`[권한 부족] 이 명령어는 ${getPermissionLabel(srCfg.permission)} 전용입니다.`);
+    }
+    if (!checkAndApplyCooldown('sr', srCfg, user)) return null;
+
     if (!param) {
       const cur = db.songRequests.current;
       const count = db.songRequests.queue.length;
@@ -633,8 +880,8 @@ async function handleDefaultCommand(cmdName, param, target, user, role) {
       return sendBotMessage(`[대기열 가득 참] 현재 노래 대기열이 꽉 찼습니다.`);
     }
 
-    const minCost = Number(db.songRequests.settings?.minCost) || 0;
-    const srCurrency = db.songRequests.settings?.currency || 'chips';
+    const minCost = Number(srCfg?.cost !== undefined ? srCfg.cost : db.songRequests.settings?.minCost) || 0;
+    const srCurrency = srCfg?.currency || db.songRequests.settings?.currency || 'chips';
     const srUnit = getCurrencyUnit(srCurrency);
     if (minCost > 0) {
       const bal = getUserBalance(user, srCurrency);
@@ -674,10 +921,19 @@ async function handleDefaultCommand(cmdName, param, target, user, role) {
   }
 
   // 10. !신청 [시참/미션 내용]
-  if (dCmd.request?.enabled && (cmdName === '신청' || cmdName === '시참')) {
+  const reqCfg = dCmd.request;
+  if (isCmdMatch(reqCfg, cmdName, ['신청', '시참'])) {
+    if (!checkCmdPermission(reqCfg, role)) {
+      return sendBotMessage(`[권한 부족] 이 명령어는 ${getPermissionLabel(reqCfg.permission)} 전용입니다.`);
+    }
+    if (!checkAndApplyCooldown('request', reqCfg, user)) return null;
+
     if (!param) {
       return sendBotMessage(`사용법: !신청 [내용] (예: !신청 다음 판 야스오 해주세요)`);
     }
+
+    const costRes = checkAndDeductCost(reqCfg, user, reqCfg?.name || '신청');
+    if (!costRes.ok) return sendBotMessage(costRes.message, { currencyType: costRes.currency });
 
     const newReq = {
       id: 'req-' + Date.now(),
@@ -691,22 +947,42 @@ async function handleDefaultCommand(cmdName, param, target, user, role) {
     commit();
 
     if (ioInstance) ioInstance.emit('requests_update', db.generalRequests);
-    return sendBotMessage(`📝 [${user.nickname}]님의 신청이 등록되었습니다: "${param}"`, { isGeneralRequest: true });
+    const template = reqCfg?.response || `📝 [{user}]님의 신청이 등록되었습니다: "{param}"`;
+    const resp = renderResponseTemplate(template, { user: user.nickname, param });
+    return sendBotMessage(resp, { isGeneralRequest: true });
   }
 
   // 11. !주사위
-  if (dCmd.dice?.enabled && (cmdName === '주사위' || cmdName === 'dice')) {
+  const diceCfg = dCmd.dice;
+  if (isCmdMatch(diceCfg, cmdName, ['주사위', 'dice'])) {
+    if (!checkCmdPermission(diceCfg, role)) {
+      return sendBotMessage(`[권한 부족] 이 명령어는 ${getPermissionLabel(diceCfg.permission)} 전용입니다.`);
+    }
+    if (!checkAndApplyCooldown('dice', diceCfg, user)) return null;
+    const costRes = checkAndDeductCost(diceCfg, user, diceCfg?.name || '주사위');
+    if (!costRes.ok) return sendBotMessage(costRes.message, { currencyType: costRes.currency });
+
     const rolled = Math.floor(Math.random() * 100) + 1;
-    return sendBotMessage(`🎲 [${user.nickname}]님이 주사위를 굴려 [ ${rolled} ]이(가) 나왔습니다! (1~100)`);
+    const template = diceCfg?.response || `🎲 [{user}]님이 주사위를 굴려 [ {rolled} ]이(가) 나왔습니다! (1~100)`;
+    const resp = renderResponseTemplate(template, { user: user.nickname, rolled, dice: rolled });
+    return sendBotMessage(resp);
   }
 
   // 12. !낚시 (증식형 미니게임: 활동 칩 고정)
-  if (dCmd.fishing?.enabled && (cmdName === '낚시' || cmdName === 'fish')) {
-    const cost = 20;
-    if ((user.chips || 0) < cost) {
-      return sendBotMessage(`[칩 부족] 낚시 미끼를 사려면 ${cost}${cUnit}이 필요해요 (보유: ${(user.chips || 0).toLocaleString()}${cUnit}).`, { currencyType: 'chips' });
+  const fishCfg = dCmd.fishing;
+  if (isCmdMatch(fishCfg, cmdName, ['낚시', 'fish'])) {
+    if (!checkCmdPermission(fishCfg, role)) {
+      return sendBotMessage(`[권한 부족] 이 명령어는 ${getPermissionLabel(fishCfg.permission)} 전용입니다.`);
     }
-    user.chips -= cost;
+    if (!checkAndApplyCooldown('fishing', fishCfg, user)) return null;
+    const cost = fishCfg?.cost !== undefined ? Number(fishCfg.cost) : 20;
+    const currency = fishCfg?.currency || 'chips';
+    const unit = getCurrencyUnit(currency);
+    const bal = getUserBalance(user, currency);
+    if (bal < cost) {
+      return sendBotMessage(`[잔액 부족] 낚시 미끼를 사려면 ${cost}${unit}이 필요해요 (보유: ${bal.toLocaleString()}${unit}).`, { currencyType: currency });
+    }
+    deductUserBalance(user, currency, cost);
 
     const outcomes = [
       { name: '낡은 장화', chips: 5, msg: `낡은 장화를 낚았습니다... 냄새가 납니다 👞 (+5${cUnit})` },
@@ -725,10 +1001,17 @@ async function handleDefaultCommand(cmdName, param, target, user, role) {
   }
 
   // 13. !가위바위보 [가위/바위/보] [배팅칩] (증식형 미니게임: 활동 칩 고정)
-  if (dCmd.rps?.enabled && (cmdName === '가위바위보' || cmdName === 'rps')) {
+  const rpsCfg = dCmd.rps;
+  if (isCmdMatch(rpsCfg, cmdName, ['가위바위보', 'rps'])) {
+    if (!checkCmdPermission(rpsCfg, role)) {
+      return sendBotMessage(`[권한 부족] 이 명령어는 ${getPermissionLabel(rpsCfg.permission)} 전용입니다.`);
+    }
+    if (!checkAndApplyCooldown('rps', rpsCfg, user)) return null;
+
     const parts = param.split(/\s+/);
     const choice = parts[0];
-    const bet = parseInt(parts[1]) || 50;
+    const defaultBet = rpsCfg?.cost !== undefined && Number(rpsCfg.cost) > 0 ? Number(rpsCfg.cost) : 50;
+    const bet = parseInt(parts[1]) || defaultBet;
 
     const valid = ['가위', '바위', '보'];
     if (!valid.includes(choice)) {
@@ -766,7 +1049,13 @@ async function handleDefaultCommand(cmdName, param, target, user, role) {
   }
 
   // 14. !점프
-  if (dCmd.jump?.enabled && (cmdName === '점프' || cmdName === 'jump')) {
+  const jumpCfg = dCmd.jump;
+  if (isCmdMatch(jumpCfg, cmdName, ['점프', 'jump'])) {
+    if (!checkCmdPermission(jumpCfg, role)) return null;
+    if (!checkAndApplyCooldown('jump', jumpCfg, user)) return null;
+    const costRes = checkAndDeductCost(jumpCfg, user, jumpCfg?.name || '점프');
+    if (!costRes.ok) return sendBotMessage(costRes.message, { currencyType: costRes.currency });
+
     if (ioInstance) {
       ioInstance.emit('avatar_action', { user: user.nickname, action: 'jump' });
     }
@@ -774,11 +1063,17 @@ async function handleDefaultCommand(cmdName, param, target, user, role) {
   }
 
   // 15. !룰렛 (기본: 유료 포인트 차감, 스트리머 재화 전환 가능)
-  if ((dCmd.roulette?.enabled !== false) && (cmdName === '룰렛' || cmdName === 'roulette')) {
-    const currency = db.roulette?.currency || 'points';
+  const rouletteCfg = dCmd.roulette;
+  if (isCmdMatch(rouletteCfg, cmdName, ['룰렛', 'roulette'])) {
+    if (!checkCmdPermission(rouletteCfg, role)) {
+      return sendBotMessage(`[권한 부족] 이 명령어는 ${getPermissionLabel(rouletteCfg.permission)} 전용입니다.`);
+    }
+    if (!checkAndApplyCooldown('roulette', rouletteCfg, user)) return null;
+
+    const currency = rouletteCfg?.currency || db.roulette?.currency || 'points';
     const unit = getCurrencyUnit(currency);
     const label = getCurrencyLabel(currency);
-    const cost = db.roulette?.cost ?? 500;
+    const cost = rouletteCfg?.cost !== undefined ? Number(rouletteCfg.cost) : (db.roulette?.cost ?? 500);
     const bal = getUserBalance(user, currency);
 
     if (bal < cost) {
@@ -846,12 +1141,32 @@ async function handleDefaultCommand(cmdName, param, target, user, role) {
     }
 
     const remaining = getUserBalance(user, currency);
-    return sendBotMessage(
-      `🎰 [${user.nickname}]님이 ${cost.toLocaleString()}${unit}로 룰렛을 돌려 [ ${selected.name} ]에 당첨되셨습니다! (남은 잔액: ${remaining.toLocaleString()}${unit})`,
-      { currencyType: currency }
-    );
+    const template = rouletteCfg?.response || `🎰 [{user}]님이 {cost}{unit}로 룰렛을 돌려 [ {winner} ]에 당첨되셨습니다! (남은 잔액: {remaining}{unit})`;
+    const resp = renderResponseTemplate(template, {
+      user: user.nickname,
+      cost: cost.toLocaleString(),
+      unit,
+      winner: selected.name,
+      remaining: remaining.toLocaleString()
+    });
+    return sendBotMessage(resp, { currencyType: currency });
   }
 
+  // 16. !티켓 (보유 티켓 확인)
+  const ticketCfg = dCmd.ticket;
+  if (isCmdMatch(ticketCfg, cmdName, ['티켓', 'ticket'])) {
+    if (!checkCmdPermission(ticketCfg, role)) {
+      return sendBotMessage(`[권한 부족] 이 명령어는 ${getPermissionLabel(ticketCfg.permission)} 전용입니다.`);
+    }
+    if (!checkAndApplyCooldown('ticket', ticketCfg, user)) return null;
+    const costRes = checkAndDeductCost(ticketCfg, user, ticketCfg?.name || '티켓');
+    if (!costRes.ok) return sendBotMessage(costRes.message, { currencyType: costRes.currency });
+
+    const count = Array.isArray(user.tickets) ? user.tickets.length : (Number(user.tickets) || 0);
+    const template = ticketCfg?.response || `🎫 [{user}]님의 보유 티켓: {count}장`;
+    const resp = renderResponseTemplate(template, { user: user.nickname, count });
+    return sendBotMessage(resp);
+  }
 
   return null;
 }

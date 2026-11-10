@@ -23,7 +23,7 @@ import {
   Clock,
   Coins
 } from 'lucide-react';
-import { FundState, PredictionState, DefaultCommandConfig, ChannelStatus } from '../types';
+import { FundState, PredictionState, DefaultCommandConfig, ChannelStatus, getFullCommand } from '../types';
 import { api } from '../services/api';
 
 interface FundPredictionViewProps {
@@ -41,6 +41,10 @@ export const FundPredictionView: React.FC<FundPredictionViewProps> = ({
   status,
   settings
 }) => {
+  const prefix = settings?.prefix || '!';
+  const fullFundCmd = getFullCommand('fund', defaultCommands, prefix, '모금');
+  const fullVoteCmd = getFullCommand('vote', defaultCommands, prefix, '투표');
+
   const pUnit = settings?.pointName || 'P';
   const cUnit = settings?.chipName || '칩';
 
@@ -96,7 +100,7 @@ export const FundPredictionView: React.FC<FundPredictionViewProps> = ({
   const handleToggleFund = async () => {
     const isCurrentlyEnabled = defaultCommands?.fund?.enabled ?? true;
     await api.toggleDefaultCommand('fund', !isCurrentlyEnabled);
-    showFeedback(!isCurrentlyEnabled ? '모금(!모금) 명령어가 활성화되었습니다!' : '모금 기능이 비활성화되었습니다.');
+    showFeedback(!isCurrentlyEnabled ? `모금(${fullFundCmd}) 명령어가 활성화되었습니다!` : '모금 기능이 비활성화되었습니다.');
   };
 
   // 모금 테스트 (본인 계정으로 5,000P 기부)
@@ -164,7 +168,7 @@ export const FundPredictionView: React.FC<FundPredictionViewProps> = ({
   const handleTogglePrediction = async () => {
     const isCurrentlyEnabled = defaultCommands?.vote?.enabled ?? true;
     await api.toggleDefaultCommand('vote', !isCurrentlyEnabled);
-    showFeedback(!isCurrentlyEnabled ? '투표(!투표) 명령어가 활성화되었습니다!' : '투표 기능이 비활성화되었습니다.');
+    showFeedback(!isCurrentlyEnabled ? `투표(${fullVoteCmd}) 명령어가 활성화되었습니다!` : '투표 기능이 비활성화되었습니다.');
   };
 
   // 테스트 베팅
@@ -213,7 +217,7 @@ export const FundPredictionView: React.FC<FundPredictionViewProps> = ({
                 </span>
               </h2>
               <p className="text-xs text-slate-400 mt-0.5">
-                시청자들과 함께 포인트를 모으는 <b className="text-amber-400">!모금</b>과 승부 예측 <b className="text-blue-400">!투표</b>를 실시간으로 제어합니다.
+                시청자들과 함께 포인트를 모으는 <b className="text-amber-400">{fullFundCmd}</b>과 승부 예측 <b className="text-blue-400">{fullVoteCmd}</b>를 실시간으로 제어합니다.
               </p>
             </div>
           </div>
@@ -253,7 +257,7 @@ export const FundPredictionView: React.FC<FundPredictionViewProps> = ({
             <div className="flex items-center justify-between pb-3 border-b border-white/10">
               <div className="flex items-center gap-2">
                 <Target className="w-4 h-4 text-amber-400" />
-                <h3 className="font-bold text-sm text-white">공동 모금함 설정 (!모금)</h3>
+                <h3 className="font-bold text-sm text-white">공동 모금함 설정 ({fullFundCmd})</h3>
               </div>
               <div className="flex items-center gap-2">
                 {/* 모금 기능 ON/OFF 토글 */}
@@ -264,10 +268,10 @@ export const FundPredictionView: React.FC<FundPredictionViewProps> = ({
                       ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
                       : 'bg-rose-500/15 border-rose-500/40 text-rose-300'
                   }`}
-                  title="시청자의 !모금 명령어 사용 여부를 켜거나 끕니다."
+                  title={`시청자의 ${fullFundCmd} 명령어 사용 여부를 켜거나 끕니다.`}
                 >
                   {isFundEnabled ? <ToggleRight className="w-3.5 h-3.5 text-emerald-400" /> : <ToggleLeft className="w-3.5 h-3.5 text-rose-400" />}
-                  <span>!모금 {isFundEnabled ? 'ON' : 'OFF'}</span>
+                  <span>{fullFundCmd} {isFundEnabled ? 'ON' : 'OFF'}</span>
                 </button>
 
                 <button
@@ -311,7 +315,7 @@ export const FundPredictionView: React.FC<FundPredictionViewProps> = ({
                 <span className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
                   <Coins className="w-3.5 h-3.5 text-amber-400" /> 최근 모금 참여자 ({fund.recentDonors?.length || 0}명)
                 </span>
-                <span className="text-[11px] text-slate-500">채팅에서 !모금 [{fundUnit}] 입력 시 기부</span>
+                <span className="text-[11px] text-slate-500">채팅에서 {fullFundCmd} [{fundUnit}] 입력 시 기부</span>
               </div>
 
               <div className="min-h-[140px] max-h-[170px] overflow-y-auto space-y-1.5 pr-1">
@@ -319,7 +323,7 @@ export const FundPredictionView: React.FC<FundPredictionViewProps> = ({
                   <div className="h-[140px] rounded-xl bg-slate-950/40 border border-dashed border-white/10 flex flex-col items-center justify-center text-center p-4 text-slate-500 text-xs">
                     <Target className="w-6 h-6 text-slate-600 mb-1" />
                     <p>아직 모금에 참여한 시청자가 없습니다.</p>
-                    <p className="text-[11px] text-slate-600 mt-0.5">방송 중 시청자가 !모금을 보내면 실시간으로 이곳에 기록됩니다.</p>
+                    <p className="text-[11px] text-slate-600 mt-0.5">방송 중 시청자가 {fullFundCmd}을(를) 보내면 실시간으로 이곳에 기록됩니다.</p>
                   </div>
                 ) : (
                   fund.recentDonors.map((d, i) => (
@@ -370,7 +374,7 @@ export const FundPredictionView: React.FC<FundPredictionViewProps> = ({
             <div className="flex items-center justify-between pb-3 border-b border-white/10">
               <div className="flex items-center gap-2">
                 <Vote className="w-4 h-4 text-blue-400" />
-                <h3 className="font-bold text-sm text-white">포인트 예측 투표 (!투표)</h3>
+                <h3 className="font-bold text-sm text-white">포인트 예측 투표 ({fullVoteCmd})</h3>
               </div>
 
               <div className="flex items-center gap-2">
@@ -382,10 +386,10 @@ export const FundPredictionView: React.FC<FundPredictionViewProps> = ({
                       ? 'bg-blue-500/15 border-blue-500/40 text-blue-300'
                       : 'bg-rose-500/15 border-rose-500/40 text-rose-300'
                   }`}
-                  title="시청자의 !투표 명령어 사용 여부를 켜거나 끕니다."
+                  title={`시청자의 ${fullVoteCmd} 명령어 사용 여부를 켜거나 끕니다.`}
                 >
                   {isVoteEnabled ? <ToggleRight className="w-3.5 h-3.5 text-blue-400" /> : <ToggleLeft className="w-3.5 h-3.5 text-rose-400" />}
-                  <span>!투표 {isVoteEnabled ? 'ON' : 'OFF'}</span>
+                  <span>{fullVoteCmd} {isVoteEnabled ? 'ON' : 'OFF'}</span>
                 </button>
 
                 {/* 상태 배지 */}
@@ -721,7 +725,7 @@ export const FundPredictionView: React.FC<FundPredictionViewProps> = ({
               </div>
 
               <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-xs text-blue-200">
-                💡 투표가 생성되면 시청자들이 치지직 채팅창에 <b className="text-white">!투표 [선택지번호] [포인트]</b> (예: <span className="font-mono text-white">!투표 1 1000</span>)를 입력하여 실시간으로 베팅할 수 있습니다.
+                💡 투표가 생성되면 시청자들이 치지직 채팅창에 <b className="text-white">{fullVoteCmd} [선택지번호] [금액]</b> (예: <span className="font-mono text-white">{fullVoteCmd} 1 1000</span>)를 입력하여 실시간으로 베팅할 수 있습니다.
               </div>
 
               <div className="flex justify-end gap-2 pt-2">

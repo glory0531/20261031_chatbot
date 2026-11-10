@@ -13,7 +13,8 @@ import {
   exportPointsCSV,
   importPointsCSV,
   createLocalBackup,
-  migrateAndMergeData
+  migrateAndMergeData,
+  DEFAULT_COMMAND_PRESETS
 } from './db.js';
 import { setSocketIO, startAutoMessageScheduler, sendBotMessage, processChatMessage } from './botEngine.js';
 import {
@@ -89,6 +90,7 @@ export function buildInitialStatePayload() {
     schedules: db.schedules,
     weeklySchedules: db.weeklySchedules || {},
     activeWeekKey: db.activeWeekKey || '',
+    liveDonations: db.liveDonations || [],
     messages: db.recentChats || [],
     tunnel: getTunnelState(),
     update: getUpdateState(),
@@ -386,6 +388,43 @@ app.post('/api/commands/default/toggle', requireLocalAdmin, (req, res) => {
   res.json({ success: true, data: db.defaultCommands });
 });
 
+app.post('/api/commands/default/update', requireLocalAdmin, (req, res) => {
+  const { key, updates } = req.body;
+  if (!key || !db.defaultCommands[key]) {
+    return res.status(404).json({ success: false, message: '존재하지 않는 내장 명령어입니다.' });
+  }
+
+  const current = db.defaultCommands[key];
+  if (updates.name !== undefined) current.name = String(updates.name).trim();
+  if (Array.isArray(updates.aliases)) {
+    current.aliases = updates.aliases.map(a => String(a).trim().replace(/^!/, '')).filter(Boolean);
+  }
+  if (updates.desc !== undefined) current.desc = String(updates.desc).trim();
+  if (updates.response !== undefined) current.response = String(updates.response);
+  if (updates.permission !== undefined) current.permission = updates.permission;
+  if (updates.cooldown !== undefined) current.cooldown = Math.max(0, Number(updates.cooldown) || 0);
+  if (updates.cost !== undefined) current.cost = Math.max(0, Number(updates.cost) || 0);
+  if (updates.currency !== undefined) current.currency = updates.currency;
+  if (updates.enabled !== undefined) current.enabled = Boolean(updates.enabled);
+  if (updates.visibleInViewer !== undefined) current.visibleInViewer = Boolean(updates.visibleInViewer);
+
+  commit();
+  io.emit('default_commands_update', db.defaultCommands);
+  res.json({ success: true, data: db.defaultCommands });
+});
+
+app.post('/api/commands/default/reset', requireLocalAdmin, (req, res) => {
+  const { key } = req.body;
+  if (!key || !DEFAULT_COMMAND_PRESETS[key]) {
+    return res.status(404).json({ success: false, message: '기본 프리셋이 존재하지 않는 명령어입니다.' });
+  }
+
+  db.defaultCommands[key] = { ...DEFAULT_COMMAND_PRESETS[key] };
+  commit();
+  io.emit('default_commands_update', db.defaultCommands);
+  res.json({ success: true, data: db.defaultCommands });
+});
+
 /* ============================
    5. 자동 메시지
 ============================ */
@@ -531,6 +570,13 @@ app.post('/api/attendance/clear-dummy', requireLocalAdmin, (req, res) => {
   res.json({ success: true, users: db.users });
 });
 
+app.post('/api/donations/clear', requireLocalAdmin, (req, res) => {
+  db.liveDonations = [];
+  commit();
+  io.emit('donations_update', db.liveDonations);
+  res.json({ success: true, liveDonations: db.liveDonations });
+});
+
 app.post('/api/attendance/manual', requireLocalAdmin, (req, res) => {
   const { nickname } = req.body;
   if (!nickname) return res.status(400).json({ success: false, message: '닉네임을 입력해주세요.' });
@@ -585,9 +631,12 @@ app.delete('/api/attendance/user/:nickname', requireLocalAdmin, (req, res) => {
 
 app.post('/api/attendance/test', requireLocalAdmin, (req, res) => {
   const streamerName = getStreamerDisplayName();
+  const attendCfg = db.defaultCommands?.attend;
+  const prefix = db.settings.prefix || '!';
+  const cmdName = attendCfg?.name || (attendCfg?.aliases && attendCfg.aliases[0]) || '출첵';
   processChatMessage({
     user: streamerName,
-    message: '!출첵',
+    message: `${prefix}${cmdName}`,
     role: 'streamer',
     source: 'web'
   });

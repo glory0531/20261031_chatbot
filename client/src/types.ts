@@ -61,6 +61,14 @@ export interface Settings {
   hasRefreshToken?: boolean;
   suppressPointMessagesInChat?: boolean;
   sendPaidPointMessagesInChat?: boolean;
+  // 세분화된 치지직 채팅 송출 제어
+  sendChatCheeseDonation?: boolean;
+  sendChatRoulette?: boolean;
+  sendChatDonation?: boolean;
+  sendChatAttendance?: boolean;
+  sendChatWallet?: boolean;
+  sendChatMiniGames?: boolean;
+  sendChatInsufficient?: boolean;
   autoMessageIntervalMin: number;
 }
 
@@ -105,7 +113,13 @@ export interface CustomCommand {
 export interface DefaultCommandConfig {
   enabled: boolean;
   name: string;
+  aliases?: string[];
   desc: string;
+  response?: string;
+  permission?: 'all' | 'sub' | 'manager' | 'streamer';
+  cooldown?: number;
+  cost?: number;
+  currency?: CurrencyType;
   visibleInViewer?: boolean;
 }
 
@@ -231,6 +245,28 @@ export interface DonationAlert {
   message: string;
   role: string;
   timestamp: number;
+}
+
+export type DonationKind = 'CHAT' | 'VIDEO' | 'MISSION';
+
+export interface LiveDonation {
+  id: string;
+  user: string;
+  cheese: number;
+  donationType: DonationKind | string;
+  message: string;
+  timestamp: number;
+}
+
+export function getFullCommand(
+  key: string,
+  defaultCommands?: Record<string, DefaultCommandConfig>,
+  prefix: string = '!',
+  fallback: string = ''
+): string {
+  const cfg = defaultCommands?.[key];
+  const name = cfg?.name || (cfg?.aliases && cfg.aliases[0]) || fallback || key;
+  return `${prefix}${name}`;
 }
 
 export interface ScheduleItem {

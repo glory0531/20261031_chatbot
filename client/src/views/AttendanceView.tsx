@@ -18,7 +18,7 @@ import {
   Radio,
   Clock
 } from 'lucide-react';
-import { UserWallet, Settings, DefaultCommandConfig, ChannelStatus } from '../types';
+import { UserWallet, Settings, DefaultCommandConfig, ChannelStatus, getFullCommand } from '../types';
 import { api } from '../services/api';
 
 interface AttendanceViewProps {
@@ -41,6 +41,9 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
   const [manualNickname, setManualNickname] = useState('');
   const [actionFeedback, setActionFeedback] = useState<string | null>(null);
+
+  const prefix = settings.prefix || '!';
+  const fullAttendCmd = getFullCommand('attend', defaultCommands, prefix, '출첵');
 
   const cUnit = settings.chipName || '칩';
   const pUnit = settings.pointName || 'P';
@@ -67,16 +70,16 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
     setTimeout(() => setIsSaved(false), 2000);
   };
 
-  // !출첵 명령어 활성/비활성 토글
+  // 출석 명령어 활성/비활성 토글
   const handleToggleAttendance = async () => {
     const isCurrentlyEnabled = defaultCommands?.attend?.enabled ?? true;
     await api.toggleDefaultCommand('attend', !isCurrentlyEnabled);
-    showFeedback(!isCurrentlyEnabled ? '출석체크(!출첵) 명령어가 활성화되었습니다!' : '출석체크 기능이 비활성화되었습니다.');
+    showFeedback(!isCurrentlyEnabled ? `출석체크(${fullAttendCmd}) 명령어가 활성화되었습니다!` : '출석체크 기능이 비활성화되었습니다.');
   };
 
   // 오늘 출석 초기화
   const handleResetToday = async () => {
-    if (!window.confirm('오늘의 출석 기록을 모두 초기화하시겠습니까? 오늘 출석한 시청자가 다시 !출첵을 할 수 있습니다.')) return;
+    if (!window.confirm(`오늘의 출석 기록을 모두 초기화하시겠습니까? 오늘 출석한 시청자가 다시 ${fullAttendCmd}을(를) 할 수 있습니다.`)) return;
     const res = await api.resetTodayAttendance();
     if (res.success) {
       showFeedback(`오늘 출석 기록 ${res.resetCount}건이 초기화되었습니다.`);
@@ -113,10 +116,10 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
     showFeedback(`[${nickname}]님의 오늘 출석이 취소되었습니다.`);
   };
 
-  // 출석 테스트 (!출첵 발송)
+  // 출석 테스트
   const handleTestAttend = async () => {
     await api.testAttendance();
-    showFeedback(`스트리머 [${status?.channelName || '스트리머'}] 계정으로 !출첵 테스트를 실행했습니다.`);
+    showFeedback(`스트리머 [${status?.channelName || '스트리머'}] 계정으로 ${fullAttendCmd} 테스트를 실행했습니다.`);
   };
 
   const todayStr = new Date().toISOString().split('T')[0];
@@ -164,7 +167,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
                 </span>
               </h2>
               <p className="text-xs text-slate-400 mt-0.5">
-                치지직 채팅창에서 시청자가 <b className="text-emerald-400">!출첵</b>을 입력하면 자동으로 {cUnit}을 지급하고 출근 명부에 기록합니다.
+                치지직 채팅창에서 시청자가 <b className="text-emerald-400">{fullAttendCmd}</b>을(를) 입력하면 자동으로 {cUnit}을 지급하고 출근 명부에 기록합니다.
               </p>
             </div>
           </div>
@@ -180,10 +183,10 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
                 ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/25'
                 : 'bg-rose-500/15 border-rose-500/40 text-rose-300 hover:bg-rose-500/25'
             }`}
-            title="시청자의 !출첵 사용 가능 여부를 켜거나 끕니다."
+            title={`시청자의 ${fullAttendCmd} 사용 가능 여부를 켜거나 끕니다.`}
           >
             {isAttendEnabled ? <ToggleRight className="w-4 h-4 text-emerald-400" /> : <ToggleLeft className="w-4 h-4 text-rose-400" />}
-            <span>!출첵 {isAttendEnabled ? 'ON' : 'OFF'}</span>
+            <span>{fullAttendCmd} {isAttendEnabled ? 'ON' : 'OFF'}</span>
           </button>
 
           {/* 수동 출석 등록 */}
@@ -219,10 +222,10 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
           <button
             onClick={handleTestAttend}
             className="px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs flex items-center gap-1.5 transition-all shadow-md shadow-emerald-500/20"
-            title="스트리머 본인 계정으로 !출첵을 1회 테스트합니다."
+            title={`스트리머 본인 계정으로 ${fullAttendCmd}을(를) 1회 테스트합니다.`}
           >
             <Play className="w-3 h-3 fill-slate-950" />
-            <span>!출첵 테스트</span>
+            <span>{fullAttendCmd} 테스트</span>
           </button>
         </div>
       </div>
@@ -330,7 +333,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
                 <div>
                   <h4 className="text-sm font-bold text-white">아직 오늘 출석한 시청자가 없습니다</h4>
                   <p className="text-xs text-slate-400 mt-1 max-w-xs">
-                    시청자가 치지직 채팅창에 <b className="text-emerald-400">!출첵</b>을 입력하면 실시간으로 감지되어 포인트 지급 및 목록에 표시됩니다.
+                    시청자가 치지직 채팅창에 <b className="text-emerald-400">{fullAttendCmd}</b>을(를) 입력하면 실시간으로 감지되어 포인트 지급 및 목록에 표시됩니다.
                   </p>
                 </div>
                 <button
@@ -338,7 +341,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
                   className="px-4 py-2 rounded-xl bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/30 text-purple-200 text-xs font-bold transition-all flex items-center gap-1.5"
                 >
                   <Play className="w-3 h-3 fill-purple-300" />
-                  <span>내 계정으로 !출첵 테스트해보기</span>
+                  <span>내 계정으로 {fullAttendCmd} 테스트해보기</span>
                 </button>
               </div>
             ) : filteredTodayAttendees.length === 0 ? (
@@ -402,7 +405,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
               <div className="h-full flex flex-col items-center justify-center text-center p-6 space-y-2 text-slate-500 text-xs">
                 <Trophy className="w-10 h-10 text-slate-700" />
                 <p>아직 연속 출석 기록이 없습니다.</p>
-                <p className="text-[11px] text-slate-600">방송 중 시청자들이 !출첵을 쌓아가면 이곳에 랭킹이 표시됩니다.</p>
+                <p className="text-[11px] text-slate-600">방송 중 시청자들이 {fullAttendCmd}을(를) 쌓아가면 이곳에 랭킹이 표시됩니다.</p>
               </div>
             ) : (
               streakRanking.map((u, idx) => (

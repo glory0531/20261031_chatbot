@@ -17,12 +17,13 @@ import {
   Star,
   RefreshCw
 } from 'lucide-react';
-import { ChannelStatus, Settings, ChatMessage, UserWallet, SongRequestsState, FundState } from '../types';
+import { ChannelStatus, Settings, ChatMessage, UserWallet, SongRequestsState, FundState, DefaultCommandConfig, getFullCommand } from '../types';
 import { api } from '../services/api';
 
 interface HomeViewProps {
   status: ChannelStatus;
   settings?: Settings;
+  defaultCommands?: Record<string, DefaultCommandConfig>;
   messages: ChatMessage[];
   users: Record<string, UserWallet>;
   songRequests: SongRequestsState;
@@ -33,6 +34,7 @@ interface HomeViewProps {
 export const HomeView: React.FC<HomeViewProps> = ({
   status,
   settings,
+  defaultCommands,
   messages,
   users,
   songRequests,
@@ -45,6 +47,11 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const pointName = settings?.pointName || 'P';
   const chipName = settings?.chipName || '칩';
   const channelId = status.channelId || settings?.chzzkChannelId || '';
+
+  const prefix = settings?.prefix || '!';
+  const fullAttendCmd = getFullCommand('attend', defaultCommands, prefix, '출첵');
+  const fullPointCmd = getFullCommand('point', defaultCommands, prefix, '포인트');
+  const fullDonateCmd = getFullCommand('donate', defaultCommands, prefix, '도네');
 
   const [titleInput, setTitleInput] = useState(status.title);
   const [categoryInput, setCategoryInput] = useState(status.category);
@@ -292,7 +299,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
             </div>
           </div>
           <div className="text-2xl font-black text-white">{todayAttends}<span className="text-xs text-slate-400 font-normal ml-1">명</span></div>
-          <div className="text-[11px] text-emerald-400 font-semibold mt-1">!출첵 실시간 집계</div>
+          <div className="text-[11px] text-emerald-400 font-semibold mt-1">{fullAttendCmd} 실시간 집계</div>
         </div>
 
         <div
@@ -434,7 +441,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
               type="text"
               value={chatInput}
               onChange={(e) => setChatInput(e.target.value)}
-              placeholder="명령어 (!출첵, !포인트, !도네 1000 등) 또는 채팅 직접 발송..."
+              placeholder={`명령어 (${fullAttendCmd}, ${fullPointCmd}, ${fullDonateCmd} 1000 등) 또는 채팅 직접 발송...`}
               className="flex-1 px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-400"
             />
             <button

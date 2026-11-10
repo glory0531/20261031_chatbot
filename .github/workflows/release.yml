@@ -51,7 +51,7 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          name: "🍪 오픈 샤봇 ${{ github.ref_name }}"
+          name: "🐻 오픈 샤봇 ${{ github.ref_name }}"
           generate_release_notes: true
           files: |
             dist-release/ShaBot-Portable-*.zip

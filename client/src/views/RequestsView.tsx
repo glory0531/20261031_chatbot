@@ -1,20 +1,24 @@
 import React, { useState } from 'react';
 import { ListOrdered, Plus, CheckCircle, Clock, PlayCircle, Trash2 } from 'lucide-react';
-import { GeneralRequest } from '../types';
+import { GeneralRequest, DefaultCommandConfig, getFullCommand } from '../types';
 import { api } from '../services/api';
 
 interface RequestsViewProps {
   requests: GeneralRequest[];
+  defaultCommands?: Record<string, DefaultCommandConfig>;
+  prefix?: string;
 }
 
-export const RequestsView: React.FC<RequestsViewProps> = ({ requests }) => {
+export const RequestsView: React.FC<RequestsViewProps> = ({ requests, defaultCommands, prefix = '!' }) => {
   const [filter, setFilter] = useState<'all' | 'waiting' | 'in_progress' | 'done'>('all');
   const [newTitle, setNewTitle] = useState('');
+
+  const fullRequestCmd = getFullCommand('request', defaultCommands, prefix, '신청');
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTitle.trim()) return;
-    await api.sendChat(`!신청 ${newTitle.trim()}`, 'streamer');
+    await api.sendChat(`${fullRequestCmd} ${newTitle.trim()}`, 'streamer');
     setNewTitle('');
   };
 
@@ -37,7 +41,7 @@ export const RequestsView: React.FC<RequestsViewProps> = ({ requests }) => {
             시참 & 미션 신청 대기열
           </h2>
           <p className="text-xs text-slate-400 mt-0.5">
-            시청자들이 !신청 명령어로 남긴 게임 시참과 미션을 순서대로 확인하고 진행 상태를 관리합니다.
+            시청자들이 <b className="text-amber-300 font-mono">{fullRequestCmd}</b> 명령어로 남긴 게임 시참과 미션을 순서대로 확인하고 진행 상태를 관리합니다.
           </p>
         </div>
 
@@ -64,16 +68,15 @@ export const RequestsView: React.FC<RequestsViewProps> = ({ requests }) => {
           <button
             key={st}
             onClick={() => setFilter(st)}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-              filter === st
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${filter === st
                 ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
                 : 'text-slate-400 hover:text-white hover:bg-slate-800'
-            }`}
+              }`}
           >
             {st === 'all' ? `전체 (${requests.length})` :
-             st === 'waiting' ? `대기 중 (${requests.filter(r => r.status === 'waiting').length})` :
-             st === 'in_progress' ? `진행 중 (${requests.filter(r => r.status === 'in_progress').length})` :
-             `완료 (${requests.filter(r => r.status === 'done').length})`}
+              st === 'waiting' ? `대기 중 (${requests.filter(r => r.status === 'waiting').length})` :
+                st === 'in_progress' ? `진행 중 (${requests.filter(r => r.status === 'in_progress').length})` :
+                  `완료 (${requests.filter(r => r.status === 'done').length})`}
           </button>
         ))}
       </div>
@@ -83,22 +86,20 @@ export const RequestsView: React.FC<RequestsViewProps> = ({ requests }) => {
         {filtered.map((item, idx) => (
           <div
             key={item.id}
-            className={`p-4 rounded-2xl border transition-all ${
-              item.status === 'in_progress'
+            className={`p-4 rounded-2xl border transition-all ${item.status === 'in_progress'
                 ? 'bg-amber-500/10 border-amber-500/30 shadow-lg shadow-amber-500/5'
                 : item.status === 'done'
-                ? 'bg-slate-900/40 border-white/5 opacity-60'
-                : 'bg-slate-900/70 border-white/10'
-            }`}
+                  ? 'bg-slate-900/40 border-white/5 opacity-60'
+                  : 'bg-slate-900/70 border-white/10'
+              }`}
           >
             <div className="flex items-start justify-between gap-2 mb-2">
-              <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
-                item.status === 'in_progress' ? 'bg-amber-500 text-slate-950' :
-                item.status === 'done' ? 'bg-emerald-500/20 text-emerald-400' :
-                'bg-slate-800 text-slate-400'
-              }`}>
+              <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${item.status === 'in_progress' ? 'bg-amber-500 text-slate-950' :
+                  item.status === 'done' ? 'bg-emerald-500/20 text-emerald-400' :
+                    'bg-slate-800 text-slate-400'
+                }`}>
                 {item.status === 'in_progress' ? '지금 진행 중' :
-                 item.status === 'done' ? '완료됨' : '대기 순번'}
+                  item.status === 'done' ? '완료됨' : '대기 순번'}
               </span>
               <button
                 onClick={() => handleDelete(item.id)}

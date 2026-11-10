@@ -23,9 +23,11 @@ import {
   DownloadCloud,
   Wand2,
   Coins,
-  CircleDollarSign
+  CircleDollarSign,
+  Lock,
+  Unlock
 } from 'lucide-react';
-import { Settings, ThemePreset, UpdateState, CurrencyType } from '../types';
+import { Settings, ThemePreset, UpdateState, CurrencyType, DefaultCommandConfig, getFullCommand } from '../types';
 import { THEME_PRESETS } from '../constants/themes';
 import { api } from '../services/api';
 
@@ -33,9 +35,10 @@ interface SettingsViewProps {
   settings: Settings;
   update?: UpdateState;
   onOpenOnboarding?: () => void;
+  defaultCommands?: Record<string, DefaultCommandConfig>;
 }
 
-export const SettingsView: React.FC<SettingsViewProps> = ({ settings, update, onOpenOnboarding }) => {
+export const SettingsView: React.FC<SettingsViewProps> = ({ settings, update, onOpenOnboarding, defaultCommands }) => {
   const [chzzkChannelId, setChzzkChannelId] = useState(settings.chzzkChannelId || '');
   const [chzzkClientId, setChzzkClientId] = useState(settings.chzzkClientId || '');
   const [chzzkClientSecret, setChzzkClientSecret] = useState(settings.chzzkClientSecret || '');
@@ -43,6 +46,29 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, update, on
   const [chzzkWriteEnabled, setChzzkWriteEnabled] = useState(settings.chzzkWriteEnabled ?? false);
   const [suppressPointMessagesInChat, setSuppressPointMessagesInChat] = useState(settings.suppressPointMessagesInChat ?? true);
   const [sendPaidPointMessagesInChat, setSendPaidPointMessagesInChat] = useState(settings.sendPaidPointMessagesInChat ?? true);
+
+  // 세분화된 치지직 채팅 송출 제어 상태
+  const [sendChatCheeseDonation, setSendChatCheeseDonation] = useState(
+    settings.sendChatCheeseDonation ?? (settings.sendPaidPointMessagesInChat !== false)
+  );
+  const [sendChatRoulette, setSendChatRoulette] = useState(
+    settings.sendChatRoulette ?? (settings.sendPaidPointMessagesInChat !== false)
+  );
+  const [sendChatDonation, setSendChatDonation] = useState(
+    settings.sendChatDonation ?? (settings.sendPaidPointMessagesInChat !== false)
+  );
+  const [sendChatAttendance, setSendChatAttendance] = useState(
+    settings.sendChatAttendance ?? false
+  );
+  const [sendChatWallet, setSendChatWallet] = useState(
+    settings.sendChatWallet ?? false
+  );
+  const [sendChatMiniGames, setSendChatMiniGames] = useState(
+    settings.sendChatMiniGames ?? false
+  );
+  const [sendChatInsufficient, setSendChatInsufficient] = useState(
+    settings.sendChatInsufficient ?? false
+  );
 
   const [botName, setBotName] = useState(settings.botName ?? '샤봇');
   const [streamerName, setStreamerName] = useState(settings.streamerName || '스트리머');
@@ -54,6 +80,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, update, on
   const [cheesePointRatePercent, setCheesePointRatePercent] = useState(settings.cheesePointRatePercent ?? 100);
   const [includeMissionCheese, setIncludeMissionCheese] = useState(settings.includeMissionCheese ?? false);
   const [donateCurrency, setDonateCurrency] = useState<CurrencyType>(settings.donateCurrency || 'chips');
+
+  const fullDonateCmd = getFullCommand('donate', defaultCommands, prefix, '도네');
+  const fullAttendCmd = getFullCommand('attend', defaultCommands, prefix, '출첵');
+  const fullPointCmd = getFullCommand('point', defaultCommands, prefix, '포인트');
+  const fullRpsCmd = getFullCommand('rps', defaultCommands, prefix, '가위바위보');
+  const fullDiceCmd = getFullCommand('dice', defaultCommands, prefix, '주사위');
 
   const [themePreset, setThemePreset] = useState<ThemePreset>(settings.themePreset || 'chzzk-emerald');
   const [autoUpdateOnStart, setAutoUpdateOnStart] = useState(settings.autoUpdateOnStart ?? true);
@@ -68,6 +100,16 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, update, on
   const [isRestoring, setIsRestoring] = useState(false);
   const [checkingUpdate, setCheckingUpdate] = useState(false);
   const [applyingUpdate, setApplyingUpdate] = useState(false);
+
+  const hasExistingConnection = Boolean(
+    settings.chzzkChannelId ||
+    settings.chzzkClientId ||
+    settings.chzzkAccessToken ||
+    settings.hasAccessToken
+  );
+  const [isConnectionLocked, setIsConnectionLocked] = useState<boolean>(() => {
+    return hasExistingConnection;
+  });
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -85,6 +127,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, update, on
     setDonateCurrency(settings.donateCurrency || 'chips');
     setSuppressPointMessagesInChat(settings.suppressPointMessagesInChat ?? true);
     setSendPaidPointMessagesInChat(settings.sendPaidPointMessagesInChat ?? true);
+    setSendChatCheeseDonation(settings.sendChatCheeseDonation ?? (settings.sendPaidPointMessagesInChat !== false));
+    setSendChatRoulette(settings.sendChatRoulette ?? (settings.sendPaidPointMessagesInChat !== false));
+    setSendChatDonation(settings.sendChatDonation ?? (settings.sendPaidPointMessagesInChat !== false));
+    setSendChatAttendance(settings.sendChatAttendance ?? false);
+    setSendChatWallet(settings.sendChatWallet ?? false);
+    setSendChatMiniGames(settings.sendChatMiniGames ?? false);
+    setSendChatInsufficient(settings.sendChatInsufficient ?? false);
     setThemePreset(settings.themePreset || 'chzzk-emerald');
     setAutoUpdateOnStart(settings.autoUpdateOnStart ?? true);
   }, [settings]);
@@ -141,7 +190,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, update, on
         chzzkClientSecret: chzzkClientSecret.trim(),
         chzzkWriteEnabled: true,
         suppressPointMessagesInChat,
-        sendPaidPointMessagesInChat
+        sendPaidPointMessagesInChat,
+        sendChatCheeseDonation,
+        sendChatRoulette,
+        sendChatDonation,
+        sendChatAttendance,
+        sendChatWallet,
+        sendChatMiniGames,
+        sendChatInsufficient
       });
       window.location.href = '/api/chzzk/login';
     } catch (err: any) {
@@ -193,7 +249,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, update, on
       chzzkClientSecret,
       chzzkWriteEnabled,
       suppressPointMessagesInChat,
-      sendPaidPointMessagesInChat
+      sendPaidPointMessagesInChat,
+      sendChatCheeseDonation,
+      sendChatRoulette,
+      sendChatDonation,
+      sendChatAttendance,
+      sendChatWallet,
+      sendChatMiniGames,
+      sendChatInsufficient
     });
     setSavedSuccess(true);
     setTimeout(() => setSavedSuccess(false), 2500);
@@ -418,16 +481,32 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, update, on
                 <span className="text-[10px] text-amber-400 font-normal">⚡ 1초 실시간 수신</span>
               </h3>
             </div>
-            <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 text-[10px] font-bold border border-emerald-500/20">
-              공식 웹소켓 지원
-            </span>
+            <div className="flex items-center gap-2">
+              {!isConnectionLocked ? (
+                <button
+                  type="button"
+                  onClick={() => setIsConnectionLocked(true)}
+                  className="px-2.5 py-1 rounded-lg bg-amber-400/15 hover:bg-amber-400/25 text-amber-300 text-[10px] font-bold border border-amber-400/30 flex items-center gap-1 transition-all cursor-pointer"
+                  title="설정 보호 덮개 닫기"
+                >
+                  <Lock className="w-3 h-3 text-amber-400" />
+                  <span>설정 보호 (잠금)</span>
+                </button>
+              ) : (
+                <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 text-[10px] font-bold border border-emerald-500/20">
+                  공식 웹소켓 지원
+                </span>
+              )}
+            </div>
           </div>
 
           <div className="space-y-3">
-            <div>
-              <label className="block text-xs font-bold text-slate-300 mb-1">
-                치지직 채널 주소 또는 32자리 UID
-              </label>
+            {/* 치지직 채널 및 API 연동 설정 래퍼 (실수 방지 덮개 UI 적용 영역) */}
+            <div className="relative rounded-2xl border border-slate-800/80 bg-slate-950/40 p-4 space-y-3.5 transition-all overflow-hidden">
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-1">
+                  치지직 채널 주소 또는 32자리 UID
+                </label>
               <div className="flex gap-2">
                 <input
                   type="text"
@@ -586,46 +665,230 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, update, on
                 )}
               </div>
 
-              <div className="flex items-center justify-between p-3 rounded-xl bg-slate-950/60 border border-slate-800">
+              {/* 잠금 오버레이 덮개 (Cover Shield) */}
+              {isConnectionLocked && (
+                <div className="absolute inset-0 z-20 backdrop-blur-md bg-slate-950/85 p-5 flex flex-col items-center justify-center text-center transition-all animate-in fade-in duration-200">
+                  <div className="w-12 h-12 rounded-2xl bg-amber-400/15 border border-amber-400/30 flex items-center justify-center text-amber-400 mb-2.5 shadow-lg shadow-black/40">
+                    <Lock className="w-5 h-5 text-amber-300" />
+                  </div>
+                  <h5 className="text-sm font-black text-white flex items-center gap-1.5 mb-1">
+                    <span>치지직 연동 설정 보호 중</span>
+                  </h5>
+                  <p className="text-[11px] text-slate-400 max-w-xs mb-3.5 leading-relaxed">
+                    방송 중 실수로 클릭하거나 API 키가 수정/삭제되지 않도록 덮개로 안전하게 잠겨 있습니다.
+                  </p>
+
+                  {/* 현재 연동 상태 요약 뱃지 */}
+                  <div className="mb-4 px-3.5 py-2 rounded-xl bg-slate-900/90 border border-slate-700/60 flex items-center gap-2.5 text-xs shadow-inner">
+                    <span className={`w-2 h-2 rounded-full ${chzzkChannelId ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'}`} />
+                    <span className="text-slate-300 font-medium">
+                      연동 채널: <span className="text-white font-bold">{streamerName || (chzzkChannelId ? `${chzzkChannelId.slice(0, 10)}...` : '미연동')}</span>
+                    </span>
+                    {settings.chzzkAuthedChannelName && (
+                      <>
+                        <span className="text-slate-600">|</span>
+                        <span className="text-amber-300 font-bold">발송: {settings.chzzkAuthedChannelName}</span>
+                      </>
+                    )}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setIsConnectionLocked(false)}
+                    className="px-4 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs shadow-lg shadow-amber-400/20 transition-all flex items-center gap-1.5 cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
+                  >
+                    <Unlock className="w-3.5 h-3.5" />
+                    <span>설정 변경하기 (잠금 해제)</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* 2. 치지직 채팅창 답장 & 송출 제어 독립 카드 (설정 보호에서 완전히 분리, 상시 즉시 변경 가능) */}
+          <div className="witch-card p-5 rounded-2xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <div className="flex items-center gap-2">
+                <span className="w-7 h-7 rounded-lg bg-amber-400/20 text-amber-300 font-black flex items-center justify-center text-xs border border-amber-400/30">
+                  📢
+                </span>
                 <div>
-                  <div className="text-xs font-bold text-slate-200">실제 치지직 채팅창 답장 활성화</div>
-                  <div className="text-[10px] text-slate-400">명령어 실행 시 치지직 채팅창에 봇이 답글을 남깁니다.</div>
+                  <h3 className="font-bold text-sm text-white flex items-center gap-1.5">
+                    치지직 채팅창 답장 & 송출 제어
+                    <span className="text-[10px] text-emerald-400 font-normal">⚡ 실시간 즉시 반영</span>
+                  </h3>
+                  <p className="text-[10px] text-slate-400">
+                    방송 채팅창으로 나갈 봇 메시지의 종류를 세부적으로 켜고 끕니다.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* 마스터 스위치 */}
+            <div className="flex items-center justify-between p-3.5 rounded-xl bg-gradient-to-r from-emerald-500/15 to-teal-500/10 border border-emerald-500/40">
+              <div>
+                <div className="text-xs font-black text-white flex items-center gap-1.5">
+                  <span className={`w-2 h-2 rounded-full ${chzzkWriteEnabled ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'}`} />
+                  <span>실제 치지직 채팅창 답장 전체 활성화</span>
+                </div>
+                <div className="text-[10px] text-slate-300 mt-0.5">
+                  끄면 아래 세부 항목과 무관하게 치지직 채팅창으로 봇 메시지가 발송되지 않습니다.
+                </div>
+              </div>
+              <input
+                type="checkbox"
+                checked={chzzkWriteEnabled}
+                onChange={(e) => {
+                  const val = e.target.checked;
+                  setChzzkWriteEnabled(val);
+                  api.updateSettings({ chzzkWriteEnabled: val });
+                }}
+                className="w-4 h-4 accent-emerald-400 rounded cursor-pointer"
+              />
+            </div>
+
+            {/* A. 유료 포인트 & 룰렛 결과 송출 세분화 */}
+            <div className="space-y-2 pt-1">
+              <div className="text-xs font-bold text-amber-300 flex items-center gap-1 px-1">
+                <span>💰 유료 후원 & 보상 메시지 송출</span>
+                <span className="text-[10px] text-slate-400 font-normal">(체크 시 치지직 채팅창에 발송)</span>
+              </div>
+
+              {/* 1. 치즈 후원 적립 알림 */}
+              <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-950/60 border border-slate-800/80 hover:border-slate-700 transition-colors">
+                <div>
+                  <div className="text-xs font-bold text-slate-200">🧀 치즈 후원 시 감사 & 포인트 적립 알림</div>
+                  <div className="text-[10px] text-slate-400">예: <code>🧀 [닉네임]님 1,000치즈 후원 감사합니다! (+1,000P 적립)</code></div>
                 </div>
                 <input
                   type="checkbox"
-                  checked={chzzkWriteEnabled}
-                  onChange={(e) => setChzzkWriteEnabled(e.target.checked)}
+                  checked={sendChatCheeseDonation}
+                  onChange={(e) => {
+                    const val = e.target.checked;
+                    setSendChatCheeseDonation(val);
+                    api.updateSettings({ sendChatCheeseDonation: val });
+                  }}
                   className="w-4 h-4 accent-amber-400 rounded cursor-pointer"
                 />
               </div>
 
-              {/* 채팅창 송출 분리 토글 2종 */}
-              <div className="flex items-center justify-between p-3 rounded-xl bg-slate-950/60 border border-slate-800">
+              {/* 2. 룰렛 당첨 결과 알림 */}
+              <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-950/60 border border-slate-800/80 hover:border-slate-700 transition-colors">
                 <div>
-                  <div className="text-xs font-bold text-slate-200">무료 활동 칩 메시지 송출 제외 (도배 방지)</div>
-                  <div className="text-[10px] text-slate-400">출첵·단순 조회·미니게임 등 잦은 칩 활동은 대시보드에만 표시합니다.</div>
+                  <div className="text-xs font-bold text-slate-200">🎰 행운의 룰렛 당첨 결과 알림</div>
+                  <div className="text-[10px] text-slate-400">예: <code>🎰 [닉네임]님이 룰렛을 돌려 [아이템]에 당첨되셨습니다!</code></div>
                 </div>
                 <input
                   type="checkbox"
-                  checked={suppressPointMessagesInChat}
-                  onChange={(e) => setSuppressPointMessagesInChat(e.target.checked)}
+                  checked={sendChatRoulette}
+                  onChange={(e) => {
+                    const val = e.target.checked;
+                    setSendChatRoulette(val);
+                    api.updateSettings({ sendChatRoulette: val });
+                  }}
                   className="w-4 h-4 accent-amber-400 rounded cursor-pointer"
                 />
               </div>
 
-              <div className="flex items-center justify-between p-3 rounded-xl bg-slate-950/60 border border-slate-800">
+              {/* 3. 포인트/칩 도네이션 후원 알림 */}
+              <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-950/60 border border-slate-800/80 hover:border-slate-700 transition-colors">
                 <div>
-                  <div className="text-xs font-bold text-amber-300">유료 포인트 & 룰렛 결과 치지직 송출</div>
-                  <div className="text-[10px] text-slate-400">치즈 후원 적립 및 !룰렛 결과 등 유료 포인트 활동을 방송 채팅에 알립니다.</div>
+                  <div className="text-xs font-bold text-slate-200">⚔️ 포인트/칩 도네이션({fullDonateCmd}) 후원 알림</div>
+                  <div className="text-[10px] text-slate-400">예: <code>⚔️ [닉네임]님이 1,000포인트를 후원하셨습니다! "메시지"</code></div>
                 </div>
                 <input
                   type="checkbox"
-                  checked={sendPaidPointMessagesInChat}
-                  onChange={(e) => setSendPaidPointMessagesInChat(e.target.checked)}
+                  checked={sendChatDonation}
+                  onChange={(e) => {
+                    const val = e.target.checked;
+                    setSendChatDonation(val);
+                    api.updateSettings({ sendChatDonation: val });
+                  }}
                   className="w-4 h-4 accent-amber-400 rounded cursor-pointer"
                 />
               </div>
             </div>
+
+            {/* B. 무료 활동 칩 메시지 송출 세분화 (도배 방지) */}
+            <div className="space-y-2 pt-2 border-t border-slate-800/80">
+              <div className="text-xs font-bold text-teal-300 flex items-center gap-1 px-1">
+                <span>🛡️ 무료 활동 메시지 송출 (도배 방지)</span>
+                <span className="text-[10px] text-slate-400 font-normal">(해제 시 대시보드에만 표시, 채팅창 미송출)</span>
+              </div>
+
+              {/* 1. 출석체크 알림 */}
+              <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-950/60 border border-slate-800/80 hover:border-slate-700 transition-colors">
+                <div>
+                  <div className="text-xs font-bold text-slate-200">🎉 출석체크 완료 알림 ({fullAttendCmd})</div>
+                  <div className="text-[10px] text-slate-400">출석 보상 지급 및 연속 출석 안내 메시지</div>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={sendChatAttendance}
+                  onChange={(e) => {
+                    const val = e.target.checked;
+                    setSendChatAttendance(val);
+                    api.updateSettings({ sendChatAttendance: val });
+                  }}
+                  className="w-4 h-4 accent-teal-400 rounded cursor-pointer"
+                />
+              </div>
+
+              {/* 2. 지갑 및 잔액 조회 알림 */}
+              <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-950/60 border border-slate-800/80 hover:border-slate-700 transition-colors">
+                <div>
+                  <div className="text-xs font-bold text-slate-200">💰 지갑 및 잔액 조회 알림 ({fullPointCmd})</div>
+                  <div className="text-[10px] text-slate-400">시청자 개인의 보유 잔액 조회 메시지</div>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={sendChatWallet}
+                  onChange={(e) => {
+                    const val = e.target.checked;
+                    setSendChatWallet(val);
+                    api.updateSettings({ sendChatWallet: val });
+                  }}
+                  className="w-4 h-4 accent-teal-400 rounded cursor-pointer"
+                />
+              </div>
+
+              {/* 3. 미니게임 결과 알림 */}
+              <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-950/60 border border-slate-800/80 hover:border-slate-700 transition-colors">
+                <div>
+                  <div className="text-xs font-bold text-slate-200">🎮 미니게임 결과 알림 ({fullRpsCmd}, {fullDiceCmd} 등)</div>
+                  <div className="text-[10px] text-slate-400">가위바위보 대결 결과 및 주사위 굴림 결과 메시지</div>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={sendChatMiniGames}
+                  onChange={(e) => {
+                    const val = e.target.checked;
+                    setSendChatMiniGames(val);
+                    api.updateSettings({ sendChatMiniGames: val });
+                  }}
+                  className="w-4 h-4 accent-teal-400 rounded cursor-pointer"
+                />
+              </div>
+
+              {/* 4. 잔액 부족 및 권한 부족 에러 안내 */}
+              <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-950/60 border border-slate-800/80 hover:border-slate-700 transition-colors">
+                <div>
+                  <div className="text-xs font-bold text-slate-200">⚠️ 잔액 부족 및 권한 부족 안내 메시지</div>
+                  <div className="text-[10px] text-slate-400"><code>[잔액 부족]</code>, <code>[권한 부족]</code> 등 시스템 에러 메시지</div>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={sendChatInsufficient}
+                  onChange={(e) => {
+                    const val = e.target.checked;
+                    setSendChatInsufficient(val);
+                    api.updateSettings({ sendChatInsufficient: val });
+                  }}
+                  className="w-4 h-4 accent-teal-400 rounded cursor-pointer"
+                />
+              </div>
+            </div>
+          </div>
           </div>
         </div>
 
@@ -801,7 +1064,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, update, on
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-300 mb-1">
-                    !도네 기본 재화
+                    {fullDonateCmd} 기본 재화
                   </label>
                   <select
                     value={donateCurrency}

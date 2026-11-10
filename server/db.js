@@ -11,6 +11,25 @@ export const DB_FILE = path.join(DATA_DIR, 'storage.json');
 export const CURRENT_SCHEMA_VERSION = 3;
 
 // 오픈 샤봇 공식 배포판 깨끗한 초기 데이터 스키마 (유료 포인트 + 활동 칩 이원화)
+export const DEFAULT_COMMAND_PRESETS = {
+  uptime: { enabled: true, name: '업타임', aliases: ['업타임', 'uptime', '방송시간'], desc: '방송 켠 시간 확인', response: '⏱️ 현재 방송 시작 후 [ {uptime} ] 동안 달리는 중입니다!', permission: 'all', cooldown: 5, cost: 0, currency: 'chips', visibleInViewer: true },
+  title: { enabled: true, name: '방제', aliases: ['방제', 'title', '제목'], desc: '방송 제목 변경 (매니저/스트리머)', response: '📢 방송 제목이 "{title}"(으)로 변경되었습니다!', permission: 'manager', cooldown: 5, cost: 0, currency: 'chips', visibleInViewer: true },
+  category: { enabled: true, name: '카테고리', aliases: ['카테고리', 'category'], desc: '카테고리 변경 (매니저/스트리머)', response: '🎮 방송 카테고리가 [ {category} ](으)로 변경되었습니다!', permission: 'manager', cooldown: 5, cost: 0, currency: 'chips', visibleInViewer: true },
+  attend: { enabled: true, name: '출첵', aliases: ['출첵', '출석', 'attend', 'check'], desc: '일일 출석 체크 및 활동 칩 적립', response: '🎉 [{user}]님 출석 완료! (+{earned}{unit} 지급, {streak}일 연속 출석! 보유: {chips}{unit})', permission: 'all', cooldown: 5, cost: 0, currency: 'chips', visibleInViewer: true },
+  point: { enabled: true, name: '포인트', aliases: ['포인트', 'point', '칩', 'chip', '지갑'], desc: '보유 유료 포인트 및 칩 잔액 통합 확인', response: '💰 [{user}]님의 지갑 — 유료 포인트: {points}{pUnit} · 보유 칩: {chips}{cUnit} (총 출석: {totalAttends}회)', permission: 'all', cooldown: 5, cost: 0, currency: 'chips', visibleInViewer: true },
+  donate: { enabled: true, name: '도네', aliases: ['도네', 'donate', '후원'], desc: '칩/포인트 방송 후원 및 TTS 재생', response: '⚔️ [{user}]님이 {amount}{unit}을(를) 후원하셨습니다! "{message}"', permission: 'all', cooldown: 5, cost: 0, currency: 'chips', visibleInViewer: true },
+  fund: { enabled: true, name: '모금', aliases: ['모금', 'fund', '기부'], desc: '활동 칩 모금함 기부', response: '💖 [{user}]님이 모금함에 {amount}{unit}을(를) 기부하셨습니다! (진행률: {percent}%)', permission: 'all', cooldown: 5, cost: 0, currency: 'chips', visibleInViewer: true },
+  vote: { enabled: true, name: '투표', aliases: ['투표', 'vote', '배팅'], desc: '활동 칩 승부예측/투표 배팅', response: '🗳️ [{user}]님이 [{option}]에 {amount}{unit}을(를) 걸었습니다!', permission: 'all', cooldown: 5, cost: 0, currency: 'chips', visibleInViewer: true },
+  sr: { enabled: true, name: 'sr', aliases: ['sr', '신청곡', '노래신청'], desc: '유튜브 노래 신청', response: '🎶 [{user}]님의 신청곡 [{title}]이(가) 등록되었습니다!', permission: 'all', cooldown: 5, cost: 0, currency: 'chips', visibleInViewer: true },
+  request: { enabled: true, name: '신청', aliases: ['신청', 'request', '미션'], desc: '시청자 참여/미션 신청', response: '📋 [{user}]님의 신청 [{content}]이(가) 등록되었습니다!', permission: 'all', cooldown: 5, cost: 0, currency: 'chips', visibleInViewer: true },
+  dice: { enabled: true, name: '주사위', aliases: ['주사위', 'dice'], desc: '1~100 랜덤 주사위 굴리기', response: '🎲 [{user}]님의 주사위 결과: {dice} (1~100)', permission: 'all', cooldown: 5, cost: 0, currency: 'chips', visibleInViewer: true },
+  fishing: { enabled: true, name: '낚시', aliases: ['낚시', 'fish', 'fishing'], desc: '칩 미끼 랜덤 낚시 미니게임', response: '🎣 [{user}]님의 낚시 결과: {result}', permission: 'all', cooldown: 5, cost: 20, currency: 'chips', visibleInViewer: true },
+  rps: { enabled: true, name: '가위바위보', aliases: ['가위바위보', 'rps'], desc: '활동 칩 가위바위보 대결', response: '✌️✊🖐️ [{user}]: {choice} vs {bot}: {botChoice} ➡️ {result}', permission: 'all', cooldown: 5, cost: 0, currency: 'chips', visibleInViewer: true },
+  roulette: { enabled: true, name: '룰렛', aliases: ['룰렛', 'roulette'], desc: '유료 포인트 행운의 룰렛 돌리기', response: '🎰 [{user}]님이 {cost}{unit}로 룰렛을 돌려 [ {result} ]에 당첨되셨습니다!', permission: 'all', cooldown: 5, cost: 100, currency: 'points', visibleInViewer: true },
+  ticket: { enabled: true, name: '티켓', aliases: ['티켓', 'ticket'], desc: '보유 티켓 확인 및 사용', response: '🎫 [{user}]님의 보유 티켓: {count}장', permission: 'all', cooldown: 5, cost: 0, currency: 'chips', visibleInViewer: true },
+  jump: { enabled: true, name: '점프', aliases: ['점프', 'jump'], desc: '채팅 아바타 점프 모션', response: '', permission: 'all', cooldown: 2, cost: 0, currency: 'chips', visibleInViewer: true }
+};
+
 export const defaultData = {
   schemaVersion: CURRENT_SCHEMA_VERSION,
   status: {
@@ -61,6 +80,14 @@ export const defaultData = {
     chzzkWriteEnabled: false,
     suppressPointMessagesInChat: true, // 무료 칩 활동 메시지 치지직 채팅 송출 제외 (도배 방지)
     sendPaidPointMessagesInChat: true, // 유료 포인트(치즈 적립·룰렛 당첨) 치지직 채팅 송출 (기본 ON)
+    // 세분화된 치지직 채팅 송출 제어 (기본값)
+    sendChatCheeseDonation: true, // 치즈 후원 적립 알림 (기본 ON)
+    sendChatRoulette: true,       // 룰렛 당첨 결과 알림 (기본 ON)
+    sendChatDonation: true,       // !도네 후원 알림 (기본 ON)
+    sendChatAttendance: false,    // 출석체크 알림 (기본 OFF - 도배 방지)
+    sendChatWallet: false,        // 지갑/잔액 조회 알림 (기본 OFF - 도배 방지)
+    sendChatMiniGames: false,     // 미니게임 결과 알림 (기본 OFF - 도배 방지)
+    sendChatInsufficient: false,  // 잔액/권한 부족 알림 (기본 OFF - 도배 방지)
     soopId: '',
     twitchChannel: '',
     youtubeChannel: '',
@@ -133,24 +160,7 @@ export const defaultData = {
       visibleInViewer: true
     }
   ],
-  defaultCommands: {
-    uptime: { enabled: true, name: '업타임', desc: '방송 켠 시간 확인', visibleInViewer: true },
-    title: { enabled: true, name: '방제', desc: '방송 제목 변경 (매니저/스트리머)', visibleInViewer: true },
-    category: { enabled: true, name: '카테고리', desc: '카테고리 변경 (매니저/스트리머)', visibleInViewer: true },
-    attend: { enabled: true, name: '출첵', desc: '일일 출석 체크 및 활동 칩 적립', visibleInViewer: true },
-    point: { enabled: true, name: '포인트', desc: '보유 유료 포인트 및 칩 잔액 통합 확인 (!칩 호환)', visibleInViewer: true },
-    donate: { enabled: true, name: '도네', desc: '칩/포인트 방송 후원 및 TTS 재생', visibleInViewer: true },
-    fund: { enabled: true, name: '모금', desc: '활동 칩 모금함 기부', visibleInViewer: true },
-    vote: { enabled: true, name: '투표', desc: '활동 칩 승부예측/투표 배팅', visibleInViewer: true },
-    sr: { enabled: true, name: 'sr', desc: '유튜브 노래 신청', visibleInViewer: true },
-    request: { enabled: true, name: '신청', desc: '시청자 참여/미션 신청', visibleInViewer: true },
-    dice: { enabled: true, name: '주사위', desc: '1~100 랜덤 주사위 굴리기', visibleInViewer: true },
-    fishing: { enabled: true, name: '낚시', desc: '칩 미끼 랜덤 낚시 미니게임', visibleInViewer: true },
-    rps: { enabled: true, name: '가위바위보', desc: '활동 칩 가위바위보 대결', visibleInViewer: true },
-    roulette: { enabled: true, name: '룰렛', desc: '유료 포인트 행운의 룰렛 돌리기', visibleInViewer: true },
-    ticket: { enabled: true, name: '티켓', desc: '보유 티켓 확인 및 사용', visibleInViewer: true },
-    jump: { enabled: true, name: '점프', desc: '채팅 아바타 점프 모션', visibleInViewer: true }
-  },
+  defaultCommands: { ...DEFAULT_COMMAND_PRESETS },
   autoMessages: [
     {
       id: 'auto-1',
@@ -240,7 +250,8 @@ export const defaultData = {
   ],
   weeklySchedules: {},
   activeWeekKey: '',
-  avatars: []
+  avatars: [],
+  liveDonations: []
 };
 
 // 디렉토리 초기화
@@ -296,12 +307,12 @@ export function migrateAndMergeData(parsed) {
     mergedSettings.onboardingCompleted = true;
   }
 
-  // 기본 명령어 딥 머지
+  // 기본 명령어 딥 머지 (기본 프리셋 누락 필드 보완)
   const mergedDefaultCommands = { ...base.defaultCommands };
   if (parsed.defaultCommands && typeof parsed.defaultCommands === 'object') {
     for (const [key, val] of Object.entries(parsed.defaultCommands)) {
       mergedDefaultCommands[key] = {
-        ...(base.defaultCommands[key] || {}),
+        ...(DEFAULT_COMMAND_PRESETS[key] || base.defaultCommands[key] || {}),
         ...val
       };
     }
@@ -382,7 +393,8 @@ export function migrateAndMergeData(parsed) {
     songRequests: mergedSongRequests,
     fund: mergedFund,
     roulette: mergedRoulette,
-    users: mergedUsers
+    users: mergedUsers,
+    liveDonations: Array.isArray(parsed?.liveDonations) ? parsed.liveDonations : []
   };
 }
 
