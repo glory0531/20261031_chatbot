@@ -77,7 +77,7 @@ export const Header: React.FC<HeaderProps> = ({
               </span>
               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-400/15 text-amber-300 border border-amber-400/30 flex items-center gap-1 shadow-sm">
                 <Sparkles className="w-2.5 h-2.5 text-amber-400" />
-                <span>ShaBot {version ? `v${version}` : ''}</span>
+                <span>bot {version ? `v${version}` : ''}</span>
               </span>
             </div>
             <p className="text-[11px] text-slate-400 hidden sm:block font-medium">
