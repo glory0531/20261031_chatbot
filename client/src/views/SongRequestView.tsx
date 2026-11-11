@@ -12,7 +12,8 @@ import {
   Headphones, 
   Cast, 
   Sliders,
-  Check
+  Check,
+  Loader2
 } from 'lucide-react';
 import { SongRequestsState, Settings } from '../types';
 import { api } from '../services/api';
@@ -27,6 +28,8 @@ export const SongRequestView: React.FC<SongRequestViewProps> = ({ songRequests, 
   const pUnit = settings?.pointName || 'P';
   const cUnit = settings?.chipName || '칩';
   const [newSongInput, setNewSongInput] = useState('');
+  const [isAdding, setIsAdding] = useState(false);
+  const [addFeedback, setAddFeedback] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(songRequests.isPlaying ?? true);
   const [volume, setVolume] = useState(songRequests.volume ?? 80);
   const [isMuted, setIsMuted] = useState(songRequests.isMuted ?? false);
@@ -100,9 +103,23 @@ export const SongRequestView: React.FC<SongRequestViewProps> = ({ songRequests, 
 
   const handleAddSong = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newSongInput.trim()) return;
-    await api.addSong(newSongInput.trim());
-    setNewSongInput('');
+    if (!newSongInput.trim() || isAdding) return;
+    setIsAdding(true);
+    try {
+      const res = await api.addSong(newSongInput.trim());
+      if (res && res.success) {
+        const addedTitle = res.added?.title || '신청곡';
+        setAddFeedback(`곡이 추가되었습니다: [${addedTitle}]`);
+        setNewSongInput('');
+        setTimeout(() => setAddFeedback(null), 3500);
+      } else {
+        alert(res?.message || '곡 추가에 실패했습니다.');
+      }
+    } catch (err: any) {
+      alert('곡 추가 중 오류가 발생했습니다: ' + (err.message || '오류'));
+    } finally {
+      setIsAdding(false);
+    }
   };
 
   const handleSaveCost = async () => {
@@ -149,25 +166,36 @@ export const SongRequestView: React.FC<SongRequestViewProps> = ({ songRequests, 
             재즈 & LP 주크박스 (신청곡 SR)
           </h2>
           <p className="text-xs text-slate-400 mt-0.5">
-            시청자가 채팅으로 <b className="text-indigo-400">!sr [곡명 또는 유튜브링크]</b>를 입력하면 감미로운 유튜브 음악을 검색하여 순서대로 재생합니다.
+            시청자가 채팅으로 <b className="text-indigo-400">!노래 [곡명 또는 유튜브링크]</b> 또는 <b className="text-indigo-400">!sr</b>을 입력하면 유튜브 음악을 자동 검색하여 순서대로 재생합니다.
           </p>
         </div>
 
         {/* 직접 신청 추가 */}
-        <form onSubmit={handleAddSong} className="flex items-center gap-2">
-          <input
-            type="text"
-            value={newSongInput}
-            onChange={(e) => setNewSongInput(e.target.value)}
-            placeholder="유튜브 링크 or 노래 제목 (예: 노라조 형)..."
-            className="px-3 py-2 rounded-xl bg-slate-900 border border-white/10 text-xs text-white placeholder-slate-500 focus:outline-none w-64"
-          />
-          <button
-            type="submit"
-            className="px-4 py-2 rounded-xl bg-indigo-500 hover:bg-indigo-400 text-white font-bold text-xs flex items-center gap-1 shadow-lg shadow-indigo-500/20 cursor-pointer"
-          >
-            <Plus className="w-4 h-4" /> 곡 추가
-          </button>
+        <form onSubmit={handleAddSong} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+          {addFeedback && (
+            <div className="px-3 py-1.5 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs font-bold flex items-center gap-1.5 animate-fade-in">
+              <Check className="w-3.5 h-3.5" />
+              <span>{addFeedback}</span>
+            </div>
+          )}
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              value={newSongInput}
+              onChange={(e) => setNewSongInput(e.target.value)}
+              disabled={isAdding}
+              placeholder="유튜브 링크 or 노래 제목 (예: 아이유 밤편지)..."
+              className="px-3 py-2 rounded-xl bg-slate-900 border border-white/10 text-xs text-white placeholder-slate-500 focus:outline-none w-64 disabled:opacity-50"
+            />
+            <button
+              type="submit"
+              disabled={isAdding || !newSongInput.trim()}
+              className="px-4 py-2 rounded-xl bg-indigo-500 hover:bg-indigo-400 text-white font-bold text-xs flex items-center gap-1.5 shadow-lg shadow-indigo-500/20 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+            >
+              {isAdding ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
+              <span>{isAdding ? '검색/추가 중...' : '곡 추가'}</span>
+            </button>
+          </div>
         </form>
       </div>
 

@@ -20,7 +20,7 @@ export const DEFAULT_COMMAND_PRESETS = {
   donate: { enabled: true, name: '도네', aliases: ['도네', 'donate', '후원'], desc: '방송 재화 후원 및 TTS 재생', response: '⚔️ [{user}]님이 {amount}{unit}을(를) 후원하셨습니다! "{message}"', permission: 'all', cooldown: 5, cost: 0, currency: 'chips', visibleInViewer: true },
   fund: { enabled: true, name: '모금', aliases: ['모금', 'fund', '기부'], desc: '방송 재화 모금함 기부', response: '💖 [{user}]님이 모금함에 {amount}{unit}을(를) 기부하셨습니다! (진행률: {percent}%)', permission: 'all', cooldown: 5, cost: 0, currency: 'chips', visibleInViewer: true },
   vote: { enabled: true, name: '투표', aliases: ['투표', 'vote', '배팅'], desc: '방송 재화 승부예측/투표 배팅', response: '🗳️ [{user}]님이 [{option}]에 {amount}{unit}을(를) 걸었습니다!', permission: 'all', cooldown: 5, cost: 0, currency: 'chips', visibleInViewer: true },
-  sr: { enabled: true, name: 'sr', aliases: ['sr', '신청곡', '노래신청'], desc: '유튜브 노래 신청', response: '🎶 [{user}]님의 신청곡 [{title}]이(가) 등록되었습니다!', permission: 'all', cooldown: 5, cost: 0, currency: 'chips', visibleInViewer: true },
+  sr: { enabled: true, name: 'sr', aliases: ['sr', '노래', '신청곡', '노래신청', '노래추가', '곡추가', 'song'], desc: '유튜브 노래 신청', response: '🎶 [{user}]님의 신청곡 [{title}]이(가) 등록되었습니다!', permission: 'all', cooldown: 5, cost: 0, currency: 'chips', visibleInViewer: true },
   request: { enabled: true, name: '신청', aliases: ['신청', 'request', '미션'], desc: '시청자 참여/미션 신청', response: '📋 [{user}]님의 신청 [{content}]이(가) 등록되었습니다!', permission: 'all', cooldown: 5, cost: 0, currency: 'chips', visibleInViewer: true },
   dice: { enabled: true, name: '주사위', aliases: ['주사위', 'dice'], desc: '1~100 랜덤 주사위 굴리기', response: '🎲 [{user}]님의 주사위 결과: {dice} (1~100)', permission: 'all', cooldown: 5, cost: 0, currency: 'chips', visibleInViewer: true },
   fishing: { enabled: true, name: '낚시', aliases: ['낚시', 'fish', 'fishing'], desc: '미끼 랜덤 낚시 미니게임', response: '🎣 [{user}]님의 낚시 결과: {result}', permission: 'all', cooldown: 5, cost: 20, currency: 'chips', visibleInViewer: true },
@@ -343,6 +343,12 @@ export function migrateAndMergeData(parsed) {
       // 구버전 이원화 응답 문구 자동 업그레이드
       if (key === 'point' && typeof merged.response === 'string' && merged.response.includes('유료 포인트:')) {
         merged.response = DEFAULT_COMMAND_PRESETS.point.response;
+      }
+      // sr 명령어 별칭에 '노래', '노래추가' 등 주요 한국어 별칭 자동 보완
+      if (key === 'sr') {
+        const existingAliases = Array.isArray(merged.aliases) ? merged.aliases : ['sr'];
+        const essentialAliases = ['sr', '노래', '신청곡', '노래신청', '노래추가', '곡추가', 'song'];
+        merged.aliases = Array.from(new Set([...existingAliases, ...essentialAliases]));
       }
       mergedDefaultCommands[key] = merged;
     }

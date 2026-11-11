@@ -790,11 +790,21 @@ function handleCustomCommand(cmd, target, user, role) {
 // 기본 내장 명령어 보조 함수들
 function isCmdMatch(cfg, cmdName, fallbackAliases = []) {
   if (!cfg || cfg.enabled === false) return false;
-  const lower = String(cmdName || '').trim().toLowerCase();
-  const list = (Array.isArray(cfg.aliases) && cfg.aliases.length > 0)
-    ? cfg.aliases
-    : fallbackAliases;
-  return list.some(a => String(a || '').trim().replace(/^!/, '').toLowerCase() === lower);
+  const lower = String(cmdName || '').trim().replace(/^!/, '').toLowerCase();
+  if (!lower) return false;
+
+  const names = new Set();
+  if (cfg.name) names.add(String(cfg.name).trim().replace(/^!/, '').toLowerCase());
+  if (Array.isArray(cfg.aliases)) {
+    for (const a of cfg.aliases) {
+      if (a) names.add(String(a).trim().replace(/^!/, '').toLowerCase());
+    }
+  }
+  for (const fa of fallbackAliases) {
+    if (fa) names.add(String(fa).trim().replace(/^!/, '').toLowerCase());
+  }
+
+  return names.has(lower);
 }
 
 function checkCmdPermission(cfg, role) {
@@ -1156,21 +1166,24 @@ async function handleDefaultCommand(cmdName, param, target, user, role) {
 
   // 9. !sr [노래제목 또는 유튜브링크]
   const srCfg = dCmd.sr;
-  if (isCmdMatch(srCfg, cmdName, ['sr', '노래', '신청곡'])) {
+  if (isCmdMatch(srCfg, cmdName, ['sr', '노래', '신청곡', '노래신청', '노래추가', '곡추가', 'song'])) {
     if (!checkCmdPermission(srCfg, role)) {
       return sendBotMessage(`[권한 부족] 이 명령어는 ${getPermissionLabel(srCfg.permission)} 전용입니다.`);
+    }
+    if (db.songRequests?.settings?.enabled === false) {
+      return sendBotMessage(`[신청곡 중지] 현재 노래 신청 기능이 일시 비활성화되어 있습니다.`);
     }
     if (!checkAndApplyCooldown('sr', srCfg, user)) return null;
 
     if (!param) {
       const cur = db.songRequests.current;
       const count = db.songRequests.queue.length;
-      return sendBotMessage(`🎵 현재 재생: [${cur ? cur.title : '없음'}] / 대기열: ${count}곡 (신청: !sr 노래제목)`);
+      return sendBotMessage(`🎵 현재 재생: [${cur ? cur.title : '없음'}] / 대기열: ${count}곡 (신청: !노래 곡명 또는 유튜브링크)`);
     }
 
-    const maxQueue = db.songRequests.settings.maxQueueSize || 20;
+    const maxQueue = db.songRequests.settings?.maxQueueSize || 20;
     if (db.songRequests.queue.length >= maxQueue) {
-      return sendBotMessage(`[대기열 가득 참] 현재 노래 대기열이 꽉 찼습니다.`);
+      return sendBotMessage(`[대기열 가득 참] 현재 노래 대기열이 꽉 찼습니다 (${maxQueue}곡 한도).`);
     }
 
     const minCost = Number(srCfg?.cost !== undefined ? srCfg.cost : db.songRequests.settings?.minCost) || 0;
@@ -1185,17 +1198,17 @@ async function handleDefaultCommand(cmdName, param, target, user, role) {
       if (ioInstance) ioInstance.emit('points_update', db.users);
     }
 
-    const { videoId, title } = await searchYouTube(param);
+    const { videoId, title, artist, thumbnail } = await searchYouTube(param);
 
     const newSong = {
       id: 'sr-' + Date.now(),
       title,
-      artist: '신청곡',
+      artist: artist || '신청곡',
       url: `https://www.youtube.com/watch?v=${videoId}`,
       videoId,
       requester: user.nickname,
       duration: '3:30',
-      thumbnail: `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`,
+      thumbnail: thumbnail || `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`,
       createdAt: Date.now()
     };
 

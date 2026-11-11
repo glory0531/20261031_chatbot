@@ -53,7 +53,7 @@ export const DefaultCommandsView: React.FC<DefaultCommandsViewProps> = ({
     donate: { syntax: '!도네 [포인트] [메시지]', desc: '채팅으로 포인트를 방송에 후원하고 화면에 알림과 TTS를 띄웁니다.', category: '참여 & 포인트' },
     fund: { syntax: '!모금 [포인트]', desc: '스트리머가 설정한 모금 목표에 포인트를 함께 기부합니다.', category: '참여 & 포인트' },
     vote: { syntax: '!투표 [번호] [포인트]', desc: '진행 중인 투표/예측 항목에 포인트를 배팅합니다.', category: '참여 & 포인트' },
-    sr: { syntax: '!sr [유튜브 링크 or 제목]', desc: '방송 화면 플레이어에 재생할 유튜브 노래를 신청합니다.', category: '방송 도구' },
+    sr: { syntax: '!노래 / !sr [곡명 or 유튜브링크]', desc: '방송 화면 플레이어에 재생할 유튜브 노래를 신청합니다.', category: '방송 도구' },
     request: { syntax: '!신청 [내용]', desc: '시청자 참여 또는 미션 요청을 대기열에 등록합니다.', category: '방송 도구' },
     dice: { syntax: '!주사위', desc: '1~100 사이의 숫자를 무작위로 굴립니다.', category: '미니게임' },
     fishing: { syntax: '!낚시', desc: '미끼를 소모해 물고기, 장화, 황금 잉어를 낚습니다.', category: '미니게임' },

@@ -128,7 +128,7 @@ export const ViewerPublicPage: React.FC<ViewerPublicPageProps> = ({
         name,
         syntax: `${prefix}${name} / ${prefix}칩`,
         badge: '내 지갑',
-        desc: `현재 내가 보유한 유료 ${pointName} 및 활동 ${chipName} 잔액 확인`,
+        desc: `현재 내가 보유한 ${chipName} 잔액 및 누적 출석 횟수 확인`,
         category: '참여 & 재화'
       });
     }
@@ -141,7 +141,7 @@ export const ViewerPublicPage: React.FC<ViewerPublicPageProps> = ({
         name,
         syntax: `${prefix}${name}`,
         badge: '행운 룰렛',
-        desc: `설정된 재화(기본: 유료 ${pointName})를 소모하여 확률 룰렛 돌리기`,
+        desc: `보유한 ${chipName}을(를) 소모하여 행운의 확률 룰렛 돌리기`,
         category: '참여 & 재화'
       });
     }
@@ -149,11 +149,10 @@ export const ViewerPublicPage: React.FC<ViewerPublicPageProps> = ({
     // 포인트 후원 (도네이션)
     if (defaultCommands?.donate?.enabled !== false && defaultCommands?.donate?.visibleInViewer !== false) {
       const name = defaultCommands?.donate?.name || '도네';
-      const donateUnit = settings?.donateCurrency === 'points' ? pointName : chipName;
       list.push({
         key: 'donate',
         name,
-        syntax: `${prefix}${name} [${donateUnit}] [메시지]`,
+        syntax: `${prefix}${name} [${chipName}] [메시지]`,
         badge: '방송 도네',
         desc: '방송 화면에 멜레 점프 팝업 알림과 한국어 TTS 음성 낭독',
         category: '참여 & 재화'
@@ -296,11 +295,15 @@ export const ViewerPublicPage: React.FC<ViewerPublicPageProps> = ({
           <div className="flex items-center gap-3.5">
             <div className="w-10 h-10 rounded-2xl p-0.5 bg-gradient-to-tr from-amber-600 to-amber-200 shadow-md shrink-0">
               <div className="w-full h-full rounded-[14px] overflow-hidden bg-slate-900 flex items-center justify-center">
-                <img
-                  src={profileImage}
-                  alt={channelName}
-                  className="w-full h-full object-cover object-[75%_25%] scale-150"
-                />
+                {profileImage ? (
+                  <img
+                    src={profileImage}
+                    alt={channelName}
+                    className="w-full h-full object-cover object-center"
+                  />
+                ) : (
+                  <span className="text-lg select-none">🐻</span>
+                )}
               </div>
             </div>
             <div>

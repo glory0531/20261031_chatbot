@@ -678,29 +678,34 @@ app.post('/api/sr/add', requireLocalAdmin, async (req, res) => {
   const { song, requester = getStreamerDisplayName() } = req.body;
   if (!song) return res.status(400).json({ success: false, message: '노래 제목 또는 링크를 입력하세요.' });
 
-  const { videoId, title } = await searchYouTube(song);
+  try {
+    const { videoId, title, artist, thumbnail } = await searchYouTube(song);
 
-  const newSong = {
-    id: 'sr-' + Date.now(),
-    title,
-    artist: '신청곡',
-    url: `https://www.youtube.com/watch?v=${videoId}`,
-    videoId,
-    requester,
-    duration: '3:30',
-    thumbnail: `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`,
-    createdAt: Date.now()
-  };
+    const newSong = {
+      id: 'sr-' + Date.now(),
+      title,
+      artist: artist || '신청곡',
+      url: `https://www.youtube.com/watch?v=${videoId}`,
+      videoId,
+      requester,
+      duration: '3:30',
+      thumbnail: thumbnail || `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`,
+      createdAt: Date.now()
+    };
 
-  if (!db.songRequests.current) {
-    db.songRequests.current = newSong;
-    db.songRequests.current.startedAt = Date.now();
-  } else {
-    db.songRequests.queue.push(newSong);
+    if (!db.songRequests.current) {
+      db.songRequests.current = newSong;
+      db.songRequests.current.startedAt = Date.now();
+    } else {
+      db.songRequests.queue.push(newSong);
+    }
+    commit();
+    io.emit('sr_update', db.songRequests);
+    res.json({ success: true, data: db.songRequests, added: newSong });
+  } catch (err) {
+    console.error('[API /sr/add error]:', err);
+    res.status(500).json({ success: false, message: '노래 추가 처리 중 오류가 발생했습니다: ' + err.message });
   }
-  commit();
-  io.emit('sr_update', db.songRequests);
-  res.json({ success: true, data: db.songRequests });
 });
 
 app.post('/api/sr/control', requireLocalAdmin, (req, res) => {
@@ -1248,7 +1253,7 @@ app.get('/api/chzzk/callback', async (req, res) => {
         });
         db.settings.chzzkAuthedChannelName = meRes.data?.content?.channelName || meRes.data?.content?.nickname || '';
         console.log(`✅ [치지직 API] 연동 계정 확인: ${db.settings.chzzkAuthedChannelName}`);
-      } catch {}
+      } catch { }
 
       commit();
       io.emit('settings_update', getSanitizedSettings(db.settings));
@@ -1288,7 +1293,7 @@ app.get('/', async (req, res, next) => {
           });
           db.settings.chzzkAuthedChannelName = meRes.data?.content?.channelName || meRes.data?.content?.nickname || '';
           console.log(`✅ [치지직 API] 연동 계정 확인: ${db.settings.chzzkAuthedChannelName}`);
-        } catch {}
+        } catch { }
 
         commit();
         io.emit('settings_update', getSanitizedSettings(db.settings));
@@ -1383,7 +1388,7 @@ server.listen(PORT, () => {
         commit();
         console.log(`✅ [치지직 API] 현재 발송 연동 계정: ${name}`);
       }
-    }).catch(() => {});
+    }).catch(() => { });
   }
 
   if (db.settings.chzzkChannelId) {
