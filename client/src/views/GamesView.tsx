@@ -1202,7 +1202,7 @@ export const GamesView: React.FC<GamesViewProps> = ({
                   type="button"
                   onClick={() =>
                     speakNaturalTts({
-                      text: `${settings?.streamerName || '시청자'}님, 10연차 결과 치킨 기프티콘 외 9개에 당첨되셨습니다.`,
+                      text: '치킨 기프티콘 1개, 노래 1곡 신청권 2개',
                       voice: rSettings.ttsVoice || 'ko-KR-SunHiNeural',
                       rate: rSettings.ttsRate ?? 1.0,
                       pitch: rSettings.ttsPitch ?? 0

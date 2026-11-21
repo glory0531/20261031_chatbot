@@ -59,8 +59,7 @@ export function sanitizeTextForSpeech(raw: string): string {
 }
 
 /**
- * 룰렛 단건/연차 결과를 사람이 말하듯이 자연스러운 한국어 TTS 문장으로 변환합니다.
- * 연차 시에는 가장 희박한 확률의 당첨 결과 1개 + '외 N개'로 요약합니다.
+ * 룰렛 당첨 내역을 닉네임·꽝 없이 "{{당첨내역}} N개" 형식으로 간단히 읽어줄 문장을 생성합니다.
  */
 export function buildRouletteTtsText(params: {
   user?: string | null;
@@ -68,28 +67,28 @@ export function buildRouletteTtsText(params: {
   totalPulls?: number;
   resultsSummary?: RouletteSpinSummaryItem[];
 }): string {
-  const { user, winner, totalPulls = 1, resultsSummary = [] } = params;
-  const cleanUser = sanitizeTextForSpeech(user || '');
-  const cleanWinner = sanitizeTextForSpeech(winner || '당첨');
-  const who = cleanUser ? `${cleanUser}님, ` : '';
+  const { winner, resultsSummary = [] } = params;
+  const isLoss = (name: string) => name.includes('꽝') || name.includes('다음 기회');
 
-  if (totalPulls <= 1) {
-    if (cleanWinner.includes('꽝') || cleanWinner.includes('다음 기회')) {
-      return `${who}아쉽지만 다음 기회에 도전해 보세요.`;
+  if (Array.isArray(resultsSummary) && resultsSummary.length > 0) {
+    const validItems = resultsSummary
+      .map((s) => ({
+        name: sanitizeTextForSpeech(s.name || ''),
+        count: Math.max(1, Number(s.count) || 1)
+      }))
+      .filter((s) => s.name && !isLoss(s.name));
+
+    if (validItems.length === 0) {
+      return '아쉽지만 꽝입니다.';
     }
-    return `${who}${cleanWinner}에 당첨되셨습니다.`;
+    return validItems.map((s) => `${s.name} ${s.count}개`).join(', ');
   }
 
-  const top = resultsSummary[0];
-  const topName = sanitizeTextForSpeech(top?.name || cleanWinner);
-  const topCount = top?.count || 1;
-  const otherCount = Math.max(0, totalPulls - topCount);
-  const topPhrase = topCount > 1 ? `${topName} ${topCount}개` : topName;
-
-  if (otherCount > 0) {
-    return `${who}${totalPulls}연차 결과 ${topPhrase} 외 ${otherCount}개에 당첨되셨습니다.`;
+  const cleanWinner = sanitizeTextForSpeech(winner || '');
+  if (!cleanWinner || isLoss(cleanWinner)) {
+    return '아쉽지만 꽝입니다.';
   }
-  return `${who}${totalPulls}연차 결과 ${topPhrase}가 나왔습니다.`;
+  return `${cleanWinner} 1개`;
 }
 
 /**
