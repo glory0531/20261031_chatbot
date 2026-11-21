@@ -35,14 +35,11 @@ const DEFAULT_COMMAND_META: Record<string, { desc: string; category: string }> =
   category: { desc: '방송 카테고리를 즉시 변경합니다. (매니저/스트리머 전용)', category: '방송 관리' },
   attend: { desc: '1일 1회 출석 체크를 수행하고 연속 출석 보너스 칩을 지급합니다.', category: '참여 & 재화' },
   point: { desc: '시청자 본인의 현재 보유 칩과 총 출석 횟수를 조회합니다.', category: '참여 & 재화' },
-  donate: { desc: '채팅으로 칩을 방송에 후원하고 화면에 알림과 TTS를 띄웁니다.', category: '참여 & 재화' },
   fund: { desc: '스트리머가 설정한 모금 목표에 칩을 함께 기부합니다.', category: '참여 & 재화' },
   vote: { desc: '진행 중인 투표/예측 항목에 칩을 배팅합니다.', category: '참여 & 재화' },
   sr: { desc: '방송 화면 플레이어에 재생할 유튜브 노래를 신청합니다.', category: '방송 도구' },
   request: { desc: '시청자 참여 또는 미션 요청을 대기열에 등록합니다.', category: '방송 도구' },
-  jump: { desc: '방송 화면에 떠 있는 본인의 채팅 아바타를 점프시킵니다.', category: '방송 도구' },
-  roulette: { desc: '재화를 소모하여 행운의 룰렛을 돌립니다.', category: '컨텐츠' },
-  ticket: { desc: '보유 중인 티켓 수량을 확인합니다.', category: '참여 & 재화' }
+  roulette: { desc: '재화를 소모하여 행운의 룰렛을 돌립니다.', category: '컨텐츠' }
 };
 
 export const CommandsView: React.FC<CommandsViewProps> = ({
@@ -54,7 +51,6 @@ export const CommandsView: React.FC<CommandsViewProps> = ({
   const pUnit = settings?.pointName || 'P';
   const cUnit = settings?.chipName || '칩';
   const [search, setSearch] = useState('');
-  const [activeFilter, setActiveFilter] = useState<'all' | 'default' | 'custom'>('all');
 
   // 커스텀 명령어 모달 상태
   const [modalOpen, setModalOpen] = useState(false);
@@ -208,9 +204,6 @@ export const CommandsView: React.FC<CommandsViewProps> = ({
     c.response.toLowerCase().includes(q)
   );
 
-  const showDefaults = activeFilter === 'all' || activeFilter === 'default';
-  const showCustom = activeFilter === 'all' || activeFilter === 'custom';
-
   return (
     <div className="space-y-6">
       {/* 상단 컨트롤 바 */}
@@ -218,10 +211,10 @@ export const CommandsView: React.FC<CommandsViewProps> = ({
         <div>
           <h2 className="text-xl font-black text-white flex items-center gap-2">
             <Terminal className="w-5 h-5 text-amber-400" />
-            통합 명령어 관리
+            명령어 관리 ({filteredCustom.length + filteredDefaults.length}개)
           </h2>
           <p className="text-xs text-slate-400 mt-0.5">
-            기본 내장 명령어와 나만의 커스텀 명령어를 한곳에서 관리합니다. 접두사(<b className="text-amber-400">{prefix}</b>) 없이 실행하거나 출석 체크와 연동할 수 있습니다.
+            채팅창에서 사용하는 모든 명령어를 한곳에서 관리합니다. 접두사(<b className="text-amber-400">{prefix}</b>) 없이 실행하거나 출석 체크와 연동할 수 있습니다.
           </p>
         </div>
 
@@ -240,52 +233,14 @@ export const CommandsView: React.FC<CommandsViewProps> = ({
             onClick={openAddModal}
             className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 shadow-lg shadow-amber-500/20 transition-all cursor-pointer"
           >
-            <Plus className="w-4 h-4" /> 커스텀 명령어 추가
+            <Plus className="w-4 h-4" /> 명령어 추가
           </button>
         </div>
       </div>
 
-      {/* 필터 탭 */}
-      <div className="flex items-center gap-2 border-b border-white/10 pb-3">
-        {[
-          { id: 'all', label: `전체 (${defaultEntries.length + commands.length})` },
-          { id: 'custom', label: `커스텀 명령어 (${commands.length})` },
-          { id: 'default', label: `기본 내장 명령어 (${defaultEntries.length})` }
-        ].map((tab) => (
-          <button
-            key={tab.id}
-            type="button"
-            onClick={() => setActiveFilter(tab.id as any)}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-              activeFilter === tab.id
-                ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
-                : 'bg-slate-900/70 text-slate-400 hover:text-white border border-white/10'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
-
-      {/* 커스텀 명령어 섹션 */}
-      {showCustom && (
-        <div className="space-y-3">
-          {activeFilter === 'all' && (
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-black text-slate-200 flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-amber-400" />
-                커스텀 명령어 ({filteredCustom.length}개)
-              </h3>
-            </div>
-          )}
-
-          {filteredCustom.length === 0 ? (
-            <div className="p-8 rounded-2xl bg-slate-900/40 border border-white/5 text-center text-xs text-slate-500">
-              표시할 커스텀 명령어가 없습니다. 우측 상단의 [커스텀 명령어 추가] 버튼으로 등록해보세요!
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {filteredCustom.map((cmd) => (
+      {/* 통합 명령어 카드 그리드 (구분 없이 한 목록) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {filteredCustom.map((cmd) => (
                 <div
                   key={cmd.id}
                   className={`p-5 rounded-2xl border transition-all ${
@@ -309,9 +264,6 @@ export const CommandsView: React.FC<CommandsViewProps> = ({
                         ) : (
                           `${prefix}${cmd.name}`
                         )}
-                      </span>
-                      <span className="px-2 py-0.5 rounded-lg bg-slate-800 text-[10px] font-bold text-slate-300 border border-white/5">
-                        커스텀
                       </span>
                       {cmd.allowNoPrefix && (!cmd.matchType || cmd.matchType === 'exact') && (
                         <span className="px-2 py-0.5 rounded-lg bg-indigo-500/15 text-indigo-300 text-[10px] font-bold border border-indigo-500/30 whitespace-nowrap">
@@ -414,25 +366,7 @@ export const CommandsView: React.FC<CommandsViewProps> = ({
                   </div>
                 </div>
               ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* 기본 내장 명령어 섹션 */}
-      {showDefaults && (
-        <div className="space-y-3">
-          {activeFilter === 'all' && (
-            <div className="flex items-center justify-between pt-2">
-              <h3 className="text-sm font-black text-slate-200 flex items-center gap-2">
-                <Sliders className="w-4 h-4 text-amber-400" />
-                기본 내장 명령어 ({filteredDefaults.length}개)
-              </h3>
-            </div>
-          )}
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {filteredDefaults.map(([key, config]) => {
+        {filteredDefaults.map(([key, config]) => {
               const meta = DEFAULT_COMMAND_META[key] || { desc: config.desc, category: '기타' };
               const isViewerVisible = config.visibleInViewer !== false;
               const permBadge = getPermissionBadge(config.permission);
@@ -456,7 +390,7 @@ export const CommandsView: React.FC<CommandsViewProps> = ({
                           {displayPrefix}{config.name || key}
                         </span>
                         <span className="px-2 py-0.5 rounded-lg bg-slate-800 text-[10px] font-semibold text-slate-400 border border-white/5">
-                          기본 내장 · {meta.category}
+                          {meta.category}
                         </span>
                         {config.allowNoPrefix && (
                           <span className="px-2 py-0.5 rounded-lg bg-indigo-500/15 text-indigo-300 text-[10px] font-bold border border-indigo-500/30">
@@ -553,9 +487,7 @@ export const CommandsView: React.FC<CommandsViewProps> = ({
                 </div>
               );
             })}
-          </div>
-        </div>
-      )}
+      </div>
 
       {/* 커스텀 명령어 추가/수정 모달 */}
       {modalOpen && (

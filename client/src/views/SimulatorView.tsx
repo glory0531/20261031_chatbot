@@ -122,16 +122,6 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({ simulatorRunning =
               </div>
               <p className="text-[11px] text-slate-400">!룰렛 (설정된 재화 소모 후 당첨)</p>
             </button>
-
-            <button
-              onClick={() => handleQuickAction('jump')}
-              className="p-3.5 rounded-xl bg-slate-950/60 hover:bg-amber-500/10 border border-slate-800 hover:border-amber-500/30 text-left transition-all cursor-pointer"
-            >
-              <div className="flex items-center gap-2 text-amber-300 font-bold text-xs mb-1">
-                🦘 아바타 점프
-              </div>
-              <p className="text-[11px] text-slate-400">!점프 실행 및 캐릭터 점프 모션</p>
-            </button>
           </div>
 
           <div className="pt-2 border-t border-slate-800 space-y-2">
@@ -204,54 +194,20 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({ simulatorRunning =
             </div>
           </div>
 
-          {/* 챗봇 도네 & 임의 채팅 카드 */}
+          {/* 임의 명령어 및 채팅 발송 카드 */}
           <div className="p-5 rounded-2xl witch-card space-y-4">
             <h3 className="font-bold text-sm text-white flex items-center gap-2">
-              <Coins className="w-4 h-4 text-cyan-400" /> 방송 재화 도네이션 & 임의 채팅
+              <Coins className="w-4 h-4 text-cyan-400" /> 임의 명령어 및 채팅 테스트
             </h3>
 
-            <div className="space-y-3 p-3.5 rounded-xl bg-slate-950/60 border border-slate-800">
-              <div className="flex gap-2">
-                {[50, 100, 500, 1000].map((amt) => (
-                  <button
-                    key={amt}
-                    type="button"
-                    onClick={() => setDonateAmount(amt)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                      donateAmount === amt
-                        ? 'bg-cyan-400 text-slate-950'
-                        : 'bg-slate-800 text-slate-300'
-                    }`}
-                  >
-                    {amt.toLocaleString()}
-                  </button>
-                ))}
-              </div>
-
-              <input
-                type="text"
-                value={donateMsg}
-                onChange={(e) => setDonateMsg(e.target.value)}
-                placeholder="후원 메시지..."
-                className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white"
-              />
-
-              <button
-                onClick={() => handleQuickAction('donate', { amount: donateAmount, message: donateMsg })}
-                className="w-full py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-300 font-bold text-xs border border-cyan-500/30 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
-              >
-                <Coins className="w-4 h-4" /> [{customUser}] !도네 {donateAmount.toLocaleString()} 테스트
-              </button>
-            </div>
-
-            <form onSubmit={handleSimulateChat} className="space-y-2 pt-2 border-t border-slate-800">
+            <form onSubmit={handleSimulateChat} className="space-y-2">
               <span className="text-xs font-bold text-slate-300">임의 명령어 및 채팅 발송</span>
               <div className="flex gap-2">
                 <input
                   type="text"
                   value={customMsg}
                   onChange={(e) => setCustomMsg(e.target.value)}
-                  placeholder="예: !모금 100, !룰렛, !가위바위보 가위 50"
+                  placeholder="예: !모금 1 100, !룰렛, !출첵"
                   className="flex-1 px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white"
                 />
                 <button

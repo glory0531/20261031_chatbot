@@ -1086,59 +1086,6 @@ async function handleDefaultCommand(cmdName, param, target, user, role, options 
     return sendBotMessage(resp, { category: 'wallet', currencyType: 'chips' });
   }
 
-  // 6. !도네 [금액] [메시지] (기본: 칩, 스트리머 재화 선택 가능)
-  const donateCfg = dCmd.donate;
-  if (isCmdMatch(donateCfg, cmdName, ['도네', 'donate'], noPrefixOnly)) {
-    if (!checkCmdPermission(donateCfg, role)) {
-      return sendBotMessage(`[권한 부족] 이 명령어는 ${getPermissionLabel(donateCfg.permission)} 전용입니다.`);
-    }
-    if (!checkAndApplyCooldown('donate', donateCfg, user)) return null;
-
-    const currency = db.settings.donateCurrency || 'chips';
-    const unit = getCurrencyUnit(currency);
-    const label = getCurrencyLabel(currency);
-    const parts = param.split(/\s+/);
-    const amount = parseInt(parts[0]);
-    const message = parts.slice(1).join(' ') || '항상 응원합니다!';
-
-    if (isNaN(amount) || amount <= 0) {
-      return sendBotMessage(`사용법: !도네 [${unit}] [메시지] (예: !도네 1000 스머님 파이팅!)`, { currencyType: currency });
-    }
-
-    const bal = getUserBalance(user, currency);
-    if (bal < amount) {
-      return sendBotMessage(`[잔액 부족] ${label} 잔액이 부족해요! (보유: ${bal.toLocaleString()}${unit} / 요청: ${amount.toLocaleString()}${unit})`, { currencyType: currency });
-    }
-
-    deductUserBalance(user, currency, amount);
-    user.totalDonation = (user.totalDonation || 0) + amount;
-    commit();
-    if (ioInstance) ioInstance.emit('points_update', db.users);
-
-    const donationData = {
-      id: 'd-' + Date.now(),
-      user: user.nickname,
-      amount,
-      unit,
-      message,
-      role: user.role,
-      timestamp: Date.now()
-    };
-
-    if (ioInstance) {
-      ioInstance.emit('donation_alert', donationData);
-    }
-
-    const template = donateCfg?.response || `⚔️ [{user}]님이 {amount}{unit}을(를) 후원하셨습니다! "{message}"`;
-    const resp = renderResponseTemplate(template, {
-      user: user.nickname,
-      amount: amount.toLocaleString(),
-      unit,
-      message
-    });
-    return sendBotMessage(resp, { currencyType: currency });
-  }
-
   // 7. !모금 [모금함번호] [금액] (다중 모금함 엄격 모드)
   const fundCfg = dCmd.fund;
   if (isCmdMatch(fundCfg, cmdName, ['모금', 'fund'], noPrefixOnly)) {
@@ -1368,20 +1315,6 @@ async function handleDefaultCommand(cmdName, param, target, user, role, options 
     return sendBotMessage(resp, { isGeneralRequest: true });
   }
 
-  // 11. !점프
-  const jumpCfg = dCmd.jump;
-  if (isCmdMatch(jumpCfg, cmdName, ['점프', 'jump'], noPrefixOnly)) {
-    if (!checkCmdPermission(jumpCfg, role)) return null;
-    if (!checkAndApplyCooldown('jump', jumpCfg, user)) return null;
-    const costRes = checkAndDeductCost(jumpCfg, user, jumpCfg?.name || '점프');
-    if (!costRes.ok) return sendBotMessage(costRes.message, { currencyType: costRes.currency });
-
-    if (ioInstance) {
-      ioInstance.emit('avatar_action', { user: user.nickname, action: 'jump' });
-    }
-    return null;
-  }
-
   // 15. !룰렛 [연차횟수] (방송 재화 차감 + 다중 연차, 보너스 연차, 연결 명령어 지원)
   const rouletteCfg = dCmd.roulette;
   const rSettings = db.roulette?.settings || {};
@@ -1438,22 +1371,6 @@ async function handleDefaultCommand(cmdName, param, target, user, role, options 
       costUnit: unit
     });
     return true;
-  }
-
-  // 16. !티켓 (보유 티켓 확인)
-  const ticketCfg = dCmd.ticket;
-  if (isCmdMatch(ticketCfg, cmdName, ['티켓', 'ticket'], noPrefixOnly)) {
-    if (!checkCmdPermission(ticketCfg, role)) {
-      return sendBotMessage(`[권한 부족] 이 명령어는 ${getPermissionLabel(ticketCfg.permission)} 전용입니다.`);
-    }
-    if (!checkAndApplyCooldown('ticket', ticketCfg, user)) return null;
-    const costRes = checkAndDeductCost(ticketCfg, user, ticketCfg?.name || '티켓');
-    if (!costRes.ok) return sendBotMessage(costRes.message, { currencyType: costRes.currency });
-
-    const count = Array.isArray(user.tickets) ? user.tickets.length : (Number(user.tickets) || 0);
-    const template = ticketCfg?.response || `🎫 [{user}]님의 보유 티켓: {count}장`;
-    const resp = renderResponseTemplate(template, { user: user.nickname, count });
-    return sendBotMessage(resp);
   }
 
   return null;

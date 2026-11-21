@@ -10,7 +10,7 @@ interface SlotMachineReelProps {
 }
 
 const ITEM_HEIGHT = 64;
-const REPEAT_COUNT = 8;
+const REPEAT_COUNT = 10;
 
 export const SlotMachineReel: React.FC<SlotMachineReelProps> = ({
   items,
@@ -24,7 +24,7 @@ export const SlotMachineReel: React.FC<SlotMachineReelProps> = ({
     return [{ id: 'empty', name: '상품을 추가하세요', chance: 100, color: '#f59e0b' }];
   }, [items]);
 
-  // 릴 스트립: 상품을 여러 번 반복해 자연스러운 세로 스크롤 구현
+  // 릴 스트립: 상품을 충분히 반복해 빠른 세로 스크롤 구현
   const reelStrip = useMemo(() => {
     const arr: RouletteItem[] = [];
     for (let r = 0; r < REPEAT_COUNT; r++) {
@@ -35,9 +35,14 @@ export const SlotMachineReel: React.FC<SlotMachineReelProps> = ({
     return arr;
   }, [safeItems]);
 
-  // 초기 위치: 첫 번째 루프가 아닌 2번째 루프의 첫 항목을 중앙(offset 1)에 배치
-  const baseOffsetIndex = safeItems.length;
-  const [translateY, setTranslateY] = useState<number>(-(baseOffsetIndex - 1) * ITEM_HEIGHT);
+  const stripRef = useRef<HTMLDivElement | null>(null);
+  const safeItemsRef = useRef<RouletteItem[]>(safeItems);
+  safeItemsRef.current = safeItems;
+
+  const winnerNameRef = useRef<string | null>(winnerName);
+  winnerNameRef.current = winnerName;
+
+  const [translateY, setTranslateY] = useState<number>(-(safeItems.length - 1) * ITEM_HEIGHT);
   const [animateTransition, setAnimateTransition] = useState<boolean>(false);
   const prevTriggerRef = useRef<number>(0);
 
@@ -45,30 +50,33 @@ export const SlotMachineReel: React.FC<SlotMachineReelProps> = ({
     if (spinTrigger === 0 || spinTrigger === prevTriggerRef.current) return;
     prevTriggerRef.current = spinTrigger;
 
-    const winnerIdx = winnerName
-      ? safeItems.findIndex((it) => it.name === winnerName)
+    const currentItems = safeItemsRef.current;
+    const targetName = winnerNameRef.current;
+    const winnerIdx = targetName
+      ? currentItems.findIndex((it) => it.name === targetName)
       : 0;
     const resolvedIdx = winnerIdx >= 0 ? winnerIdx : 0;
 
-    // 1. 트랜지션 없이 상단(1번째 루프) 위치로 즉시 리셋
-    const startIdx = Math.max(1, safeItems.length + resolvedIdx);
+    // 1. 트랜지션 없이 상단(2번째 루프 시작점) 위치로 즉시 리셋
+    const startIdx = Math.max(1, currentItems.length + resolvedIdx);
     setAnimateTransition(false);
     setTranslateY(-(startIdx - 1) * ITEM_HEIGHT);
 
-    // 2. 다음 프레임에서 목표 루프(6번째 루프)의 당첨 항목이 중앙에 오도록 애니메이션 시작
-    const raf = requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        const targetLoop = REPEAT_COUNT - 2;
-        const targetIndex = targetLoop * safeItems.length + resolvedIdx;
-        setAnimateTransition(true);
-        setTranslateY(-(targetIndex - 1) * ITEM_HEIGHT);
-      });
-    });
+    // 2. 브라우저가 리셋된 위치를 확실히 그린 뒤(강제 reflow + 35ms) 목표 루프로 회전 시작
+    const timer = window.setTimeout(() => {
+      if (stripRef.current) {
+        void stripRef.current.offsetHeight;
+      }
+      const targetLoop = REPEAT_COUNT - 2;
+      const targetIndex = targetLoop * currentItems.length + resolvedIdx;
+      setAnimateTransition(true);
+      setTranslateY(-(targetIndex - 1) * ITEM_HEIGHT);
+    }, 35);
 
-    return () => cancelAnimationFrame(raf);
-  }, [spinTrigger, winnerName, safeItems]);
+    return () => window.clearTimeout(timer);
+  }, [spinTrigger]);
 
-  // 상품 목록이 변경되었을 때(스핀 중이 아닐 때) 위치 보정
+  // 상품 목록 길이가 바뀔 때(초기 로드/편집 중, 스핀 중이 아닐 때만) 위치 보정
   useEffect(() => {
     if (!isSpinning && spinTrigger === 0) {
       setAnimateTransition(false);
@@ -109,9 +117,11 @@ export const SlotMachineReel: React.FC<SlotMachineReelProps> = ({
 
           {/* 움직이는 세로 릴 스트립 */}
           <div
+            ref={stripRef}
             style={{
               transform: `translateY(${translateY}px)`,
-              transition: animateTransition ? 'transform 3.4s cubic-bezier(0.12, 0.88, 0.22, 1)' : 'none'
+              transition: animateTransition ? 'transform 3.3s cubic-bezier(0.12, 0.88, 0.22, 1)' : 'none',
+              willChange: 'transform'
             }}
           >
             {reelStrip.map((item, idx) => (

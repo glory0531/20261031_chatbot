@@ -1318,13 +1318,8 @@ app.post('/api/simulate/action', requireLocalAdmin, (req, res) => {
     triggerSimulatedCheese(user, amount || 1000, message || '유료 룰렛 대박나세요! 🧀');
   } else if (action === 'roulette') {
     triggerSimulatedChat(user, '!룰렛');
-  } else if (action === 'donate') {
-    const pts = amount || 1000;
-    triggerSimulatedChat(user, `!도네 ${pts} ${message || '항상 즐거운 방송 응원합니다!'}`);
   } else if (action === 'sr') {
     triggerSimulatedChat(user, `!sr ${message || 'Hype Boy - NewJeans'}`);
-  } else if (action === 'jump') {
-    triggerSimulatedChat(user, '!점프');
   }
 
   res.json({ success: true });

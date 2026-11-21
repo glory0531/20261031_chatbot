@@ -474,30 +474,59 @@ export const GamesView: React.FC<GamesViewProps> = ({
                 아직 당첨 내역이 없습니다. (꽝을 제외한 당첨 내역이 누적됩니다)
               </div>
             ) : (
-              <div className="space-y-1.5 max-h-[280px] overflow-y-auto pr-1 text-[11px]">
+              <div className="space-y-2 max-h-[340px] overflow-y-auto pr-1 text-[11px]">
                 {roulette.history.map((h, i) => (
                   <div
                     key={h.id || `${h.time}-${i}`}
-                    className="px-3 py-2 rounded-xl bg-slate-950/60 border border-white/5 flex items-center justify-between gap-2 text-slate-300 group"
+                    className="p-3 rounded-xl bg-slate-950/65 border border-white/10 space-y-2 text-slate-300"
                   >
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 shrink-0">
-                        {getTriggerLabel(h.triggerType)}
-                      </span>
-                      <span className="font-bold text-amber-300 truncate">{h.user}</span>
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 shrink-0">
+                          {getTriggerLabel(h.triggerType || h.triggerSource)}
+                        </span>
+                        <span className="font-bold text-amber-300 truncate">{h.user}</span>
+                        {(h.totalPulls || 1) > 1 && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/25 font-bold">
+                            총 {h.totalPulls}연차
+                            {(h.bonusPulls || 0) > 0 ? ` (+${h.bonusPulls})` : ''}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <span className="text-[10px] text-slate-500">
+                          {new Date(h.time).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteHistoryItem(h.id || String(i))}
+                          className="p-1 rounded-md text-slate-500 hover:text-rose-400 hover:bg-rose-500/15 transition-colors cursor-pointer"
+                          title="이 당첨 내역 삭제"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </div>
                     </div>
-                    <span className="text-white font-semibold truncate flex-1 text-right">{h.prize}</span>
-                    <span className="text-[10px] text-slate-500 shrink-0">
-                      {new Date(h.time).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteHistoryItem(h.id || String(i))}
-                      className="p-1 rounded-md text-slate-500 hover:text-rose-400 hover:bg-rose-500/15 transition-colors shrink-0 cursor-pointer"
-                      title="이 당첨 내역 삭제"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </button>
+
+                    {Array.isArray(h.resultsSummary) && h.resultsSummary.length > 0 ? (
+                      <div className="flex flex-wrap gap-1.5 pt-1 border-t border-white/5">
+                        {h.resultsSummary.map((s, sIdx) => (
+                          <span
+                            key={sIdx}
+                            className="px-2 py-0.5 rounded-lg bg-slate-900 border border-white/10 text-[11px] font-bold text-white flex items-center gap-1"
+                          >
+                            <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: s.color || '#f59e0b' }} />
+                            <span>{s.name}</span>
+                            <span className="text-amber-400 font-black">x{s.count}</span>
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-white font-semibold break-words pt-1 border-t border-white/5">
+                        {h.prize}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

@@ -146,34 +146,6 @@ export const ViewerPublicPage: React.FC<ViewerPublicPageProps> = ({
       });
     }
 
-    // 포인트 후원 (도네이션)
-    if (defaultCommands?.donate?.enabled !== false && defaultCommands?.donate?.visibleInViewer !== false) {
-      const name = defaultCommands?.donate?.name || '도네';
-      list.push({
-        key: 'donate',
-        name,
-        syntax: `${prefix}${name} [${chipName}] [메시지]`,
-        badge: '방송 도네',
-        desc: '방송 화면에 멜레 점프 팝업 알림과 한국어 TTS 음성 낭독',
-        category: '참여 & 재화'
-      });
-    }
-
-    // 노래 신청 (SR) - 스트리머의 신청곡 설정에 따라 활성화 여부 반영
-    if (songRequests?.settings?.enabled !== false && defaultCommands?.sr?.enabled !== false && defaultCommands?.sr?.visibleInViewer !== false) {
-      const name = defaultCommands?.sr?.name || 'sr';
-      const srUnit = songRequests?.settings?.currency === 'points' ? pointName : chipName;
-      const costText = songRequests?.settings?.minCost ? ` (비용: ${songRequests.settings.minCost}${srUnit})` : '';
-      list.push({
-        key: 'sr',
-        name,
-        syntax: `${prefix}${name} [노래제목 또는 유튜브링크]`,
-        badge: '노래신청',
-        desc: `별빛 주크박스 재생 대기열에 노래 신청${costText}`,
-        category: '방송 도구'
-      });
-    }
-
     // 시참/미션 신청
     if (defaultCommands?.request?.enabled !== false && defaultCommands?.request?.visibleInViewer !== false) {
       const name = defaultCommands?.request?.name || '신청';
@@ -183,19 +155,6 @@ export const ViewerPublicPage: React.FC<ViewerPublicPageProps> = ({
         syntax: `${prefix}${name} [내용]`,
         badge: '시참/미션',
         desc: '스트리머에게 시청자 참여 또는 방송 미션 요청 등록',
-        category: '방송 도구'
-      });
-    }
-
-    // 캐릭터 점프
-    if (defaultCommands?.jump?.enabled !== false && defaultCommands?.jump?.visibleInViewer !== false) {
-      const name = defaultCommands?.jump?.name || '점프';
-      list.push({
-        key: 'jump',
-        name,
-        syntax: `${prefix}${name}`,
-        badge: '아바타',
-        desc: '방송 화면 바닥을 걸어다니는 내 멜레 아바타 높이 점프',
         category: '방송 도구'
       });
     }
@@ -590,13 +549,13 @@ export const ViewerPublicPage: React.FC<ViewerPublicPageProps> = ({
               </p>
             </div>
 
-            {/* 기본 탑재 명령어 */}
+            {/* 통합 챗봇 명령어 목록 */}
             <div className="space-y-2.5">
               <div className="text-xs font-bold text-slate-100 flex items-center justify-between">
-                <span>✦ 기본 내장 명령어 ({enabledDefaultCommands.length}개 공개됨)</span>
+                <span>✦ 챗봇 명령어 목록 ({enabledDefaultCommands.length + enabledCustomCommands.length}개 공개됨)</span>
               </div>
 
-              {enabledDefaultCommands.length > 0 ? (
+              {enabledDefaultCommands.length + enabledCustomCommands.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   {enabledDefaultCommands.map((cmd) => (
                     <div key={cmd.key} className="p-3.5 rounded-2xl witch-card border border-amber-400/25 space-y-1">
@@ -609,42 +568,28 @@ export const ViewerPublicPage: React.FC<ViewerPublicPageProps> = ({
                       <div className="text-xs text-slate-100">{cmd.desc}</div>
                     </div>
                   ))}
-                </div>
-              ) : (
-                <div className="text-center py-5 text-xs text-slate-500 rounded-2xl witch-card border border-white/5">
-                  현재 시청자 페이지에 공개된 기본 명령어가 없습니다.
-                </div>
-              )}
-            </div>
-
-            {/* 스트리머 커스텀 명령어 */}
-            <div className="space-y-2.5 pt-2">
-              <div className="text-xs font-bold text-slate-100 flex items-center justify-between">
-                <span>✦ 채널 전용 커스텀 명령어 ({enabledCustomCommands.length}개 공개됨)</span>
-              </div>
-
-              {enabledCustomCommands.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   {enabledCustomCommands.map((c) => {
                     const cUnit = c.currency === 'points' ? pointName : chipName;
                     return (
-                      <div key={c.id} className="p-3 rounded-2xl bg-slate-900/90 border border-amber-400/20 space-y-1 text-xs">
+                      <div key={c.id} className="p-3.5 rounded-2xl witch-card border border-amber-400/25 space-y-1 text-xs">
                         <div className="flex items-center justify-between">
-                          <span className="font-black text-amber-300 font-mono">{prefix}{c.name}</span>
+                          <span className="font-black text-amber-300 font-mono text-sm">
+                            {c.allowNoPrefix ? c.name : `${prefix}${c.name}`}
+                          </span>
                           {c.cost > 0 && (
                             <span className="text-[10px] px-2 py-0.5 rounded-md bg-rose-500/15 text-rose-300 font-bold">
                               소모: {c.cost} {cUnit}
                             </span>
                           )}
                         </div>
-                        <div className="text-amber-400 text-[11px] line-clamp-2 leading-relaxed">{c.response}</div>
+                        <div className="text-slate-100 text-xs line-clamp-2 leading-relaxed">{c.response}</div>
                       </div>
                     );
                   })}
                 </div>
               ) : (
                 <div className="text-center py-5 text-xs text-slate-500 rounded-2xl witch-card border border-white/5">
-                  현재 시청자 페이지에 공개된 커스텀 명령어가 없습니다.
+                  현재 시청자 페이지에 공개된 명령어가 없습니다.
                 </div>
               )}
             </div>

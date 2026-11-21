@@ -789,24 +789,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, update, on
                   className="w-4 h-4 accent-amber-400 rounded cursor-pointer"
                 />
               </div>
-
-              {/* 3. 도네이션 후원 알림 */}
-              <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-950/60 border border-slate-800/80 hover:border-slate-700 transition-colors">
-                <div>
-                  <div className="text-xs font-bold text-slate-200">⚔️ 방송 재화 도네이션({fullDonateCmd}) 후원 알림</div>
-                  <div className="text-[10px] text-slate-400">예: <code>⚔️ [닉네임]님이 1,000{chipName}을(를) 후원하셨습니다! "메시지"</code></div>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={sendChatDonation}
-                  onChange={(e) => {
-                    const val = e.target.checked;
-                    setSendChatDonation(val);
-                    api.updateSettings({ sendChatDonation: val });
-                  }}
-                  className="w-4 h-4 accent-amber-400 rounded cursor-pointer"
-                />
-              </div>
             </div>
 
             {/* B. 일반 활동 메시지 송출 세분화 (도배 방지) */}

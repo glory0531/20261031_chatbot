@@ -28,14 +28,11 @@ export const DEFAULT_COMMAND_PRESETS = {
   category: { enabled: true, name: '카테고리', aliases: ['카테고리', 'category'], desc: '카테고리 변경 (매니저/스트리머)', response: '🎮 방송 카테고리가 [ {category} ](으)로 변경되었습니다!', permission: 'manager', cooldown: 5, cost: 0, currency: 'chips', visibleInViewer: true },
   attend: { enabled: true, name: '출첵', aliases: ['출첵', '출석', 'attend', 'check'], desc: '일일 출석 체크 및 재화 적립', response: '🎉 [{user}]님 출석 완료! (+{earned}{unit} 지급, {streak}일 연속 출석! 보유: {chips}{unit})', permission: 'all', cooldown: 5, cost: 0, currency: 'chips', visibleInViewer: true },
   point: { enabled: true, name: '포인트', aliases: ['포인트', 'point', '칩', 'chip', '지갑'], desc: '보유 방송 재화 잔액 확인', response: '💰 [{user}]님의 지갑 — 보유 {cUnit}: {chips}{cUnit} (총 출석: {totalAttends}회)', permission: 'all', cooldown: 5, cost: 0, currency: 'chips', visibleInViewer: true },
-  donate: { enabled: true, name: '도네', aliases: ['도네', 'donate', '후원'], desc: '방송 재화 후원 및 TTS 재생', response: '⚔️ [{user}]님이 {amount}{unit}을(를) 후원하셨습니다! "{message}"', permission: 'all', cooldown: 5, cost: 0, currency: 'chips', visibleInViewer: true },
   fund: { enabled: true, name: '모금', aliases: ['모금', 'fund', '기부'], desc: '방송 재화 모금함 기부', response: '💖 [{user}]님이 {number}번 모금함 [{title}]에 {amount}{unit}을(를) 기부하셨습니다! (진행률: {percent}%)', permission: 'all', cooldown: 5, cost: 0, currency: 'chips', visibleInViewer: true },
   vote: { enabled: true, name: '투표', aliases: ['투표', 'vote', '배팅'], desc: '방송 재화 승부예측/투표 배팅', response: '🗳️ [{user}]님이 [{option}]에 {amount}{unit}을(를) 걸었습니다!', permission: 'all', cooldown: 5, cost: 0, currency: 'chips', visibleInViewer: true },
   sr: { enabled: true, name: 'sr', aliases: ['sr', '노래', '신청곡', '노래신청', '노래추가', '곡추가', 'song'], desc: '유튜브 노래 신청', response: '🎶 [{user}]님의 신청곡 [{title}]이(가) 등록되었습니다!', permission: 'all', cooldown: 5, cost: 0, currency: 'chips', visibleInViewer: true },
   request: { enabled: true, name: '신청', aliases: ['신청', 'request', '미션'], desc: '시청자 참여/미션 신청', response: '📋 [{user}]님의 신청 [{content}]이(가) 등록되었습니다!', permission: 'all', cooldown: 5, cost: 0, currency: 'chips', visibleInViewer: true },
-  roulette: { enabled: true, name: '룰렛', aliases: ['룰렛', 'roulette'], desc: '행운의 룰렛 돌리기', response: '🎰 [{user}]님이 {cost}{unit}로 룰렛을 돌려 [ {result} ]에 당첨되셨습니다!', permission: 'all', cooldown: 5, cost: 500, currency: 'chips', visibleInViewer: true },
-  ticket: { enabled: true, name: '티켓', aliases: ['티켓', 'ticket'], desc: '보유 티켓 확인 및 사용', response: '🎫 [{user}]님의 보유 티켓: {count}장', permission: 'all', cooldown: 5, cost: 0, currency: 'chips', visibleInViewer: true },
-  jump: { enabled: true, name: '점프', aliases: ['점프', 'jump'], desc: '채팅 아바타 점프 모션', response: '', permission: 'all', cooldown: 2, cost: 0, currency: 'chips', visibleInViewer: true }
+  roulette: { enabled: true, name: '룰렛', aliases: ['룰렛', 'roulette'], desc: '행운의 룰렛 돌리기', response: '🎰 [{user}]님이 {cost}{unit}로 룰렛을 돌려 [ {result} ]에 당첨되셨습니다!', permission: 'all', cooldown: 5, cost: 500, currency: 'chips', visibleInViewer: true }
 };
 
 export const defaultData = {
@@ -106,7 +103,7 @@ export const defaultData = {
     {
       id: 'cmd-help',
       name: '명령어',
-      response: '💡 챗봇 명령어 목록: !출첵, !포인트, !칩, !모금, !도네, !sr, !신청, !룰렛, !디코, !일정',
+      response: '💡 챗봇 명령어 목록: !출첵, !포인트, !칩, !모금, !sr, !신청, !룰렛, !디코, !일정',
       permission: 'all',
       cooldown: 5,
       cost: 0,
@@ -358,7 +355,7 @@ export function migrateAndMergeData(parsed) {
   const mergedDefaultCommands = { ...base.defaultCommands };
   if (parsed.defaultCommands && typeof parsed.defaultCommands === 'object') {
     for (const [key, val] of Object.entries(parsed.defaultCommands)) {
-      if (key === 'dice' || key === 'fishing' || key === 'rps') continue;
+      if (['dice', 'fishing', 'rps', 'donate', 'ticket', 'jump'].includes(key)) continue;
       const merged = {
         ...(DEFAULT_COMMAND_PRESETS[key] || base.defaultCommands[key] || {}),
         ...val,
@@ -367,6 +364,10 @@ export function migrateAndMergeData(parsed) {
       // 구버전 이원화 응답 문구 자동 업그레이드
       if (key === 'point' && typeof merged.response === 'string' && merged.response.includes('유료 포인트:')) {
         merged.response = DEFAULT_COMMAND_PRESETS.point.response;
+      }
+      // 구버전 단일 모금함 응답 문구를 다중 모금함({number}번 모금함 [{title}]) 형태로 자동 업그레이드
+      if (key === 'fund' && typeof merged.response === 'string' && merged.response.includes('모금함에 {amount}') && !merged.response.includes('{number}')) {
+        merged.response = DEFAULT_COMMAND_PRESETS.fund.response;
       }
       // sr 명령어 별칭에 '노래', '노래추가' 등 주요 한국어 별칭 자동 보완
       if (key === 'sr') {

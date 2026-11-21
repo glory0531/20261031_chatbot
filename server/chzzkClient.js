@@ -56,8 +56,7 @@ export const SIM_CHAT_MESSAGES = [
   '!포인트',
   'ㅋㅋㅋㅋㅋㅋ 재밌네요',
   '오늘도 파이팅입니다!',
-  '!명령어',
-  '!점프'
+  '!명령어'
 ];
 
 export function setChzzkSocketIO(io) {

@@ -81,6 +81,7 @@ export const DefaultCommandEditModal: React.FC<DefaultCommandEditModalProps> = (
     { tag: '{earned}', desc: '적립/획득 수량' },
     { tag: '{streak}', desc: '연속 출석 일수' },
     { tag: '{count}', desc: '티켓/카운트 수량' },
+    { tag: '{number}', desc: '모금함 번호' },
     { tag: '{streamer}', desc: '스트리머 닉네임' },
     { tag: '{bot}', desc: '챗봇 이름' },
     { tag: '{time}', desc: '현재 시각' },
