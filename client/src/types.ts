@@ -40,6 +40,7 @@ export interface Settings {
   chatIntervalSeconds: number;
   attendPoints: number;
   attendStreakBonus: number;
+  attendResetHour?: number;
   cheesePointEnabled?: boolean;
   cheesePointRatePercent?: number;
   includeMissionCheese?: boolean;
@@ -108,6 +109,8 @@ export interface CustomCommand {
   matchType?: 'exact' | 'contains' | 'startsWith';
   oncePerUser?: boolean;
   visibleInViewer?: boolean;
+  allowNoPrefix?: boolean;
+  triggerAttend?: boolean;
 }
 
 export interface DefaultCommandConfig {
@@ -121,6 +124,7 @@ export interface DefaultCommandConfig {
   cost?: number;
   currency?: CurrencyType;
   visibleInViewer?: boolean;
+  allowNoPrefix?: boolean;
 }
 
 export interface AutoMessage {
@@ -183,6 +187,8 @@ export interface GeneralRequest {
 }
 
 export interface FundState {
+  id?: string;
+  number?: number;
   title: string;
   goalPoints: number;
   currentPoints: number;
@@ -251,6 +257,7 @@ export interface RouletteTriggerSettings {
 }
 
 export interface RouletteHistoryEntry {
+  id?: string;
   user: string;
   prize?: string;
   winner?: string;
@@ -319,10 +326,18 @@ export function getFullCommand(
   return `${prefix}${name}`;
 }
 
+export interface ScheduleSession {
+  time: string;
+  title: string;
+  category?: string;
+}
+
 export interface ScheduleItem {
   day: string;
   time: string;
   title: string;
+  category?: string;
+  sessions?: ScheduleSession[];
   off?: boolean;
   date?: string;
   tag?: string;

@@ -43,6 +43,7 @@ export const DefaultCommandEditModal: React.FC<DefaultCommandEditModalProps> = (
   const [cost, setCost] = useState(0);
   const [currency, setCurrency] = useState<'chips' | 'points'>('chips');
   const [visibleInViewer, setVisibleInViewer] = useState(true);
+  const [allowNoPrefix, setAllowNoPrefix] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -60,6 +61,7 @@ export const DefaultCommandEditModal: React.FC<DefaultCommandEditModalProps> = (
       setCost(config.cost ?? 0);
       setCurrency(config.currency || 'chips');
       setVisibleInViewer(config.visibleInViewer !== false);
+      setAllowNoPrefix(Boolean(config.allowNoPrefix));
       setSaveSuccess(false);
     }
   }, [config, cmdKey, isOpen]);
@@ -107,7 +109,8 @@ export const DefaultCommandEditModal: React.FC<DefaultCommandEditModalProps> = (
         cooldown: Math.max(0, Number(cooldown) || 0),
         cost: Math.max(0, Number(cost) || 0),
         currency,
-        visibleInViewer
+        visibleInViewer,
+        allowNoPrefix
       };
 
       await onSave(cmdKey, updates);
@@ -292,7 +295,26 @@ export const DefaultCommandEditModal: React.FC<DefaultCommandEditModalProps> = (
             </div>
           </div>
 
-          {/* 5. 시청자 페이지 공개 여부 옵션 */}
+          {/* 5. 접두사(!) 없이 사용 옵션 */}
+          <div className="p-3 rounded-xl bg-slate-950/70 border border-white/10 flex items-center justify-between">
+            <div>
+              <div className="font-bold text-white flex items-center gap-1.5">
+                <Sparkles className="w-4 h-4 text-amber-400" />
+                접두사({prefix}) 없이도 채팅에서 사용
+              </div>
+              <div className="text-[11px] text-slate-400 mt-0.5">
+                켜면 시청자가 <b className="text-amber-300">{prefix}</b> 없이 별칭 단어만 입력해도(예: <b>{aliases.split(',')[0]?.trim() || config.name}</b>) 명령어가 작동합니다.
+              </div>
+            </div>
+            <input
+              type="checkbox"
+              checked={allowNoPrefix}
+              onChange={(e) => setAllowNoPrefix(e.target.checked)}
+              className="w-4 h-4 rounded text-amber-500 focus:ring-amber-400 bg-slate-900 border-white/20 cursor-pointer"
+            />
+          </div>
+
+          {/* 6. 시청자 페이지 공개 여부 옵션 */}
           <div className="p-3 rounded-xl bg-slate-950/70 border border-white/10 flex items-center justify-between">
             <div>
               <div className="font-bold text-white flex items-center gap-1.5">

@@ -29,7 +29,6 @@ import { OnboardingModal } from './components/OnboardingModal';
 
 import { HomeView } from './views/HomeView';
 import { CommandsView } from './views/CommandsView';
-import { DefaultCommandsView } from './views/DefaultCommandsView';
 import { AutoMessagesView } from './views/AutoMessagesView';
 import { AttendanceView } from './views/AttendanceView';
 import { PointsView } from './views/PointsView';
@@ -120,12 +119,15 @@ export function App() {
   });
   const [generalRequests, setGeneralRequests] = useState<GeneralRequest[]>([]);
   const [fund, setFund] = useState<FundState>({
+    id: 'fund-1',
+    number: 1,
     title: '시청자와 함께하는 방송 컨텐츠 모금함',
     goalPoints: 50000,
     currentPoints: 0,
     enabled: true,
     recentDonors: []
   });
+  const [funds, setFunds] = useState<FundState[]>([]);
   const [prediction, setPrediction] = useState<PredictionState>({
     id: 'pred-ready',
     title: '오늘 방송 미션 성공할까?',
@@ -164,6 +166,11 @@ export function App() {
       if (data.songRequests) setSongRequests(data.songRequests);
       if (data.generalRequests) setGeneralRequests(data.generalRequests);
       if (data.fund) setFund(data.fund);
+      if (data.funds && Array.isArray(data.funds)) {
+        setFunds(data.funds);
+      } else if (data.fund) {
+        setFunds([{ ...data.fund, id: data.fund.id || 'fund-1', number: data.fund.number || 1 }]);
+      }
       if (data.prediction) setPrediction(data.prediction);
       if (data.roulette) setRoulette(data.roulette);
       if (data.schedules) setSchedules(data.schedules);
@@ -186,6 +193,9 @@ export function App() {
     socket.on('sr_update', (data: SongRequestsState) => setSongRequests(data));
     socket.on('requests_update', (data: GeneralRequest[]) => setGeneralRequests(data));
     socket.on('fund_update', (data: FundState) => setFund(data));
+    socket.on('funds_update', (data: FundState[]) => {
+      if (Array.isArray(data)) setFunds(data);
+    });
     socket.on('prediction_update', (data: PredictionState) => setPrediction(data));
     socket.on('roulette_update', (data: RouletteState) => setRoulette(data));
     socket.on('schedules_update', (data: ScheduleItem[]) => setSchedules(data));
@@ -214,6 +224,7 @@ export function App() {
       socket.off('sr_update');
       socket.off('requests_update');
       socket.off('fund_update');
+      socket.off('funds_update');
       socket.off('prediction_update');
       socket.off('roulette_update');
       socket.off('schedules_update');
@@ -369,7 +380,7 @@ export function App() {
           fandomName={settings.fandomName || '시청자'}
           updateAvailable={Boolean(updateState?.updateAvailable)}
           stats={{
-            commandCount: commands.length,
+            commandCount: commands.length + Object.keys(defaultCommands).length,
             queueCount: songRequests.queue.length,
             requestCount: generalRequests.filter(r => r.status === 'waiting').length
           }}
@@ -389,12 +400,13 @@ export function App() {
             />
           )}
 
-          {currentTab === 'commands' && (
-            <CommandsView commands={commands} prefix={settings.prefix} settings={settings} />
-          )}
-
-          {currentTab === 'default-commands' && (
-            <DefaultCommandsView defaultCommands={defaultCommands} prefix={settings.prefix} settings={settings} />
+          {(currentTab === 'commands' || currentTab === 'default-commands') && (
+            <CommandsView
+              commands={commands}
+              defaultCommands={defaultCommands}
+              prefix={settings.prefix}
+              settings={settings}
+            />
           )}
 
           {currentTab === 'automessages' && (
@@ -422,6 +434,7 @@ export function App() {
           {currentTab === 'fund-prediction' && (
             <FundPredictionView
               fund={fund}
+              funds={funds}
               prediction={prediction}
               defaultCommands={defaultCommands}
               status={status}

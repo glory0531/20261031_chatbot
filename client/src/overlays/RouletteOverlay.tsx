@@ -2,10 +2,12 @@ import React, { useState, useEffect } from 'react';
 import confetti from 'canvas-confetti';
 import { socket } from '../services/socket';
 import { RouletteState, RouletteSpinSummaryItem } from '../types';
+import { SlotMachineReel } from '../components/SlotMachineReel';
 
 export const RouletteOverlay: React.FC = () => {
   const [roulette, setRoulette] = useState<RouletteState | null>(null);
-  const [rotation, setRotation] = useState(0);
+  const [spinTrigger, setSpinTrigger] = useState(0);
+  const [targetWinner, setTargetWinner] = useState<string | null>(null);
   const [isSpinning, setIsSpinning] = useState(false);
   const [winner, setWinner] = useState<string | null>(null);
   const [spinUser, setSpinUser] = useState<string | null>(null);
@@ -37,8 +39,8 @@ export const RouletteOverlay: React.FC = () => {
       setSpinUser(data.user || null);
       setTotalPulls(data.totalPulls || 1);
       setBonusPulls(data.bonusPulls || 0);
-
-      setRotation(prev => prev + 360 * 5 + (data.targetAngle || 0));
+      setTargetWinner(data.winner || null);
+      setSpinTrigger(prev => prev + 1);
 
       setTimeout(() => {
         setIsSpinning(false);
@@ -78,64 +80,21 @@ export const RouletteOverlay: React.FC = () => {
 
   if (!roulette || !roulette.items || roulette.items.length === 0) return null;
 
-  const totalChance = roulette.items.reduce((acc, it) => acc + (Number(it.chance) || 0), 0) || 100;
-  let currentAcc = 0;
-  const gradientParts = roulette.items.map(it => {
-    const start = (currentAcc / totalChance) * 100;
-    currentAcc += (Number(it.chance) || 0);
-    const end = (currentAcc / totalChance) * 100;
-    return `${it.color} ${start}% ${end}%`;
-  });
-  const conicGradient = `conic-gradient(${gradientParts.join(', ')})`;
-
-  let labelAngleAcc = 0;
-
   return (
     <div className="fixed inset-0 flex items-center justify-center p-6 bg-transparent select-none pointer-events-none">
-      <div className="flex flex-col items-center max-w-md">
-        <div className="w-0 h-0 border-l-[14px] border-l-transparent border-r-[14px] border-r-transparent border-t-[24px] border-t-amber-400 z-10 -mb-4 drop-shadow-lg"></div>
-
-        <div className="relative w-80 h-80 rounded-full border-4 border-amber-400 shadow-2xl overflow-hidden flex items-center justify-center bg-slate-950">
-          <div
-            style={{
-              background: conicGradient,
-              transform: `rotate(${rotation}deg)`,
-              transition: isSpinning ? 'transform 3.5s cubic-bezier(0.15, 0.9, 0.2, 1)' : 'none'
-            }}
-            className="w-full h-full rounded-full relative"
-          >
-            {roulette.items.map((item) => {
-              const sliceAngle = ((Number(item.chance) || 0) / totalChance) * 360;
-              const midAngle = labelAngleAcc + sliceAngle / 2;
-              labelAngleAcc += sliceAngle;
-
-              return (
-                <div
-                  key={item.id}
-                  style={{
-                    transform: `rotate(${midAngle}deg)`,
-                    transformOrigin: '50% 50%'
-                  }}
-                  className="absolute inset-0 flex items-start justify-center pt-4 pointer-events-none"
-                >
-                  <span className="bg-slate-950/80 text-white font-black px-2 py-0.5 rounded text-[11px] shadow border border-white/20 max-w-[95px] truncate">
-                    {item.name}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-
-          <div className="absolute w-16 h-16 rounded-full bg-slate-900 border-2 border-amber-400 flex items-center justify-center text-amber-300 font-black text-xs shadow-xl tracking-wider">
-            SPIN
-          </div>
-        </div>
+      <div className="flex flex-col items-center w-full max-w-md">
+        <SlotMachineReel
+          items={roulette.items}
+          winnerName={targetWinner}
+          spinTrigger={spinTrigger}
+          isSpinning={isSpinning}
+        />
 
         {winner && (
           <div className="mt-4 px-6 py-3 rounded-2xl bg-slate-950/90 border-2 border-amber-400 text-center shadow-2xl space-y-2 animate-bounce">
             {spinUser && (
               <div className="text-xs font-extrabold text-slate-300">
-                [{spinUser}] {totalPulls > 1 ? `총 ${totalPulls}연차${bonusPulls > 0 ? ` (보너스 +${bonusPulls})` : ''}` : '룰렛 결과'}
+                [{spinUser}] {totalPulls > 1 ? `총 ${totalPulls}연차${bonusPulls > 0 ? ` (보너스 +${bonusPulls})` : ''}` : '슬롯 결과'}
               </div>
             )}
             <div className="text-amber-300 font-black text-xl">

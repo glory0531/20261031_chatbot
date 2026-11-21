@@ -74,8 +74,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     {
       group: '채팅 & 명령어',
       items: [
-        { id: 'commands', label: '커스텀 명령어', icon: Terminal, badge: stats.commandCount },
-        { id: 'default-commands', label: '기본 내장 명령어', icon: Sliders },
+        { id: 'commands', label: '명령어 관리', icon: Terminal, badge: stats.commandCount },
         { id: 'automessages', label: '정기 자동 공지', icon: BellRing }
       ]
     },
@@ -88,7 +87,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       ]
     },
     {
-      group: '컨텐츠 & 미니게임',
+      group: '컨텐츠 & 일정',
       items: [
         { id: 'sr', label: '유튜브 노래 신청 (SR)', icon: Music, badge: stats.queueCount },
         { id: 'requests', label: '시참 & 미션 대기열', icon: ListOrdered, badge: stats.requestCount },

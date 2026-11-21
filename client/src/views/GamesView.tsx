@@ -16,6 +16,7 @@ import {
 } from '../types';
 import { api } from '../services/api';
 import { socket } from '../services/socket';
+import { SlotMachineReel } from '../components/SlotMachineReel';
 
 interface GamesViewProps {
   roulette: RouletteState;
@@ -112,7 +113,8 @@ export const GamesView: React.FC<GamesViewProps> = ({
   const [triggerTab, setTriggerTab] = useState<'command' | 'donation' | 'subscription'>('donation');
 
   const [isSpinning, setIsSpinning] = useState(false);
-  const [rotation, setRotation] = useState(0);
+  const [spinTrigger, setSpinTrigger] = useState(0);
+  const [targetWinner, setTargetWinner] = useState<string | null>(null);
   const [winnerItem, setWinnerItem] = useState<string | null>(null);
   const [spinSummary, setSpinSummary] = useState<RouletteSpinSummaryItem[]>([]);
   const [lastSpinMeta, setLastSpinMeta] = useState<{
@@ -146,20 +148,19 @@ export const GamesView: React.FC<GamesViewProps> = ({
       utter.lang = 'ko-KR';
       utter.rate = 1.05;
       window.speechSynthesis.speak(utter);
-    } catch {}
+    } catch { }
   };
 
-  // 실시간 소켓 스핀 수신 (시청자 명령어/후원/구독 발동 시 대시보드 휠도 동기화 회전)
+  // 실시간 소켓 스핀 수신 (시청자 명령어/후원/구독 발동 시 대시보드 슬롯도 동기화 회전)
   useEffect(() => {
     const onSpin = (data: any) => {
-      const targetAngle = data?.targetAngle !== undefined ? data.targetAngle : Math.floor(Math.random() * 360);
       const winnerName = data?.winner || '당첨';
       setIsSpinning(true);
       setWinnerItem(null);
       setSpinSummary([]);
       setLastSpinMeta(null);
-
-      setRotation(prev => prev + 360 * 5 + targetAngle);
+      setTargetWinner(winnerName);
+      setSpinTrigger(prev => prev + 1);
 
       setTimeout(() => {
         setIsSpinning(false);
@@ -193,19 +194,14 @@ export const GamesView: React.FC<GamesViewProps> = ({
     return rouletteItems.reduce((acc, it) => acc + (Number(it.chance) || 0), 0);
   }, [rouletteItems]);
 
-  // 룰렛 휠 CSS conic-gradient 계산
-  const conicGradient = useMemo(() => {
-    if (rouletteItems.length === 0) return '#334155';
-    const sum = totalChance || 100;
-    let currentAcc = 0;
-    const parts = rouletteItems.map(it => {
-      const start = (currentAcc / sum) * 100;
-      currentAcc += (Number(it.chance) || 0);
-      const end = (currentAcc / sum) * 100;
-      return `${it.color} ${start}% ${end}%`;
-    });
-    return `conic-gradient(${parts.join(', ')})`;
-  }, [rouletteItems, totalChance]);
+  const handleDeleteHistoryItem = async (idOrIdx: string) => {
+    await api.deleteRouletteHistory(idOrIdx);
+  };
+
+  const handleClearHistory = async () => {
+    if (!window.confirm('누적된 룰렛 당첨 내역을 모두 삭제하시겠습니까?')) return;
+    await api.clearRouletteHistory();
+  };
 
   // 테스트 스핀 실행 (1회 or 다중 연차)
   const handleSpinRoulette = async (pulls = 1) => {
@@ -330,11 +326,10 @@ export const GamesView: React.FC<GamesViewProps> = ({
           <h2 className="text-xl font-black text-white flex items-center gap-2">
             <Dices className="w-5 h-5 text-amber-400" />
             행운의 룰렛 & 트리거 상세 설정
-            <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold border ${
-              rSettings.enabled
+            <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold border ${rSettings.enabled
                 ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
                 : 'bg-rose-500/15 text-rose-300 border-rose-500/30'
-            }`}>
+              }`}>
               {rSettings.enabled ? '● 작동 중' : '○ 비활성화됨'}
             </span>
           </h2>
@@ -378,53 +373,15 @@ export const GamesView: React.FC<GamesViewProps> = ({
 
       {/* 메인 3컬럼 그리드: 1) 룰렛 휠 & 테스트 / 2) 상품 및 확률 / 3) 트리거 & 연차 상세 설정 */}
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
-        {/* 1열: 룰렛 휠 시각화 & 다중 연차 결과 (4 cols) */}
+        {/* 1열: 단일 대형 슬롯 머신 시각화 & 다중 연차 결과 (4 cols) */}
         <div className="xl:col-span-4 space-y-5">
-          <div className="p-6 rounded-2xl bg-slate-900/70 border border-white/10 shadow-xl flex flex-col items-center justify-center relative overflow-hidden">
-            {/* 상단 화살표 포인터 */}
-            <div className="w-0 h-0 border-l-[14px] border-l-transparent border-r-[14px] border-r-transparent border-t-[24px] border-t-amber-400 z-20 -mb-4 drop-shadow-lg" />
-
-            {/* 룰렛 원형 휠 */}
-            <div className="relative w-60 h-60 sm:w-68 sm:h-68 rounded-full border-4 border-amber-400 shadow-2xl overflow-hidden flex items-center justify-center bg-slate-950">
-              <div
-                style={{
-                  background: conicGradient,
-                  transform: `rotate(${rotation}deg)`,
-                  transition: isSpinning ? 'transform 3.5s cubic-bezier(0.15, 0.9, 0.2, 1)' : 'none'
-                }}
-                className="w-full h-full rounded-full relative"
-              >
-                {(() => {
-                  let acc = 0;
-                  const sum = totalChance || 100;
-                  return rouletteItems.map((item) => {
-                    const sliceAngle = ((Number(item.chance) || 0) / sum) * 360;
-                    const midAngle = acc + sliceAngle / 2;
-                    acc += sliceAngle;
-
-                    return (
-                      <div
-                        key={item.id}
-                        style={{
-                          transform: `rotate(${midAngle}deg)`,
-                          transformOrigin: '50% 50%'
-                        }}
-                        className="absolute inset-0 flex items-start justify-center pt-3 pointer-events-none"
-                      >
-                        <span className="bg-slate-950/85 text-white font-black px-1.5 py-0.5 rounded text-[10px] shadow border border-white/10 max-w-[82px] truncate select-none">
-                          {item.name}
-                        </span>
-                      </div>
-                    );
-                  });
-                })()}
-              </div>
-
-              {/* 중앙 캡 */}
-              <div className="absolute w-14 h-14 rounded-full bg-slate-950 border-2 border-amber-400 flex items-center justify-center text-amber-300 font-black text-xs shadow-xl select-none tracking-wider">
-                SPIN
-              </div>
-            </div>
+          <div className="p-5 rounded-2xl bg-slate-900/70 border border-white/10 shadow-xl flex flex-col items-center justify-center relative overflow-hidden">
+            <SlotMachineReel
+              items={rouletteItems}
+              winnerName={targetWinner}
+              spinTrigger={spinTrigger}
+              isSpinning={isSpinning}
+            />
 
             {/* 당첨 결과 & 다중 연차 집계 표시 */}
             {winnerItem && (
@@ -489,26 +446,39 @@ export const GamesView: React.FC<GamesViewProps> = ({
             </div>
           </div>
 
-          {/* 최근 당첨 히스토리 카드 */}
+          {/* 전체 당첨 히스토리 카드 (꽝 제외, 수동 삭제 가능) */}
           <div className="p-4 rounded-2xl bg-slate-900/70 border border-white/10 shadow-xl space-y-3">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-2">
               <h4 className="text-xs font-bold text-white flex items-center gap-1.5">
                 <Gift className="w-3.5 h-3.5 text-amber-400" />
-                최근 룰렛 당첨 내역
+                룰렛 당첨 내역 (꽝 제외)
               </h4>
-              <span className="text-[10px] text-slate-500">최근 10건</span>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] text-slate-400 font-semibold">
+                  총 <b className="text-amber-300">{(roulette.history || []).length}</b>건
+                </span>
+                {(roulette.history || []).length > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleClearHistory}
+                    className="px-2 py-0.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/20 text-[10px] font-bold transition-colors cursor-pointer"
+                  >
+                    전체 삭제
+                  </button>
+                )}
+              </div>
             </div>
 
             {!roulette.history || roulette.history.length === 0 ? (
               <div className="py-6 text-center text-slate-500 text-xs">
-                아직 당첨 내역이 없습니다.
+                아직 당첨 내역이 없습니다. (꽝을 제외한 당첨 내역이 누적됩니다)
               </div>
             ) : (
-              <div className="space-y-1.5 max-h-[210px] overflow-y-auto pr-1 text-[11px]">
-                {roulette.history.slice(0, 10).map((h, i) => (
+              <div className="space-y-1.5 max-h-[280px] overflow-y-auto pr-1 text-[11px]">
+                {roulette.history.map((h, i) => (
                   <div
-                    key={i}
-                    className="px-3 py-2 rounded-xl bg-slate-950/60 border border-white/5 flex items-center justify-between gap-2 text-slate-300"
+                    key={h.id || `${h.time}-${i}`}
+                    className="px-3 py-2 rounded-xl bg-slate-950/60 border border-white/5 flex items-center justify-between gap-2 text-slate-300 group"
                   >
                     <div className="flex items-center gap-1.5 min-w-0">
                       <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 shrink-0">
@@ -520,6 +490,14 @@ export const GamesView: React.FC<GamesViewProps> = ({
                     <span className="text-[10px] text-slate-500 shrink-0">
                       {new Date(h.time).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
                     </span>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteHistoryItem(h.id || String(i))}
+                      className="p-1 rounded-md text-slate-500 hover:text-rose-400 hover:bg-rose-500/15 transition-colors shrink-0 cursor-pointer"
+                      title="이 당첨 내역 삭제"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
                   </div>
                 ))}
               </div>
@@ -532,11 +510,10 @@ export const GamesView: React.FC<GamesViewProps> = ({
           <div className="flex items-center justify-between pb-3 border-b border-white/10">
             <div className="flex items-center gap-2">
               <h3 className="font-bold text-sm text-white">룰렛 상품 및 확률</h3>
-              <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
-                totalChance === 100
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${totalChance === 100
                   ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
                   : 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
-              }`}>
+                }`}>
                 합계: {totalChance}% {totalChance === 100 ? '✓' : '(100% 권장)'}
               </span>
             </div>
@@ -642,14 +619,12 @@ export const GamesView: React.FC<GamesViewProps> = ({
             <button
               type="button"
               onClick={() => updateRSetting('enabled', !rSettings.enabled)}
-              className={`w-12 h-6 rounded-full p-0.5 transition-colors cursor-pointer relative ${
-                rSettings.enabled ? 'bg-amber-500' : 'bg-slate-700'
-              }`}
+              className={`w-12 h-6 rounded-full p-0.5 transition-colors cursor-pointer relative ${rSettings.enabled ? 'bg-amber-500' : 'bg-slate-700'
+                }`}
             >
               <span
-                className={`block w-5 h-5 rounded-full bg-white shadow-md transition-transform ${
-                  rSettings.enabled ? 'translate-x-6' : 'translate-x-0'
-                }`}
+                className={`block w-5 h-5 rounded-full bg-white shadow-md transition-transform ${rSettings.enabled ? 'translate-x-6' : 'translate-x-0'
+                  }`}
               />
             </button>
           </div>
@@ -663,11 +638,10 @@ export const GamesView: React.FC<GamesViewProps> = ({
               <button
                 type="button"
                 onClick={() => setTriggerTab('command')}
-                className={`py-2 px-2 rounded-lg font-extrabold text-xs transition-all cursor-pointer flex items-center justify-center gap-1 ${
-                  triggerTab === 'command'
+                className={`py-2 px-2 rounded-lg font-extrabold text-xs transition-all cursor-pointer flex items-center justify-center gap-1 ${triggerTab === 'command'
                     ? 'bg-[#121316] text-amber-400 shadow'
                     : 'text-slate-300 hover:text-white'
-                }`}
+                  }`}
               >
                 <span>명령어</span>
                 {!rSettings.commandEnabled && (
@@ -678,11 +652,10 @@ export const GamesView: React.FC<GamesViewProps> = ({
               <button
                 type="button"
                 onClick={() => setTriggerTab('donation')}
-                className={`py-2 px-2 rounded-lg font-extrabold text-xs transition-all cursor-pointer flex items-center justify-center gap-1 ${
-                  triggerTab === 'donation'
+                className={`py-2 px-2 rounded-lg font-extrabold text-xs transition-all cursor-pointer flex items-center justify-center gap-1 ${triggerTab === 'donation'
                     ? 'bg-[#121316] text-amber-400 shadow'
                     : 'text-slate-300 hover:text-white'
-                }`}
+                  }`}
               >
                 <span>후원</span>
                 {!rSettings.donationEnabled && (
@@ -693,11 +666,10 @@ export const GamesView: React.FC<GamesViewProps> = ({
               <button
                 type="button"
                 onClick={() => setTriggerTab('subscription')}
-                className={`py-2 px-2 rounded-lg font-extrabold text-xs transition-all cursor-pointer flex items-center justify-center gap-1 ${
-                  triggerTab === 'subscription'
+                className={`py-2 px-2 rounded-lg font-extrabold text-xs transition-all cursor-pointer flex items-center justify-center gap-1 ${triggerTab === 'subscription'
                     ? 'bg-[#121316] text-amber-400 shadow'
                     : 'text-slate-300 hover:text-white'
-                }`}
+                  }`}
               >
                 <span>구독</span>
                 {!isSubAnyEnabled && (
@@ -722,14 +694,12 @@ export const GamesView: React.FC<GamesViewProps> = ({
                   <button
                     type="button"
                     onClick={() => updateRSetting('commandEnabled', !rSettings.commandEnabled)}
-                    className={`w-11 h-6 rounded-full p-0.5 transition-colors cursor-pointer shrink-0 ${
-                      rSettings.commandEnabled ? 'bg-amber-500' : 'bg-slate-700'
-                    }`}
+                    className={`w-11 h-6 rounded-full p-0.5 transition-colors cursor-pointer shrink-0 ${rSettings.commandEnabled ? 'bg-amber-500' : 'bg-slate-700'
+                      }`}
                   >
                     <span
-                      className={`block w-5 h-5 rounded-full bg-white shadow transition-transform ${
-                        rSettings.commandEnabled ? 'translate-x-5' : 'translate-x-0'
-                      }`}
+                      className={`block w-5 h-5 rounded-full bg-white shadow transition-transform ${rSettings.commandEnabled ? 'translate-x-5' : 'translate-x-0'
+                        }`}
                     />
                   </button>
                 </div>
@@ -786,14 +756,12 @@ export const GamesView: React.FC<GamesViewProps> = ({
                   <button
                     type="button"
                     onClick={() => updateRSetting('donationEnabled', !rSettings.donationEnabled)}
-                    className={`w-11 h-6 rounded-full p-0.5 transition-colors cursor-pointer shrink-0 ${
-                      rSettings.donationEnabled ? 'bg-amber-500' : 'bg-slate-700'
-                    }`}
+                    className={`w-11 h-6 rounded-full p-0.5 transition-colors cursor-pointer shrink-0 ${rSettings.donationEnabled ? 'bg-amber-500' : 'bg-slate-700'
+                      }`}
                   >
                     <span
-                      className={`block w-5 h-5 rounded-full bg-white shadow transition-transform ${
-                        rSettings.donationEnabled ? 'translate-x-5' : 'translate-x-0'
-                      }`}
+                      className={`block w-5 h-5 rounded-full bg-white shadow transition-transform ${rSettings.donationEnabled ? 'translate-x-5' : 'translate-x-0'
+                        }`}
                     />
                   </button>
                 </div>
@@ -841,14 +809,12 @@ export const GamesView: React.FC<GamesViewProps> = ({
                     type="button"
                     onClick={() => updateRSetting('donationAllowNonMultiple', !rSettings.donationAllowNonMultiple)}
                     disabled={!rSettings.donationEnabled}
-                    className={`w-11 h-6 rounded-full p-0.5 transition-colors cursor-pointer shrink-0 disabled:opacity-40 ${
-                      rSettings.donationAllowNonMultiple ? 'bg-amber-500' : 'bg-slate-700'
-                    }`}
+                    className={`w-11 h-6 rounded-full p-0.5 transition-colors cursor-pointer shrink-0 disabled:opacity-40 ${rSettings.donationAllowNonMultiple ? 'bg-amber-500' : 'bg-slate-700'
+                      }`}
                   >
                     <span
-                      className={`block w-5 h-5 rounded-full bg-white shadow transition-transform ${
-                        rSettings.donationAllowNonMultiple ? 'translate-x-5' : 'translate-x-0'
-                      }`}
+                      className={`block w-5 h-5 rounded-full bg-white shadow transition-transform ${rSettings.donationAllowNonMultiple ? 'translate-x-5' : 'translate-x-0'
+                        }`}
                     />
                   </button>
                 </div>
@@ -878,14 +844,12 @@ export const GamesView: React.FC<GamesViewProps> = ({
                     type="button"
                     onClick={() => updateRSetting('donationAlsoEarnChips', !rSettings.donationAlsoEarnChips)}
                     disabled={!rSettings.donationEnabled}
-                    className={`w-11 h-6 rounded-full p-0.5 transition-colors cursor-pointer shrink-0 disabled:opacity-40 ${
-                      rSettings.donationAlsoEarnChips ? 'bg-amber-500' : 'bg-slate-700'
-                    }`}
+                    className={`w-11 h-6 rounded-full p-0.5 transition-colors cursor-pointer shrink-0 disabled:opacity-40 ${rSettings.donationAlsoEarnChips ? 'bg-amber-500' : 'bg-slate-700'
+                      }`}
                   >
                     <span
-                      className={`block w-5 h-5 rounded-full bg-white shadow transition-transform ${
-                        rSettings.donationAlsoEarnChips ? 'translate-x-5' : 'translate-x-0'
-                      }`}
+                      className={`block w-5 h-5 rounded-full bg-white shadow transition-transform ${rSettings.donationAlsoEarnChips ? 'translate-x-5' : 'translate-x-0'
+                        }`}
                     />
                   </button>
                 </div>
@@ -908,14 +872,12 @@ export const GamesView: React.FC<GamesViewProps> = ({
                   <button
                     type="button"
                     onClick={() => updateRSetting('subEnabled', !rSettings.subEnabled)}
-                    className={`w-11 h-6 rounded-full p-0.5 transition-colors cursor-pointer shrink-0 ${
-                      rSettings.subEnabled ? 'bg-amber-500' : 'bg-slate-700'
-                    }`}
+                    className={`w-11 h-6 rounded-full p-0.5 transition-colors cursor-pointer shrink-0 ${rSettings.subEnabled ? 'bg-amber-500' : 'bg-slate-700'
+                      }`}
                   >
                     <span
-                      className={`block w-5 h-5 rounded-full bg-white shadow transition-transform ${
-                        rSettings.subEnabled ? 'translate-x-5' : 'translate-x-0'
-                      }`}
+                      className={`block w-5 h-5 rounded-full bg-white shadow transition-transform ${rSettings.subEnabled ? 'translate-x-5' : 'translate-x-0'
+                        }`}
                     />
                   </button>
                 </div>
@@ -944,14 +906,12 @@ export const GamesView: React.FC<GamesViewProps> = ({
                   <button
                     type="button"
                     onClick={() => updateRSetting('subGiftEnabled', !rSettings.subGiftEnabled)}
-                    className={`w-11 h-6 rounded-full p-0.5 transition-colors cursor-pointer shrink-0 ${
-                      rSettings.subGiftEnabled ? 'bg-amber-500' : 'bg-slate-700'
-                    }`}
+                    className={`w-11 h-6 rounded-full p-0.5 transition-colors cursor-pointer shrink-0 ${rSettings.subGiftEnabled ? 'bg-amber-500' : 'bg-slate-700'
+                      }`}
                   >
                     <span
-                      className={`block w-5 h-5 rounded-full bg-white shadow transition-transform ${
-                        rSettings.subGiftEnabled ? 'translate-x-5' : 'translate-x-0'
-                      }`}
+                      className={`block w-5 h-5 rounded-full bg-white shadow transition-transform ${rSettings.subGiftEnabled ? 'translate-x-5' : 'translate-x-0'
+                        }`}
                     />
                   </button>
                 </div>
@@ -1000,22 +960,20 @@ export const GamesView: React.FC<GamesViewProps> = ({
                 <button
                   type="button"
                   onClick={() => updateRSetting('pullLimitMode', 'max')}
-                  className={`py-2 px-2 rounded-lg font-extrabold text-xs transition-all cursor-pointer ${
-                    rSettings.pullLimitMode === 'max'
+                  className={`py-2 px-2 rounded-lg font-extrabold text-xs transition-all cursor-pointer ${rSettings.pullLimitMode === 'max'
                       ? 'bg-[#121316] text-amber-400 shadow'
                       : 'text-slate-300 hover:text-white'
-                  }`}
+                    }`}
                 >
                   최대 연차 횟수
                 </button>
                 <button
                   type="button"
                   onClick={() => updateRSetting('pullLimitMode', 'fixed')}
-                  className={`py-2 px-2 rounded-lg font-extrabold text-xs transition-all cursor-pointer ${
-                    rSettings.pullLimitMode === 'fixed'
+                  className={`py-2 px-2 rounded-lg font-extrabold text-xs transition-all cursor-pointer ${rSettings.pullLimitMode === 'fixed'
                       ? 'bg-[#121316] text-amber-400 shadow'
                       : 'text-slate-300 hover:text-white'
-                  }`}
+                    }`}
                 >
                   지정 연차 횟수
                 </button>
@@ -1058,14 +1016,12 @@ export const GamesView: React.FC<GamesViewProps> = ({
               <button
                 type="button"
                 onClick={() => updateRSetting('bonusEnabled', !rSettings.bonusEnabled)}
-                className={`w-11 h-6 rounded-full p-0.5 transition-colors cursor-pointer shrink-0 ${
-                  rSettings.bonusEnabled ? 'bg-amber-500' : 'bg-slate-700'
-                }`}
+                className={`w-11 h-6 rounded-full p-0.5 transition-colors cursor-pointer shrink-0 ${rSettings.bonusEnabled ? 'bg-amber-500' : 'bg-slate-700'
+                  }`}
               >
                 <span
-                  className={`block w-5 h-5 rounded-full bg-white shadow transition-transform ${
-                    rSettings.bonusEnabled ? 'translate-x-5' : 'translate-x-0'
-                  }`}
+                  className={`block w-5 h-5 rounded-full bg-white shadow transition-transform ${rSettings.bonusEnabled ? 'translate-x-5' : 'translate-x-0'
+                    }`}
                 />
               </button>
             </div>
@@ -1112,14 +1068,12 @@ export const GamesView: React.FC<GamesViewProps> = ({
               <button
                 type="button"
                 onClick={() => updateRSetting('sendResultToChat', !rSettings.sendResultToChat)}
-                className={`w-11 h-6 rounded-full p-0.5 transition-colors cursor-pointer shrink-0 ${
-                  rSettings.sendResultToChat ? 'bg-amber-500' : 'bg-slate-700'
-                }`}
+                className={`w-11 h-6 rounded-full p-0.5 transition-colors cursor-pointer shrink-0 ${rSettings.sendResultToChat ? 'bg-amber-500' : 'bg-slate-700'
+                  }`}
               >
                 <span
-                  className={`block w-5 h-5 rounded-full bg-white shadow transition-transform ${
-                    rSettings.sendResultToChat ? 'translate-x-5' : 'translate-x-0'
-                  }`}
+                  className={`block w-5 h-5 rounded-full bg-white shadow transition-transform ${rSettings.sendResultToChat ? 'translate-x-5' : 'translate-x-0'
+                    }`}
                 />
               </button>
             </div>
@@ -1138,14 +1092,12 @@ export const GamesView: React.FC<GamesViewProps> = ({
               <button
                 type="button"
                 onClick={() => updateRSetting('readResultTts', !rSettings.readResultTts)}
-                className={`w-11 h-6 rounded-full p-0.5 transition-colors cursor-pointer shrink-0 ${
-                  rSettings.readResultTts ? 'bg-amber-500' : 'bg-slate-700'
-                }`}
+                className={`w-11 h-6 rounded-full p-0.5 transition-colors cursor-pointer shrink-0 ${rSettings.readResultTts ? 'bg-amber-500' : 'bg-slate-700'
+                  }`}
               >
                 <span
-                  className={`block w-5 h-5 rounded-full bg-white shadow transition-transform ${
-                    rSettings.readResultTts ? 'translate-x-5' : 'translate-x-0'
-                  }`}
+                  className={`block w-5 h-5 rounded-full bg-white shadow transition-transform ${rSettings.readResultTts ? 'translate-x-5' : 'translate-x-0'
+                    }`}
                 />
               </button>
             </div>

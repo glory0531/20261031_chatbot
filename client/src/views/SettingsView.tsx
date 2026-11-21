@@ -852,25 +852,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, update, on
                 />
               </div>
 
-              {/* 3. 미니게임 결과 알림 */}
-              <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-950/60 border border-slate-800/80 hover:border-slate-700 transition-colors">
-                <div>
-                  <div className="text-xs font-bold text-slate-200">🎮 미니게임 결과 알림 ({fullRpsCmd}, {fullDiceCmd} 등)</div>
-                  <div className="text-[10px] text-slate-400">가위바위보 대결 결과 및 주사위 굴림 결과 메시지</div>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={sendChatMiniGames}
-                  onChange={(e) => {
-                    const val = e.target.checked;
-                    setSendChatMiniGames(val);
-                    api.updateSettings({ sendChatMiniGames: val });
-                  }}
-                  className="w-4 h-4 accent-teal-400 rounded cursor-pointer"
-                />
-              </div>
-
-              {/* 4. 잔액 부족 및 권한 부족 에러 안내 */}
+              {/* 3. 잔액 부족 및 권한 부족 에러 안내 */}
               <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-950/60 border border-slate-800/80 hover:border-slate-700 transition-colors">
                 <div>
                   <div className="text-xs font-bold text-slate-200">⚠️ 잔액 부족 및 권한 부족 안내 메시지</div>

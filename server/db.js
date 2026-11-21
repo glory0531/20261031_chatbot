@@ -10,6 +10,17 @@ export const DB_FILE = path.join(DATA_DIR, 'storage.json');
 
 export const CURRENT_SCHEMA_VERSION = 4;
 
+/**
+ * 한국 시간(KST, UTC+9)과 출석 기준 시각(resetHour, 기본 새벽 5시)을 기준으로
+ * 현재 시점이 속한 출석 날짜 키(YYYY-MM-DD)를 계산합니다.
+ */
+export function getAttendanceDayKey(resetHour = 5, timestampMs = Date.now()) {
+  const safeHour = Math.min(23, Math.max(0, Number.isFinite(Number(resetHour)) ? Number(resetHour) : 5));
+  const KST_OFFSET_MS = 9 * 3600 * 1000;
+  const shiftedMs = timestampMs + KST_OFFSET_MS - safeHour * 3600 * 1000;
+  return new Date(shiftedMs).toISOString().split('T')[0];
+}
+
 // 오픈 샤봇 공식 배포판 깨끗한 초기 데이터 스키마 (단일 방송 재화 '칩' 통합)
 export const DEFAULT_COMMAND_PRESETS = {
   uptime: { enabled: true, name: '업타임', aliases: ['업타임', 'uptime', '방송시간'], desc: '방송 켠 시간 확인', response: '⏱️ 현재 방송 시작 후 [ {uptime} ] 동안 달리는 중입니다!', permission: 'all', cooldown: 5, cost: 0, currency: 'chips', visibleInViewer: true },
@@ -18,13 +29,10 @@ export const DEFAULT_COMMAND_PRESETS = {
   attend: { enabled: true, name: '출첵', aliases: ['출첵', '출석', 'attend', 'check'], desc: '일일 출석 체크 및 재화 적립', response: '🎉 [{user}]님 출석 완료! (+{earned}{unit} 지급, {streak}일 연속 출석! 보유: {chips}{unit})', permission: 'all', cooldown: 5, cost: 0, currency: 'chips', visibleInViewer: true },
   point: { enabled: true, name: '포인트', aliases: ['포인트', 'point', '칩', 'chip', '지갑'], desc: '보유 방송 재화 잔액 확인', response: '💰 [{user}]님의 지갑 — 보유 {cUnit}: {chips}{cUnit} (총 출석: {totalAttends}회)', permission: 'all', cooldown: 5, cost: 0, currency: 'chips', visibleInViewer: true },
   donate: { enabled: true, name: '도네', aliases: ['도네', 'donate', '후원'], desc: '방송 재화 후원 및 TTS 재생', response: '⚔️ [{user}]님이 {amount}{unit}을(를) 후원하셨습니다! "{message}"', permission: 'all', cooldown: 5, cost: 0, currency: 'chips', visibleInViewer: true },
-  fund: { enabled: true, name: '모금', aliases: ['모금', 'fund', '기부'], desc: '방송 재화 모금함 기부', response: '💖 [{user}]님이 모금함에 {amount}{unit}을(를) 기부하셨습니다! (진행률: {percent}%)', permission: 'all', cooldown: 5, cost: 0, currency: 'chips', visibleInViewer: true },
+  fund: { enabled: true, name: '모금', aliases: ['모금', 'fund', '기부'], desc: '방송 재화 모금함 기부', response: '💖 [{user}]님이 {number}번 모금함 [{title}]에 {amount}{unit}을(를) 기부하셨습니다! (진행률: {percent}%)', permission: 'all', cooldown: 5, cost: 0, currency: 'chips', visibleInViewer: true },
   vote: { enabled: true, name: '투표', aliases: ['투표', 'vote', '배팅'], desc: '방송 재화 승부예측/투표 배팅', response: '🗳️ [{user}]님이 [{option}]에 {amount}{unit}을(를) 걸었습니다!', permission: 'all', cooldown: 5, cost: 0, currency: 'chips', visibleInViewer: true },
   sr: { enabled: true, name: 'sr', aliases: ['sr', '노래', '신청곡', '노래신청', '노래추가', '곡추가', 'song'], desc: '유튜브 노래 신청', response: '🎶 [{user}]님의 신청곡 [{title}]이(가) 등록되었습니다!', permission: 'all', cooldown: 5, cost: 0, currency: 'chips', visibleInViewer: true },
   request: { enabled: true, name: '신청', aliases: ['신청', 'request', '미션'], desc: '시청자 참여/미션 신청', response: '📋 [{user}]님의 신청 [{content}]이(가) 등록되었습니다!', permission: 'all', cooldown: 5, cost: 0, currency: 'chips', visibleInViewer: true },
-  dice: { enabled: true, name: '주사위', aliases: ['주사위', 'dice'], desc: '1~100 랜덤 주사위 굴리기', response: '🎲 [{user}]님의 주사위 결과: {dice} (1~100)', permission: 'all', cooldown: 5, cost: 0, currency: 'chips', visibleInViewer: true },
-  fishing: { enabled: true, name: '낚시', aliases: ['낚시', 'fish', 'fishing'], desc: '미끼 랜덤 낚시 미니게임', response: '🎣 [{user}]님의 낚시 결과: {result}', permission: 'all', cooldown: 5, cost: 20, currency: 'chips', visibleInViewer: true },
-  rps: { enabled: true, name: '가위바위보', aliases: ['가위바위보', 'rps'], desc: '가위바위보 배팅 대결', response: '✌️✊🖐️ [{user}]: {choice} vs {bot}: {botChoice} ➡️ {result}', permission: 'all', cooldown: 5, cost: 0, currency: 'chips', visibleInViewer: true },
   roulette: { enabled: true, name: '룰렛', aliases: ['룰렛', 'roulette'], desc: '행운의 룰렛 돌리기', response: '🎰 [{user}]님이 {cost}{unit}로 룰렛을 돌려 [ {result} ]에 당첨되셨습니다!', permission: 'all', cooldown: 5, cost: 500, currency: 'chips', visibleInViewer: true },
   ticket: { enabled: true, name: '티켓', aliases: ['티켓', 'ticket'], desc: '보유 티켓 확인 및 사용', response: '🎫 [{user}]님의 보유 티켓: {count}장', permission: 'all', cooldown: 5, cost: 0, currency: 'chips', visibleInViewer: true },
   jump: { enabled: true, name: '점프', aliases: ['점프', 'jump'], desc: '채팅 아바타 점프 모션', response: '', permission: 'all', cooldown: 2, cost: 0, currency: 'chips', visibleInViewer: true }
@@ -63,6 +71,7 @@ export const defaultData = {
     chatIntervalSeconds: 60,
     attendPoints: 100,
     attendStreakBonus: 20,
+    attendResetHour: 5, // 출석 기준 시각 (한국 시간, 기본 새벽 5시)
     cheesePointEnabled: true,
     cheesePointRatePercent: 100, // 기본 1치즈 = 1P (100%)
     includeMissionCheese: false, // 미션 치즈 적립 포함 여부 (기본 제외)
@@ -97,7 +106,7 @@ export const defaultData = {
     {
       id: 'cmd-help',
       name: '명령어',
-      response: '💡 챗봇 명령어 목록: !출첵, !포인트, !칩, !모금, !도네, !sr, !신청, !주사위, !낚시, !가위바위보, !룰렛, !디코, !일정',
+      response: '💡 챗봇 명령어 목록: !출첵, !포인트, !칩, !모금, !도네, !sr, !신청, !룰렛, !디코, !일정',
       permission: 'all',
       cooldown: 5,
       cost: 0,
@@ -209,6 +218,8 @@ export const defaultData = {
   },
   generalRequests: [],
   fund: {
+    id: 'fund-1',
+    number: 1,
     title: '시청자와 함께하는 방송 컨텐츠 모금함',
     goalPoints: 50000,
     currentPoints: 0,
@@ -216,6 +227,18 @@ export const defaultData = {
     enabled: true,
     recentDonors: []
   },
+  funds: [
+    {
+      id: 'fund-1',
+      number: 1,
+      title: '시청자와 함께하는 방송 컨텐츠 모금함',
+      goalPoints: 50000,
+      currentPoints: 0,
+      currency: 'chips',
+      enabled: true,
+      recentDonors: []
+    }
+  ],
   prediction: {
     id: 'pred-ready',
     title: '오늘 방송 미션 성공할까?',
@@ -335,6 +358,7 @@ export function migrateAndMergeData(parsed) {
   const mergedDefaultCommands = { ...base.defaultCommands };
   if (parsed.defaultCommands && typeof parsed.defaultCommands === 'object') {
     for (const [key, val] of Object.entries(parsed.defaultCommands)) {
+      if (key === 'dice' || key === 'fishing' || key === 'rps') continue;
       const merged = {
         ...(DEFAULT_COMMAND_PRESETS[key] || base.defaultCommands[key] || {}),
         ...val,
@@ -378,10 +402,29 @@ export function migrateAndMergeData(parsed) {
   };
 
   const mergedFund = {
+    id: 'fund-1',
+    number: 1,
     ...base.fund,
     ...(parsed.fund || {}),
-    currency: 'chips'
+    currency: parsed.fund?.currency || 'chips'
   };
+
+  let mergedFunds = [];
+  if (Array.isArray(parsed.funds) && parsed.funds.length > 0) {
+    mergedFunds = parsed.funds.map((f, idx) => ({
+      id: f.id || `fund-${idx + 1}`,
+      number: idx + 1,
+      title: f.title || `모금함 ${idx + 1}`,
+      goalPoints: Number(f.goalPoints) || 50000,
+      currentPoints: Number(f.currentPoints) || 0,
+      currency: f.currency || 'chips',
+      enabled: f.enabled !== false,
+      recentDonors: Array.isArray(f.recentDonors) ? f.recentDonors : []
+    }));
+  } else {
+    mergedFunds = [{ ...mergedFund, id: mergedFund.id || 'fund-1', number: 1 }];
+  }
+  const primaryFund = mergedFunds[0] || mergedFund;
 
   const mergedRoulette = {
     ...base.roulette,
@@ -420,7 +463,8 @@ export function migrateAndMergeData(parsed) {
     commands: mergedCommands,
     defaultCommands: mergedDefaultCommands,
     songRequests: mergedSongRequests,
-    fund: mergedFund,
+    fund: primaryFund,
+    funds: mergedFunds,
     roulette: mergedRoulette,
     users: mergedUsers,
     liveDonations: Array.isArray(parsed?.liveDonations) ? parsed.liveDonations : []

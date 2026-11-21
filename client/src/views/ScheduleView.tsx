@@ -18,7 +18,10 @@ import {
   Flame,
   Zap,
   Coffee,
-  CalendarDays
+  CalendarDays,
+  Plus,
+  Trash2,
+  Tag
 } from 'lucide-react';
 import { ScheduleItem } from '../types';
 import { api } from '../services/api';
@@ -147,10 +150,19 @@ export function normalizeToSevenDays(schedules: ScheduleItem[] = []): ScheduleIt
     if (map[day]) {
       const it = map[day];
       const isOff = it.off !== undefined ? it.off : it.title.includes('휴방');
+      const normalizedSessions = Array.isArray(it.sessions) && it.sessions.length > 0
+        ? it.sessions.map(s => ({
+            time: s.time || '',
+            title: s.title || '',
+            category: s.category || ''
+          }))
+        : undefined;
       return {
         day,
         time: it.time || (isOff ? '' : '20:00'),
         title: it.title || (isOff ? '쉬어가는 날 🌙' : '방송 콘텐츠 미정'),
+        category: it.category || (normalizedSessions?.[0]?.category || ''),
+        sessions: normalizedSessions,
         off: isOff,
         tag: it.tag || (isOff ? '휴방' : '정기'),
         notice: it.notice || ''
@@ -236,6 +248,64 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({ schedules, weeklySch
   const updateDay = (dayName: string, patch: Partial<ScheduleItem>) => {
     setList(prev =>
       prev.map(item => (item.day === dayName ? { ...item, ...patch } : item))
+    );
+  };
+
+  // 하루 여러 방송 세션 수정/추가/삭제
+  const getDaySessions = (item: ScheduleItem) => {
+    if (Array.isArray(item.sessions) && item.sessions.length > 0) {
+      return item.sessions;
+    }
+    return [{ time: item.time || '', title: item.title || '', category: item.category || '' }];
+  };
+
+  const updateSession = (dayName: string, sIdx: number, patch: { time?: string; title?: string; category?: string }) => {
+    setList(prev =>
+      prev.map(item => {
+        if (item.day !== dayName) return item;
+        const nextSessions = getDaySessions(item).map((s, idx) => (idx === sIdx ? { ...s, ...patch } : s));
+        const primary = nextSessions[0] || { time: '', title: '', category: '' };
+        return {
+          ...item,
+          time: primary.time,
+          title: primary.title,
+          category: primary.category || '',
+          sessions: nextSessions
+        };
+      })
+    );
+  };
+
+  const addSession = (dayName: string) => {
+    setList(prev =>
+      prev.map(item => {
+        if (item.day !== dayName) return item;
+        const current = getDaySessions(item);
+        const nextSessions = [...current, { time: '20:00', title: '', category: '' }];
+        return {
+          ...item,
+          sessions: nextSessions
+        };
+      })
+    );
+  };
+
+  const removeSession = (dayName: string, sIdx: number) => {
+    setList(prev =>
+      prev.map(item => {
+        if (item.day !== dayName) return item;
+        const current = getDaySessions(item);
+        if (current.length <= 1) return item;
+        const nextSessions = current.filter((_, idx) => idx !== sIdx);
+        const primary = nextSessions[0];
+        return {
+          ...item,
+          time: primary.time,
+          title: primary.title,
+          category: primary.category || '',
+          sessions: nextSessions
+        };
+      })
     );
   };
 
@@ -556,61 +626,89 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({ schedules, weeklySch
                       ))}
                     </div>
 
-                    {/* 시간 입력 및 빠른 칩 */}
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-400 mb-1 flex items-center gap-1">
-                        <Clock className="w-3 h-3 text-amber-400" /> 방송 시간
-                      </label>
-                      <input
-                        type="text"
-                        value={item.time}
-                        onChange={(e) => updateDay(item.day, { time: e.target.value })}
-                        placeholder="예: 20:00 / 21:00 / 랜덤"
-                        className="w-full px-2.5 py-1.5 rounded-xl bg-slate-900 border border-white/10 text-xs text-white font-mono focus:outline-none focus:ring-1 focus:ring-amber-400"
-                      />
-                      <div className="flex items-center gap-1 mt-1">
-                        {['20:00', '21:00', '랜덤'].map(presetTime => (
-                          <button
-                            key={presetTime}
-                            type="button"
-                            onClick={() => updateDay(item.day, { time: presetTime })}
-                            className="px-1.5 py-0.5 rounded bg-slate-900/80 hover:bg-slate-800 text-[9px] text-amber-400 hover:text-amber-300 border border-white/5"
-                          >
-                            {presetTime}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
+                    {/* 하루 방송 목록 (1회 또는 다중 세션 지원) */}
+                    {(() => {
+                      const sessions = getDaySessions(item);
+                      const isMulti = sessions.length > 1;
+                      return (
+                        <div className="space-y-2.5">
+                          {sessions.map((sess, sIdx) => {
+                            const isPastOrRange = Boolean(dateObj?.isPast) || (sess.time || '').includes('-');
+                            return (
+                              <div
+                                key={sIdx}
+                                className={isMulti ? 'p-2 rounded-xl bg-slate-950/60 border border-white/10 space-y-2' : 'space-y-2.5'}
+                              >
+                                {isMulti && (
+                                  <div className="flex items-center justify-between text-[10px] font-black text-amber-300">
+                                    <span>{sIdx + 1}부 방송</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => removeSession(item.day, sIdx)}
+                                      className="text-slate-500 hover:text-rose-400 p-0.5 cursor-pointer"
+                                      title="이 방송 삭제"
+                                    >
+                                      <Trash2 className="w-3 h-3" />
+                                    </button>
+                                  </div>
+                                )}
 
-                    {/* 방송 콘텐츠 / 계획 */}
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-400 mb-1 flex items-center gap-1">
-                        <Gamepad2 className="w-3 h-3 text-amber-400" /> 콘텐츠 계획
-                      </label>
-                      <textarea
-                        rows={2}
-                        value={item.title}
-                        onChange={(e) => updateDay(item.day, { title: e.target.value })}
-                        placeholder="예: 아저씨의 야식 & 나긋나긋 소통 바 🥃"
-                        className="w-full px-2.5 py-1.5 rounded-xl bg-slate-900 border border-white/10 text-xs text-slate-100 leading-relaxed focus:outline-none focus:ring-1 focus:ring-amber-400 resize-none"
-                      />
-                      {/* 빠른 키워드 */}
-                      <div className="flex items-center gap-1 mt-1 flex-wrap">
-                        {['소통', '토크', '저챗', '게임'].map(kw => (
+                                {/* 방송 시간 / 시작시간 */}
+                                <div>
+                                  <label className="block text-[10px] font-bold text-slate-400 mb-1 flex items-center gap-1">
+                                    <Clock className="w-3 h-3 text-amber-400" />
+                                    {isPastOrRange ? '방송 시간' : '방송 시작시간'}
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={sess.time}
+                                    onChange={(e) => updateSession(item.day, sIdx, { time: e.target.value })}
+                                    placeholder={isPastOrRange ? '예: 23:04 - 02:11' : '예: 20:00'}
+                                    className="w-full px-2.5 py-1.5 rounded-xl bg-slate-900 border border-white/10 text-xs text-white font-mono focus:outline-none focus:ring-1 focus:ring-amber-400"
+                                  />
+                                </div>
+
+                                {/* 방송 제목 */}
+                                <div>
+                                  <label className="block text-[10px] font-bold text-slate-400 mb-1 flex items-center gap-1">
+                                    <Gamepad2 className="w-3 h-3 text-amber-400" /> 방송 제목
+                                  </label>
+                                  <textarea
+                                    rows={2}
+                                    value={sess.title}
+                                    onChange={(e) => updateSession(item.day, sIdx, { title: e.target.value })}
+                                    placeholder="방송 제목을 입력하세요"
+                                    className="w-full px-2.5 py-1.5 rounded-xl bg-slate-900 border border-white/10 text-xs text-slate-100 leading-relaxed focus:outline-none focus:ring-1 focus:ring-amber-400 resize-none"
+                                  />
+                                </div>
+
+                                {/* 카테고리 */}
+                                <div>
+                                  <label className="block text-[10px] font-bold text-slate-400 mb-1 flex items-center gap-1">
+                                    <Tag className="w-3 h-3 text-emerald-400" /> 카테고리
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={sess.category || ''}
+                                    onChange={(e) => updateSession(item.day, sIdx, { category: e.target.value })}
+                                    placeholder="예: talk, 종합게임"
+                                    className="w-full px-2.5 py-1.5 rounded-xl bg-slate-900 border border-white/10 text-xs text-emerald-300 focus:outline-none focus:ring-1 focus:ring-emerald-400"
+                                  />
+                                </div>
+                              </div>
+                            );
+                          })}
+
                           <button
-                            key={kw}
                             type="button"
-                            onClick={() => {
-                              const newTitle = item.title ? `${item.title} / ${kw}` : kw;
-                              updateDay(item.day, { title: newTitle });
-                            }}
-                            className="px-1 py-0.5 rounded bg-slate-900/60 hover:bg-slate-800 text-[9px] text-slate-400 hover:text-slate-200 border border-white/5"
+                            onClick={() => addSession(item.day)}
+                            className="w-full py-1 rounded-lg bg-slate-900/70 hover:bg-slate-800 border border-dashed border-white/15 text-[10px] font-bold text-slate-400 hover:text-amber-300 flex items-center justify-center gap-1 transition-colors cursor-pointer"
                           >
-                            +{kw}
+                            <Plus className="w-3 h-3" /> 하루 방송 추가
                           </button>
-                        ))}
-                      </div>
-                    </div>
+                        </div>
+                      );
+                    })()}
                   </div>
                 )}
               </div>
@@ -832,13 +930,36 @@ export const WeeklyCalendarView: React.FC<WeeklyCalendarViewProps> = ({
                 </div>
               ) : (
                 <>
-                  <div className="flex items-center gap-1 text-amber-400 font-mono text-xs font-black">
-                    <Clock className="w-3 h-3" />
-                    <span>{item.time || '20:00'}</span>
-                  </div>
-                  <div className="text-xs font-extrabold text-white leading-snug line-clamp-2">
-                    {item.title || '방송 일정 미정'}
-                  </div>
+                  {(() => {
+                    const viewSessions = Array.isArray(item.sessions) && item.sessions.length > 0
+                      ? item.sessions
+                      : [{ time: item.time || '20:00', title: item.title || '방송 일정 미정', category: item.category }];
+                    return (
+                      <div className="space-y-2">
+                        {viewSessions.map((vs, vIdx) => (
+                          <div
+                            key={vIdx}
+                            className={viewSessions.length > 1 ? 'pb-1.5 border-b border-white/5 last:border-b-0 last:pb-0 space-y-0.5' : 'space-y-1'}
+                          >
+                            <div className="flex items-center justify-between gap-1 text-amber-400 font-mono text-xs font-black">
+                              <span className="flex items-center gap-1">
+                                <Clock className="w-3 h-3 shrink-0" />
+                                <span>{vs.time || '20:00'}</span>
+                              </span>
+                              {vs.category && (
+                                <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/25 font-sans font-bold truncate max-w-[70px]">
+                                  {vs.category}
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-xs font-extrabold text-white leading-snug line-clamp-2">
+                              {vs.title || '방송 일정 미정'}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
                 </>
               )}
             </div>

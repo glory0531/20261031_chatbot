@@ -200,45 +200,6 @@ export const ViewerPublicPage: React.FC<ViewerPublicPageProps> = ({
       });
     }
 
-    // 주사위 굴리기
-    if (defaultCommands?.dice?.enabled && defaultCommands?.dice?.visibleInViewer !== false) {
-      const name = defaultCommands?.dice?.name || '주사위';
-      list.push({
-        key: 'dice',
-        name,
-        syntax: `${prefix}${name}`,
-        badge: '미니게임',
-        desc: '1부터 100 사이의 행운의 랜덤 주사위 굴리기',
-        category: '미니게임'
-      });
-    }
-
-    // 낚시 게임
-    if (defaultCommands?.fishing?.enabled && defaultCommands?.fishing?.visibleInViewer !== false) {
-      const name = defaultCommands?.fishing?.name || '낚시';
-      list.push({
-        key: 'fishing',
-        name,
-        syntax: `${prefix}${name}`,
-        badge: '미니게임',
-        desc: `미끼(20${chipName})를 소모해 물고기, 황금잉어 낚기`,
-        category: '미니게임'
-      });
-    }
-
-    // 가위바위보 게임
-    if (defaultCommands?.rps?.enabled && defaultCommands?.rps?.visibleInViewer !== false) {
-      const name = defaultCommands?.rps?.name || '가위바위보';
-      list.push({
-        key: 'rps',
-        name,
-        syntax: `${prefix}${name} [가위/바위/보] [${chipName}]`,
-        badge: '배팅 게임',
-        desc: `${botName}과 가위바위보 대결 (승리 시 배팅금 2배 획득)`,
-        category: '미니게임'
-      });
-    }
-
     // 목표 모금 기부
     if (defaultCommands?.fund?.enabled && fund?.enabled && defaultCommands?.fund?.visibleInViewer !== false) {
       const name = defaultCommands?.fund?.name || '모금';
@@ -246,9 +207,9 @@ export const ViewerPublicPage: React.FC<ViewerPublicPageProps> = ({
       list.push({
         key: 'fund',
         name,
-        syntax: `${prefix}${name} [${fundUnit}]`,
+        syntax: `${prefix}${name} [모금함번호] [${fundUnit}]`,
         badge: '모금 기부',
-        desc: `진행 중인 목표 모금함에 ${fundUnit} 기부하기`,
+        desc: `진행 중인 목표 모금함(#번호)에 ${fundUnit} 기부하기`,
         category: '참여 & 재화'
       });
     }

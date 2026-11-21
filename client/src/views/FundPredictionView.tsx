@@ -21,13 +21,15 @@ import {
   Users,
   AlertCircle,
   Clock,
-  Coins
+  Coins,
+  Trash2
 } from 'lucide-react';
 import { FundState, PredictionState, DefaultCommandConfig, ChannelStatus, getFullCommand } from '../types';
 import { api } from '../services/api';
 
 interface FundPredictionViewProps {
   fund: FundState;
+  funds?: FundState[];
   prediction: PredictionState;
   defaultCommands?: Record<string, DefaultCommandConfig>;
   status?: ChannelStatus;
@@ -36,6 +38,7 @@ interface FundPredictionViewProps {
 
 export const FundPredictionView: React.FC<FundPredictionViewProps> = ({
   fund,
+  funds = [],
   prediction,
   defaultCommands,
   status,
@@ -48,8 +51,13 @@ export const FundPredictionView: React.FC<FundPredictionViewProps> = ({
   const pUnit = settings?.pointName || 'P';
   const cUnit = settings?.chipName || '칩';
 
-  // 모금함 설정 상태
-  const [isEditingFund, setIsEditingFund] = useState(false);
+  const fundList: FundState[] = funds.length > 0
+    ? funds.map((f, idx) => ({ ...f, id: f.id || `fund-${idx + 1}`, number: f.number || idx + 1 }))
+    : [{ ...fund, id: fund.id || 'fund-1', number: fund.number || 1 }];
+
+  // 모금함 추가/수정 모달 상태
+  const [isFundModalOpen, setIsFundModalOpen] = useState(false);
+  const [editingFundItem, setEditingFundItem] = useState<FundState | null>(null);
   const [fundTitle, setFundTitle] = useState(fund.title);
   const [goalPoints, setGoalPoints] = useState(fund.goalPoints);
   const [fundCurrency, setFundCurrency] = useState<'chips' | 'points'>(fund.currency || 'chips');
@@ -76,44 +84,93 @@ export const FundPredictionView: React.FC<FundPredictionViewProps> = ({
 
   const fundUnit = fundCurrency === 'points' ? pUnit : cUnit;
 
-  // 모금함 설정 저장
+  const openCreateFundModal = () => {
+    setEditingFundItem(null);
+    setFundTitle('');
+    setGoalPoints(50000);
+    setFundCurrency('chips');
+    setIsFundModalOpen(true);
+  };
+
+  const openEditFundModal = (item: FundState) => {
+    setEditingFundItem(item);
+    setFundTitle(item.title);
+    setGoalPoints(item.goalPoints);
+    setFundCurrency(item.currency || 'chips');
+    setIsFundModalOpen(true);
+  };
+
+  // 모금함 생성/수정 저장
   const handleSaveFund = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!fundTitle.trim() || goalPoints <= 0) return;
-    await api.updateFund({
-      title: fundTitle.trim(),
-      goalPoints: Number(goalPoints),
-      currency: fundCurrency
-    });
-    setIsEditingFund(false);
-    showFeedback('모금함 목표가 저장되었습니다!');
+    if (editingFundItem?.id) {
+      await api.updateFundById(editingFundItem.id, {
+        title: fundTitle.trim(),
+        goalPoints: Number(goalPoints),
+        currency: fundCurrency
+      });
+      showFeedback(`${editingFundItem.number || 1}번 모금함 설정이 저장되었습니다!`);
+    } else {
+      await api.createFund({
+        title: fundTitle.trim(),
+        goalPoints: Number(goalPoints),
+        currency: fundCurrency,
+        enabled: true
+      });
+      showFeedback('새 모금함이 추가되었습니다!');
+    }
+    setIsFundModalOpen(false);
   };
 
-  // 모금액 0P 초기화
-  const handleResetFund = async () => {
-    if (!window.confirm('현재까지의 모금액과 기부자 목록을 0P로 초기화하시겠습니까? 새 모금 목표를 시작할 때 유용합니다.')) return;
-    await api.resetFund();
-    showFeedback('모금함이 0P 클린 상태로 초기화되었습니다.');
+  // 개별 모금함 활성/비활성 토글
+  const handleToggleFundItem = async (item: FundState) => {
+    if (!item.id) return;
+    await api.updateFundById(item.id, { enabled: item.enabled === false });
+    showFeedback(`${item.number || 1}번 모금함이 ${item.enabled === false ? '활성화' : '일시 중지'}되었습니다.`);
   };
 
-  // 모금 명령어 토글
+  // 개별 모금함 삭제
+  const handleDeleteFundItem = async (item: FundState) => {
+    if (!item.id) return;
+    if (!window.confirm(`${item.number || 1}번 모금함 [${item.title}]을(를) 삭제하시겠습니까?`)) return;
+    const res = await api.deleteFundById(item.id);
+    if (res?.success === false) {
+      alert(res.message || '삭제할 수 없습니다.');
+      return;
+    }
+    showFeedback(`${item.number || 1}번 모금함이 삭제되었습니다.`);
+  };
+
+  // 모금액 0 초기화
+  const handleResetFund = async (item?: FundState) => {
+    const label = item ? `${item.number || 1}번 모금함 [${item.title}]의` : '현재까지의';
+    if (!window.confirm(`${label} 모금액과 기부자 목록을 0으로 초기화하시겠습니까?`)) return;
+    await api.resetFund(item?.id);
+    showFeedback('모금함이 0 클린 상태로 초기화되었습니다.');
+  };
+
+  // 모금 명령어 전체 ON/OFF 토글
   const handleToggleFund = async () => {
     const isCurrentlyEnabled = defaultCommands?.fund?.enabled ?? true;
     await api.toggleDefaultCommand('fund', !isCurrentlyEnabled);
     showFeedback(!isCurrentlyEnabled ? `모금(${fullFundCmd}) 명령어가 활성화되었습니다!` : '모금 기능이 비활성화되었습니다.');
   };
 
-  // 모금 테스트 (본인 계정으로 5,000P 기부)
-  const handleTestFund = async () => {
-    await api.testFund(5000);
-    showFeedback(`[${status?.channelName || '스트리머'}] 계정으로 모금함에 5,000P를 테스트 기부했습니다!`);
+  // 모금 테스트 (본인 계정으로 5,000 기부)
+  const handleTestFund = async (item?: FundState) => {
+    const unitLabel = item?.currency === 'points' ? pUnit : cUnit;
+    await api.testFund(5000, item?.id);
+    showFeedback(`[${status?.channelName || '스트리머'}] 계정으로 ${item?.number || 1}번 모금함에 5,000${unitLabel}을(를) 테스트 기부했습니다!`);
   };
 
   // OBS 오버레이 링크 복사
-  const handleCopyGoalOverlay = () => {
-    const url = `${window.location.origin}/overlay/goal`;
+  const handleCopyGoalOverlay = (fundNumber?: number) => {
+    const url = fundNumber
+      ? `${window.location.origin}/overlay/goal?id=${fundNumber}`
+      : `${window.location.origin}/overlay/goal`;
     navigator.clipboard.writeText(url);
-    showFeedback('OBS 목표바 오버레이 URL이 클립보드에 복사되었습니다!');
+    showFeedback(fundNumber ? `${fundNumber}번 모금함 전용 OBS 목표바 URL이 복사되었습니다!` : 'OBS 목표바 오버레이 URL이 클립보드에 복사되었습니다!');
   };
 
   // 새 예측 투표 생성
@@ -237,8 +294,8 @@ export const FundPredictionView: React.FC<FundPredictionViewProps> = ({
 
           {/* OBS 오버레이 링크 복사 */}
           <button
-            onClick={handleCopyGoalOverlay}
-            className="px-3 py-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 border border-white/10 text-slate-300 font-bold text-xs flex items-center gap-1.5 transition-all"
+            onClick={() => handleCopyGoalOverlay()}
+            className="px-3 py-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 border border-white/10 text-slate-300 font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer"
             title="OBS 브라우저 소스에 넣을 모금 목표바 URL을 복사합니다."
           >
             <Copy className="w-3.5 h-3.5 text-slate-400" />
@@ -250,20 +307,22 @@ export const FundPredictionView: React.FC<FundPredictionViewProps> = ({
       {/* 2컬럼 레이아웃 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* ======================================================== */}
-        {/* 1. 공동 모금함 카드 */}
+        {/* 1. 다중 공동 모금함 카드 */}
         {/* ======================================================== */}
         <div className="p-5 rounded-2xl bg-slate-900/70 border border-white/10 shadow-lg space-y-4 flex flex-col justify-between">
           <div className="space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-white/10">
+            <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-white/10">
               <div className="flex items-center gap-2">
                 <Target className="w-4 h-4 text-amber-400" />
-                <h3 className="font-bold text-sm text-white">공동 모금함 설정 ({fullFundCmd})</h3>
+                <h3 className="font-bold text-sm text-white">공동 모금함 관리 ({fundList.length}개)</h3>
+                <span className="text-[11px] px-2 py-0.5 rounded-lg bg-amber-500/10 text-amber-300 border border-amber-500/20 font-mono">
+                  {fullFundCmd} [번호] [금액]
+                </span>
               </div>
               <div className="flex items-center gap-2">
-                {/* 모금 기능 ON/OFF 토글 */}
                 <button
                   onClick={handleToggleFund}
-                  className={`px-2.5 py-1 rounded-lg border font-bold text-[11px] flex items-center gap-1 transition-all ${
+                  className={`px-2.5 py-1 rounded-lg border font-bold text-[11px] flex items-center gap-1 transition-all cursor-pointer ${
                     isFundEnabled
                       ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
                       : 'bg-rose-500/15 border-rose-500/40 text-rose-300'
@@ -275,94 +334,138 @@ export const FundPredictionView: React.FC<FundPredictionViewProps> = ({
                 </button>
 
                 <button
-                  onClick={() => setIsEditingFund(true)}
-                  className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-white/10 text-[11px] font-bold flex items-center gap-1 transition-all"
+                  onClick={openCreateFundModal}
+                  className="px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 text-[11px] font-black flex items-center gap-1 transition-all shadow-sm cursor-pointer"
                 >
-                  <Edit3 className="w-3 h-3 text-amber-400" /> 수정
+                  <Plus className="w-3.5 h-3.5" /> 모금함 추가
                 </button>
               </div>
             </div>
 
-            {/* 모금 목표 본문 */}
-            <div className="p-4 rounded-xl bg-slate-950/60 border border-white/5 space-y-3">
-              <div className="flex items-baseline justify-between">
-                <div>
-                  <span className="text-[11px] text-amber-400/80 font-bold uppercase tracking-wider block">현재 모금 목표</span>
-                  <span className="font-extrabold text-base text-white">{fund.title}</span>
-                </div>
-                <div className="text-right">
-                  <span className="text-2xl font-black text-amber-400">{percent}%</span>
-                </div>
-              </div>
+            <div className="space-y-4 max-h-[640px] overflow-y-auto pr-1">
+              {fundList.map((item) => {
+                const itemUnit = item.currency === 'points' ? pUnit : cUnit;
+                const itemPercent = item.goalPoints > 0
+                  ? Math.min(100, Math.floor((item.currentPoints / item.goalPoints) * 100))
+                  : 0;
+                const isItemActive = item.enabled !== false;
 
-              {/* 진행률 게이지 바 */}
-              <div className="w-full h-4 rounded-full bg-slate-900 p-0.5 border border-white/10 overflow-hidden relative">
-                <div
-                  style={{ width: `${percent}%` }}
-                  className="h-full rounded-full bg-gradient-to-r from-amber-500 via-orange-400 to-amber-300 transition-all duration-700 shadow-lg shadow-amber-500/30"
-                ></div>
-              </div>
-
-              <div className="flex justify-between text-xs text-slate-400 pt-1">
-                <span>현재 모금액: <strong className="text-white text-sm">{fund.currentPoints.toLocaleString()}{fundUnit}</strong></span>
-                <span>목표액: <strong className="text-slate-300 text-sm">{fund.goalPoints.toLocaleString()}{fundUnit}</strong></span>
-              </div>
-            </div>
-
-            {/* 최근 모금 참여자 목록 */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
-                  <Coins className="w-3.5 h-3.5 text-amber-400" /> 최근 모금 참여자 ({fund.recentDonors?.length || 0}명)
-                </span>
-                <span className="text-[11px] text-slate-500">채팅에서 {fullFundCmd} [{fundUnit}] 입력 시 기부</span>
-              </div>
-
-              <div className="min-h-[140px] max-h-[170px] overflow-y-auto space-y-1.5 pr-1">
-                {!fund.recentDonors || fund.recentDonors.length === 0 ? (
-                  <div className="h-[140px] rounded-xl bg-slate-950/40 border border-dashed border-white/10 flex flex-col items-center justify-center text-center p-4 text-slate-500 text-xs">
-                    <Target className="w-6 h-6 text-slate-600 mb-1" />
-                    <p>아직 모금에 참여한 시청자가 없습니다.</p>
-                    <p className="text-[11px] text-slate-600 mt-0.5">방송 중 시청자가 {fullFundCmd}을(를) 보내면 실시간으로 이곳에 기록됩니다.</p>
-                  </div>
-                ) : (
-                  fund.recentDonors.map((d, i) => (
-                    <div
-                      key={i}
-                      className="p-2.5 rounded-xl bg-slate-950/60 border border-white/5 text-xs flex justify-between items-center"
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className="w-5 h-5 rounded-md bg-amber-500/10 text-amber-400 font-bold flex items-center justify-center text-[10px]">
-                          {i + 1}
+                return (
+                  <div
+                    key={item.id || item.number}
+                    className={`p-4 rounded-xl border space-y-3 transition-all ${
+                      isItemActive
+                        ? 'bg-slate-950/60 border-white/10'
+                        : 'bg-slate-950/30 border-white/5 opacity-65'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="px-2 py-0.5 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/30 font-mono font-black text-xs shrink-0">
+                          #{item.number}
                         </span>
-                        <span className="font-bold text-white">{d.user}</span>
+                        <span className="font-extrabold text-sm text-white truncate">{item.title}</span>
                       </div>
-                      <span className="text-amber-400 font-extrabold">+{d.points.toLocaleString()}{d.unit || fundUnit}</span>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => handleToggleFundItem(item)}
+                          className={`px-2 py-0.5 rounded-md text-[10px] font-bold border cursor-pointer ${
+                            isItemActive
+                              ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
+                              : 'bg-slate-800 text-slate-400 border-white/10'
+                          }`}
+                          title="이 모금함 활성화/일시중지"
+                        >
+                          {isItemActive ? '진행 중' : '중지됨'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleCopyGoalOverlay(item.number)}
+                          className="p-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white border border-white/10 cursor-pointer"
+                          title={`#${item.number} 전용 OBS 오버레이 URL 복사`}
+                        >
+                          <Copy className="w-3 h-3" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => openEditFundModal(item)}
+                          className="p-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-amber-300 border border-white/10 cursor-pointer"
+                          title="모금함 수정"
+                        >
+                          <Edit3 className="w-3 h-3" />
+                        </button>
+                        {fundList.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteFundItem(item)}
+                            className="p-1.5 rounded-lg bg-slate-800/80 hover:bg-rose-500/20 text-slate-400 hover:text-rose-300 border border-white/10 cursor-pointer"
+                            title="모금함 삭제"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        )}
+                      </div>
                     </div>
-                  ))
-                )}
-              </div>
+
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-slate-400">
+                        명령어: <b className="text-amber-300 font-mono">{fullFundCmd} {item.number} [금액]</b>
+                      </span>
+                      <span className="text-lg font-black text-amber-400">{itemPercent}%</span>
+                    </div>
+
+                    {/* 진행률 게이지 바 */}
+                    <div className="w-full h-3.5 rounded-full bg-slate-900 p-0.5 border border-white/10 overflow-hidden relative">
+                      <div
+                        style={{ width: `${itemPercent}%` }}
+                        className="h-full rounded-full bg-gradient-to-r from-amber-500 via-orange-400 to-amber-300 transition-all duration-700 shadow-lg shadow-amber-500/30"
+                      ></div>
+                    </div>
+
+                    <div className="flex justify-between text-xs text-slate-400">
+                      <span>현재: <strong className="text-white">{(item.currentPoints || 0).toLocaleString()}{itemUnit}</strong></span>
+                      <span>목표: <strong className="text-slate-300">{(item.goalPoints || 0).toLocaleString()}{itemUnit}</strong></span>
+                    </div>
+
+                    {/* 최근 참여자 요약 */}
+                    {item.recentDonors && item.recentDonors.length > 0 && (
+                      <div className="pt-2 border-t border-white/5 space-y-1">
+                        <div className="text-[10px] font-bold text-slate-400">최근 참여자 ({item.recentDonors.length}명)</div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {item.recentDonors.slice(0, 3).map((d, i) => (
+                            <span key={i} className="px-2 py-0.5 rounded-md bg-slate-900 border border-white/5 text-[10px] text-slate-200">
+                              <b>{d.user}</b> <span className="text-amber-400">+{d.points.toLocaleString()}{d.unit || itemUnit}</span>
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 개별 제어 버튼 */}
+                    <div className="pt-2 border-t border-white/5 flex items-center justify-between gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleResetFund(item)}
+                        className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-rose-500/20 text-slate-400 hover:text-rose-300 border border-white/5 text-[11px] font-bold flex items-center gap-1 transition-all cursor-pointer"
+                      >
+                        <RotateCcw className="w-3 h-3" />
+                        <span>초기화</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleTestFund(item)}
+                        className="px-3 py-1 rounded-lg bg-amber-500/90 hover:bg-amber-400 text-slate-950 font-bold text-[11px] flex items-center gap-1 transition-all cursor-pointer"
+                      >
+                        <Play className="w-3 h-3 fill-slate-950" />
+                        <span>5,000{itemUnit} 테스트</span>
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-          </div>
-
-          {/* 하단 제어 버튼 */}
-          <div className="pt-3 border-t border-white/10 flex items-center justify-between gap-2">
-            <button
-              onClick={handleResetFund}
-              className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-rose-500/20 text-slate-400 hover:text-rose-300 border border-white/5 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
-              title="모금액과 기부자 내역을 0으로 리셋합니다."
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-              <span>모금액 초기화</span>
-            </button>
-
-            <button
-              onClick={handleTestFund}
-              className="px-3.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 transition-all shadow-md shadow-amber-500/20 active:scale-95 cursor-pointer"
-            >
-              <Play className="w-3 h-3 fill-slate-950" />
-              <span>5,000{fundUnit} 모금 테스트</span>
-            </button>
           </div>
         </div>
 
@@ -564,18 +667,19 @@ export const FundPredictionView: React.FC<FundPredictionViewProps> = ({
       </div>
 
       {/* ======================================================== */}
-      {/* 모달 1: 모금함 목표 수정 모달 */}
+      {/* 모달 1: 모금함 추가 / 수정 모달 */}
       {/* ======================================================== */}
-      {isEditingFund && (
+      {isFundModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-in fade-in">
           <div className="w-full max-w-sm rounded-2xl bg-slate-900 border border-white/10 p-5 shadow-2xl space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-white/10">
               <h3 className="font-bold text-sm text-white flex items-center gap-2">
-                <Target className="w-4 h-4 text-amber-400" /> 모금 목표 설정 수정
+                <Target className="w-4 h-4 text-amber-400" />
+                {editingFundItem ? `${editingFundItem.number}번 모금함 수정` : '새 공동 모금함 만들기'}
               </h3>
               <button
-                onClick={() => setIsEditingFund(false)}
-                className="p-1 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white"
+                onClick={() => setIsFundModalOpen(false)}
+                className="p-1 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white cursor-pointer"
               >
                 ✕
               </button>
@@ -645,8 +749,8 @@ export const FundPredictionView: React.FC<FundPredictionViewProps> = ({
               <div className="flex justify-end gap-2 pt-2">
                 <button
                   type="button"
-                  onClick={() => setIsEditingFund(false)}
-                  className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs"
+                  onClick={() => setIsFundModalOpen(false)}
+                  className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs cursor-pointer"
                 >
                   취소
                 </button>

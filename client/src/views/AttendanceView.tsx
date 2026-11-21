@@ -16,10 +16,34 @@ import {
   ToggleLeft,
   ToggleRight,
   Radio,
-  Clock
+  Clock,
+  ArrowDownWideNarrow,
+  ArrowDownAZ
 } from 'lucide-react';
 import { UserWallet, Settings, DefaultCommandConfig, ChannelStatus, getFullCommand } from '../types';
 import { api } from '../services/api';
+
+function getAttendanceDayKey(resetHour = 5, timestampMs = Date.now()): string {
+  const safeHour = Math.min(23, Math.max(0, Number.isFinite(Number(resetHour)) ? Number(resetHour) : 5));
+  const shiftedMs = timestampMs + 9 * 3600 * 1000 - safeHour * 3600 * 1000;
+  return new Date(shiftedMs).toISOString().split('T')[0];
+}
+
+function formatKoreanDateDot(dateKey?: string): string {
+  if (!dateKey || !dateKey.includes('-')) return '-';
+  const [y, m, d] = dateKey.split('-');
+  return `${y}. ${Number(m)}. ${Number(d)}.`;
+}
+
+function formatResetHourOption(hour: number): string {
+  const hh = String(hour).padStart(2, '0');
+  if (hour === 0) return `${hh}:00 (자정)`;
+  if (hour < 6) return `${hh}:00 (새벽 ${hour}시)`;
+  if (hour < 12) return `${hh}:00 (오전 ${hour}시)`;
+  if (hour === 12) return `${hh}:00 (정오)`;
+  if (hour < 18) return `${hh}:00 (오후 ${hour - 12}시)`;
+  return `${hh}:00 (밤 ${hour - 12}시)`;
+}
 
 interface AttendanceViewProps {
   users: Record<string, UserWallet>;
@@ -36,8 +60,12 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
 }) => {
   const [basePoints, setBasePoints] = useState<number>(settings.attendPoints ?? 100);
   const [bonusPoints, setBonusPoints] = useState<number>(settings.attendStreakBonus ?? 20);
+  const [resetHour, setResetHour] = useState<number>(settings.attendResetHour ?? 5);
   const [isSaved, setIsSaved] = useState(false);
+  const [isResetHourSaved, setIsResetHourSaved] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [historySearchTerm, setHistorySearchTerm] = useState('');
+  const [historySort, setHistorySort] = useState<'count' | 'name'>('count');
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
   const [manualNickname, setManualNickname] = useState('');
   const [actionFeedback, setActionFeedback] = useState<string | null>(null);
@@ -46,13 +74,13 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
   const fullAttendCmd = getFullCommand('attend', defaultCommands, prefix, '출첵');
 
   const cUnit = settings.chipName || '칩';
-  const pUnit = settings.pointName || 'P';
 
   // 설정값 동기화
   useEffect(() => {
     setBasePoints(settings.attendPoints ?? 100);
     setBonusPoints(settings.attendStreakBonus ?? 20);
-  }, [settings.attendPoints, settings.attendStreakBonus]);
+    setResetHour(settings.attendResetHour ?? 5);
+  }, [settings.attendPoints, settings.attendStreakBonus, settings.attendResetHour]);
 
   const showFeedback = (msg: string) => {
     setActionFeedback(msg);
@@ -68,6 +96,16 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
     setIsSaved(true);
     showFeedback('출석 보상 포인트 규칙이 저장되었습니다!');
     setTimeout(() => setIsSaved(false), 2000);
+  };
+
+  // 출석 기준 시각 저장
+  const handleSaveResetHour = async () => {
+    await api.updateSettings({
+      attendResetHour: Number(resetHour)
+    });
+    setIsResetHourSaved(true);
+    showFeedback(`출석 기준 시각이 한국 시간 ${formatResetHourOption(Number(resetHour))}으로 저장되었습니다!`);
+    setTimeout(() => setIsResetHourSaved(false), 2000);
   };
 
   // 출석 명령어 활성/비활성 토글
@@ -122,7 +160,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
     showFeedback(`스트리머 [${status?.channelName || '스트리머'}] 계정으로 ${fullAttendCmd} 테스트를 실행했습니다.`);
   };
 
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = getAttendanceDayKey(settings.attendResetHour ?? 5);
   const userList = Object.values(users);
   const isAttendEnabled = defaultCommands?.attend?.enabled ?? true;
 
@@ -141,6 +179,21 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
     .filter(u => (u.totalAttends || 0) > 0 || (u.attendStreak || 0) > 0)
     .sort((a, b) => (b.attendStreak || 0) - (a.attendStreak || 0) || (b.totalAttends || 0) - (a.totalAttends || 0))
     .slice(0, 10);
+
+  // 전체 누적 출석 기록 (지속 보관)
+  const allAttendanceRecords = [...userList]
+    .filter(u => (u.totalAttends || 0) > 0 || (u.attendStreak || 0) > 0 || Boolean(u.lastAttend))
+    .filter(u => !historySearchTerm.trim() || u.nickname.toLowerCase().includes(historySearchTerm.trim().toLowerCase()))
+    .sort((a, b) => {
+      if (historySort === 'name') {
+        return a.nickname.localeCompare(b.nickname, 'ko');
+      }
+      return (
+        (b.totalAttends || 0) - (a.totalAttends || 0) ||
+        (b.attendStreak || 0) - (a.attendStreak || 0) ||
+        (b.lastAttend || '').localeCompare(a.lastAttend || '')
+      );
+    });
 
   return (
     <div className="space-y-6">
@@ -238,7 +291,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
           </h3>
           <span className="text-[11px] text-slate-400 flex items-center gap-1">
             <Clock className="w-3.5 h-3.5 text-slate-500" />
-            매일 자정(00:00) 기준 1일 1회 출석 인정
+            매일 {formatResetHourOption(settings.attendResetHour ?? 5)} 기준 1일 1회 출석 인정
           </span>
         </div>
 
@@ -292,6 +345,147 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
             {isSaved ? '저장 완료!' : '보상 설정 저장'}
           </button>
         </div>
+      </div>
+
+      {/* 출석 기준 시각 설정 카드 */}
+      <div className="p-5 rounded-2xl bg-slate-900/70 border border-white/10 shadow-lg space-y-3">
+        <div>
+          <h3 className="text-sm font-bold text-white">출석 기준 시각</h3>
+          <p className="text-xs text-slate-400 mt-0.5">매일 이 시각부터 새로운 날의 출석으로 처리합니다.</p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3 pt-1">
+          <span className="text-xs font-bold text-slate-300">한국 시간</span>
+          <select
+            value={resetHour}
+            onChange={(e) => setResetHour(Number(e.target.value))}
+            className="px-3 py-2 rounded-xl bg-slate-950 border border-white/10 text-xs font-semibold text-white focus:outline-none focus:border-emerald-500/50 cursor-pointer"
+          >
+            {Array.from({ length: 24 }, (_, h) => (
+              <option key={h} value={h}>
+                {formatResetHourOption(h)}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            onClick={handleSaveResetHour}
+            className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-white text-slate-950 font-extrabold text-xs transition-all shadow-sm active:scale-95 cursor-pointer flex items-center gap-1"
+          >
+            {isResetHourSaved ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : null}
+            <span>{isResetHourSaved ? '저장됨' : '저장'}</span>
+          </button>
+        </div>
+
+        <p className="text-[11px] text-slate-500">
+          기본값은 새벽 5시입니다. 기준 시각 이전의 출석은 전날로 기록됩니다. 변경한 시각은 이후 출석부터 적용됩니다.
+        </p>
+      </div>
+
+      {/* 전체 누적 출석 기록 테이블 카드 */}
+      <div className="p-5 rounded-2xl bg-slate-900/70 border border-white/10 shadow-lg space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-start gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/25 flex items-center justify-center text-emerald-400 shrink-0 mt-0.5">
+              <CalendarCheck className="w-4 h-4" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-white">출석 기록</h3>
+              <p className="text-xs text-slate-400 mt-0.5">시청자들의 출석 체크 현황을 확인할 수 있어요.</p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2.5">
+            <div className="relative">
+              <Search className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                placeholder="시청자 검색..."
+                value={historySearchTerm}
+                onChange={(e) => setHistorySearchTerm(e.target.value)}
+                className="pl-8 pr-3 py-1.5 rounded-xl bg-slate-950/70 border border-white/10 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500/50 w-36"
+              />
+            </div>
+
+            <span className="text-xs font-semibold text-slate-400">
+              총 <b className="text-white">{allAttendanceRecords.length}</b>명
+            </span>
+
+            <div className="flex items-center p-1 rounded-xl bg-slate-950 border border-white/10">
+              <button
+                type="button"
+                onClick={() => setHistorySort('count')}
+                className={`px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1 transition-all cursor-pointer ${
+                  historySort === 'count'
+                    ? 'bg-slate-800 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                <ArrowDownWideNarrow className="w-3.5 h-3.5" />
+                <span>출석순</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setHistorySort('name')}
+                className={`px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1 transition-all cursor-pointer ${
+                  historySort === 'name'
+                    ? 'bg-slate-800 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                <ArrowDownAZ className="w-3.5 h-3.5" />
+                <span>이름순</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {allAttendanceRecords.length === 0 ? (
+          <div className="py-12 text-center text-xs text-slate-500 border border-dashed border-white/10 rounded-xl">
+            아직 누적된 출석 기록이 없습니다. 시청자가 출석 체크를 하면 이곳에 계속 기록됩니다.
+          </div>
+        ) : (
+          <div className="overflow-x-auto max-h-[420px] overflow-y-auto rounded-xl border border-white/5">
+            <table className="w-full text-left border-collapse text-xs">
+              <thead className="sticky top-0 bg-slate-950/95 backdrop-blur-sm border-b border-white/10 text-slate-400 font-semibold">
+                <tr>
+                  <th className="py-2.5 px-4 w-14">#</th>
+                  <th className="py-2.5 px-4">시청자</th>
+                  <th className="py-2.5 px-4 text-right">출석 횟수</th>
+                  <th className="py-2.5 px-4 text-right">연속 출석</th>
+                  <th className="py-2.5 px-4 text-right">마지막 출석</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/5">
+                {allAttendanceRecords.map((u, idx) => (
+                  <tr key={u.nickname} className="hover:bg-white/[0.03] transition-colors">
+                    <td className="py-3 px-4 text-slate-400 font-mono">{idx + 1}</td>
+                    <td className="py-3 px-4">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-white">{u.nickname}</span>
+                        {u.role === 'streamer' && (
+                          <span className="px-1.5 py-0.5 rounded text-[10px] bg-purple-500/20 text-purple-300 font-semibold">스트리머</span>
+                        )}
+                        {u.role === 'manager' && (
+                          <span className="px-1.5 py-0.5 rounded text-[10px] bg-blue-500/20 text-blue-300 font-semibold">매니저</span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="py-3 px-4 text-right font-bold text-indigo-300 font-mono">
+                      {(u.totalAttends || 0).toLocaleString()}회
+                    </td>
+                    <td className="py-3 px-4 text-right font-bold text-indigo-300 font-mono">
+                      {(u.attendStreak || 0).toLocaleString()}회
+                    </td>
+                    <td className="py-3 px-4 text-right text-slate-400 font-mono">
+                      {formatKoreanDateDot(u.lastAttend)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       {/* 출석 현황 2컬럼 레이아웃 */}

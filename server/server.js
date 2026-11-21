@@ -14,7 +14,8 @@ import {
   importPointsCSV,
   createLocalBackup,
   migrateAndMergeData,
-  DEFAULT_COMMAND_PRESETS
+  DEFAULT_COMMAND_PRESETS,
+  getAttendanceDayKey
 } from './db.js';
 import { setSocketIO, startAutoMessageScheduler, sendBotMessage, processChatMessage, executeRoulettePulls } from './botEngine.js';
 import {
@@ -85,6 +86,7 @@ export function buildInitialStatePayload() {
     songRequests: db.songRequests,
     generalRequests: db.generalRequests,
     fund: db.fund,
+    funds: Array.isArray(db.funds) && db.funds.length > 0 ? db.funds : (db.fund ? [{ ...db.fund, id: db.fund.id || 'fund-1', number: 1 }] : []),
     prediction: db.prediction,
     roulette: db.roulette,
     schedules: db.schedules,
@@ -328,7 +330,7 @@ app.get('/api/commands', (req, res) => {
 });
 
 app.post('/api/commands', requireLocalAdmin, (req, res) => {
-  const { name, response, permission = 'all', cooldown = 5, cost = 0, currency = 'chips', enabled = true, matchType = 'exact', oncePerUser = false, visibleInViewer = true } = req.body;
+  const { name, response, permission = 'all', cooldown = 5, cost = 0, currency = 'chips', enabled = true, matchType = 'exact', oncePerUser = false, visibleInViewer = true, allowNoPrefix = false, triggerAttend = false } = req.body;
   if (!name || !response) {
     return res.status(400).json({ success: false, message: '명령어 이름과 응답 문구는 필수입니다.' });
   }
@@ -345,6 +347,8 @@ app.post('/api/commands', requireLocalAdmin, (req, res) => {
     matchType,
     oncePerUser: Boolean(oncePerUser),
     visibleInViewer: visibleInViewer !== false,
+    allowNoPrefix: Boolean(allowNoPrefix),
+    triggerAttend: Boolean(triggerAttend),
     count: 0
   };
 
@@ -407,6 +411,7 @@ app.post('/api/commands/default/update', requireLocalAdmin, (req, res) => {
   if (updates.currency !== undefined) current.currency = updates.currency;
   if (updates.enabled !== undefined) current.enabled = Boolean(updates.enabled);
   if (updates.visibleInViewer !== undefined) current.visibleInViewer = Boolean(updates.visibleInViewer);
+  if (updates.allowNoPrefix !== undefined) current.allowNoPrefix = Boolean(updates.allowNoPrefix);
 
   commit();
   io.emit('default_commands_update', db.defaultCommands);
@@ -527,7 +532,7 @@ app.post('/api/attendance/toggle', requireLocalAdmin, (req, res) => {
 });
 
 app.post('/api/attendance/reset-today', requireLocalAdmin, (req, res) => {
-  const today = new Date().toISOString().split('T')[0];
+  const today = getAttendanceDayKey(db.settings?.attendResetHour ?? 5);
   let resetCount = 0;
   for (const u of Object.values(db.users)) {
     if (u.lastAttend === today) {
@@ -577,7 +582,8 @@ app.post('/api/attendance/manual', requireLocalAdmin, (req, res) => {
   const { nickname } = req.body;
   if (!nickname) return res.status(400).json({ success: false, message: '닉네임을 입력해주세요.' });
 
-  const today = new Date().toISOString().split('T')[0];
+  const resetHour = db.settings?.attendResetHour ?? 5;
+  const today = getAttendanceDayKey(resetHour);
   if (!db.users[nickname]) {
     db.users[nickname] = {
       nickname,
@@ -598,7 +604,7 @@ app.post('/api/attendance/manual', requireLocalAdmin, (req, res) => {
     return res.status(400).json({ success: false, message: `${nickname}님은 이미 오늘 출석이 완료되었습니다.` });
   }
 
-  const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+  const yesterday = getAttendanceDayKey(resetHour, Date.now() - 86400000);
   user.attendStreak = user.lastAttend === yesterday ? user.attendStreak + 1 : 1;
   user.totalAttends += 1;
   user.lastAttend = today;
@@ -847,7 +853,8 @@ app.post('/api/schedules/sync-chzzk', requireLocalAdmin, async (req, res) => {
 
     const broadcastByDate = {};
     for (const b of broadcasts) {
-      broadcastByDate[b.dateStr] = b;
+      if (!broadcastByDate[b.dateStr]) broadcastByDate[b.dateStr] = [];
+      broadcastByDate[b.dateStr].push(b);
     }
 
     const WEEKDAYS = ['월요일', '화요일', '수요일', '목요일', '금요일', '토요일', '일요일'];
@@ -876,13 +883,21 @@ app.post('/api/schedules/sync-chzzk', requireLocalAdmin, async (req, res) => {
         const fullDateStr = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
         const dateDisplay = `${m}.${d}`;
 
-        const match = broadcastByDate[fullDateStr];
-        if (match) {
-          syncedCount++;
+        const matches = broadcastByDate[fullDateStr];
+        if (matches && matches.length > 0) {
+          syncedCount += matches.length;
+          const primary = matches[0];
+          const sessions = matches.map((b) => ({
+            time: b.time || '20:00',
+            title: b.title,
+            category: b.category || 'talk'
+          }));
           return {
             day: dayName,
-            time: match.time || '20:00',
-            title: match.title,
+            time: primary.time || '20:00',
+            title: primary.title,
+            category: primary.category || 'talk',
+            sessions,
             off: false,
             tag: '정기',
             date: dateDisplay,
@@ -894,6 +909,8 @@ app.post('/api/schedules/sync-chzzk', requireLocalAdmin, async (req, res) => {
           day: dayName,
           time: '',
           title: '쉬어가는 날 🌙',
+          category: '',
+          sessions: [],
           off: true,
           tag: '휴방',
           date: dateDisplay,
@@ -927,19 +944,133 @@ app.post('/api/schedules/sync-chzzk', requireLocalAdmin, async (req, res) => {
 /* ============================
    9. 모금 & 예측 & 미니게임
 ============================ */
-app.post('/api/fund', requireLocalAdmin, (req, res) => {
-  db.fund = { ...db.fund, ...req.body };
+function ensureFundsList() {
+  if (!Array.isArray(db.funds) || db.funds.length === 0) {
+    db.funds = db.fund
+      ? [{ ...db.fund, id: db.fund.id || 'fund-1', number: 1, recentDonors: db.fund.recentDonors || [] }]
+      : [{ id: 'fund-1', number: 1, title: '시청자와 함께하는 방송 컨텐츠 모금함', goalPoints: 50000, currentPoints: 0, currency: 'chips', enabled: true, recentDonors: [] }];
+  }
+  db.funds = db.funds.map((f, idx) => ({
+    ...f,
+    id: f.id || `fund-${idx + 1}`,
+    number: idx + 1,
+    recentDonors: Array.isArray(f.recentDonors) ? f.recentDonors : []
+  }));
+  const primary = db.funds.find(f => f.enabled !== false) || db.funds[0];
+  db.fund = primary;
+  return db.funds;
+}
+
+function broadcastFunds() {
+  const funds = ensureFundsList();
   commit();
+  io.emit('funds_update', funds);
   io.emit('fund_update', db.fund);
-  res.json({ success: true, data: db.fund });
+  return funds;
+}
+
+app.get('/api/funds', (req, res) => {
+  const funds = ensureFundsList();
+  res.json({ success: true, data: funds, fund: db.fund });
+});
+
+app.post('/api/funds', requireLocalAdmin, (req, res) => {
+  const funds = ensureFundsList();
+  const { title, goalPoints = 50000, currency = 'chips', enabled = true } = req.body || {};
+  if (!title || !String(title).trim()) {
+    return res.status(400).json({ success: false, message: '모금함 제목을 입력해주세요.' });
+  }
+  const newFund = {
+    id: `fund-${Date.now()}`,
+    number: funds.length + 1,
+    title: String(title).trim(),
+    goalPoints: Math.max(1, Number(goalPoints) || 50000),
+    currentPoints: 0,
+    currency: currency === 'points' ? 'points' : 'chips',
+    enabled: Boolean(enabled),
+    recentDonors: []
+  };
+  db.funds.push(newFund);
+  const updated = broadcastFunds();
+  res.json({ success: true, data: updated, created: newFund });
+});
+
+app.put('/api/funds/:id', requireLocalAdmin, (req, res) => {
+  const funds = ensureFundsList();
+  const { id } = req.params;
+  const target = funds.find(f => f.id === id || String(f.number) === String(id));
+  if (!target) return res.status(404).json({ success: false, message: '모금함을 찾을 수 없습니다.' });
+
+  const { title, goalPoints, currency, enabled } = req.body || {};
+  if (title !== undefined) target.title = String(title).trim() || target.title;
+  if (goalPoints !== undefined) target.goalPoints = Math.max(1, Number(goalPoints) || target.goalPoints);
+  if (currency === 'points' || currency === 'chips') target.currency = currency;
+  if (enabled !== undefined) target.enabled = Boolean(enabled);
+
+  const updated = broadcastFunds();
+  res.json({ success: true, data: updated, fund: target });
+});
+
+app.delete('/api/funds/:id', requireLocalAdmin, (req, res) => {
+  const funds = ensureFundsList();
+  if (funds.length <= 1) {
+    return res.status(400).json({ success: false, message: '최소 1개의 모금함은 유지되어야 합니다.' });
+  }
+  const { id } = req.params;
+  db.funds = funds.filter(f => f.id !== id && String(f.number) !== String(id));
+  const updated = broadcastFunds();
+  res.json({ success: true, data: updated });
+});
+
+app.post('/api/funds/:id/reset', requireLocalAdmin, (req, res) => {
+  const funds = ensureFundsList();
+  const { id } = req.params;
+  const target = funds.find(f => f.id === id || String(f.number) === String(id));
+  if (!target) return res.status(404).json({ success: false, message: '모금함을 찾을 수 없습니다.' });
+  target.currentPoints = 0;
+  target.recentDonors = [];
+  const updated = broadcastFunds();
+  res.json({ success: true, data: updated, fund: target });
+});
+
+app.post('/api/funds/:id/test', requireLocalAdmin, (req, res) => {
+  const funds = ensureFundsList();
+  const { id } = req.params;
+  const target = funds.find(f => f.id === id || String(f.number) === String(id));
+  if (!target) return res.status(404).json({ success: false, message: '모금함을 찾을 수 없습니다.' });
+
+  const { points = 5000, user = getStreamerDisplayName() } = req.body || {};
+  const numPoints = Number(points);
+  const currency = target.currency || 'chips';
+  const unit = currency === 'points' ? (db.settings.pointName || 'P') : (db.settings.chipName || '칩');
+  target.currentPoints += numPoints;
+  target.recentDonors.unshift({
+    user,
+    points: numPoints,
+    unit,
+    time: Date.now()
+  });
+  if (target.recentDonors.length > 5) target.recentDonors.pop();
+  const updated = broadcastFunds();
+  const percent = target.goalPoints > 0 ? Math.min(100, Math.floor((target.currentPoints / target.goalPoints) * 100)) : 0;
+  sendBotMessage(`💖 [${user}]님이 ${target.number}번 모금함 [${target.title}]에 ${numPoints.toLocaleString()}${unit}을(를) 기부하셨습니다! (진행률: ${percent}%)`, { currencyType: currency });
+  res.json({ success: true, data: updated, fund: target });
+});
+
+app.post('/api/fund', requireLocalAdmin, (req, res) => {
+  const funds = ensureFundsList();
+  const target = funds[0];
+  Object.assign(target, req.body);
+  broadcastFunds();
+  res.json({ success: true, data: db.fund, funds: db.funds });
 });
 
 app.post('/api/fund/reset', requireLocalAdmin, (req, res) => {
-  db.fund.currentPoints = 0;
-  db.fund.recentDonors = [];
-  commit();
-  io.emit('fund_update', db.fund);
-  res.json({ success: true, data: db.fund });
+  const funds = ensureFundsList();
+  funds[0].currentPoints = 0;
+  funds[0].recentDonors = [];
+  broadcastFunds();
+  res.json({ success: true, data: db.fund, funds: db.funds });
 });
 
 app.post('/api/fund/toggle', requireLocalAdmin, (req, res) => {
@@ -953,22 +1084,23 @@ app.post('/api/fund/toggle', requireLocalAdmin, (req, res) => {
 });
 
 app.post('/api/fund/test', requireLocalAdmin, (req, res) => {
+  const funds = ensureFundsList();
+  const target = funds[0];
   const { points = 5000, user = getStreamerDisplayName() } = req.body;
   const numPoints = Number(points);
-  const currency = db.fund?.currency || 'chips';
+  const currency = target?.currency || 'chips';
   const unit = currency === 'points' ? (db.settings.pointName || 'P') : (db.settings.chipName || '칩');
-  db.fund.currentPoints += numPoints;
-  db.fund.recentDonors.unshift({
+  target.currentPoints += numPoints;
+  target.recentDonors.unshift({
     user,
     points: numPoints,
     unit,
     time: Date.now()
   });
-  if (db.fund.recentDonors.length > 5) db.fund.recentDonors.pop();
-  commit();
-  io.emit('fund_update', db.fund);
-  sendBotMessage(`💖 [${user}]님이 모금함에 ${numPoints.toLocaleString()}${unit}을(를) 기부하셨습니다!`, { currencyType: currency });
-  res.json({ success: true, data: db.fund });
+  if (target.recentDonors.length > 5) target.recentDonors.pop();
+  broadcastFunds();
+  sendBotMessage(`💖 [${user}]님이 ${target.number}번 모금함 [${target.title}]에 ${numPoints.toLocaleString()}${unit}을(를) 기부하셨습니다!`, { currencyType: currency });
+  res.json({ success: true, data: db.fund, funds: db.funds });
 });
 
 app.post('/api/prediction/create', requireLocalAdmin, (req, res) => {
@@ -1112,6 +1244,24 @@ app.post('/api/roulette/spin', requireLocalAdmin, (req, res) => {
   res.json({ success: true, data: spinResult });
 });
 
+app.delete('/api/roulette/history/:id', requireLocalAdmin, (req, res) => {
+  const { id } = req.params;
+  if (!db.roulette) db.roulette = { items: [], cost: 500, currency: 'chips', settings: {}, history: [] };
+  const list = Array.isArray(db.roulette.history) ? db.roulette.history : [];
+  db.roulette.history = list.filter((h, idx) => (h.id ? h.id !== id : String(idx) !== String(id)));
+  commit();
+  io.emit('roulette_update', db.roulette);
+  res.json({ success: true, data: db.roulette });
+});
+
+app.delete('/api/roulette/history', requireLocalAdmin, (req, res) => {
+  if (!db.roulette) db.roulette = { items: [], cost: 500, currency: 'chips', settings: {}, history: [] };
+  db.roulette.history = [];
+  commit();
+  io.emit('roulette_update', db.roulette);
+  res.json({ success: true, data: db.roulette });
+});
+
 
 /* ============================
    10. 채팅 & 시뮬레이터
@@ -1173,8 +1323,6 @@ app.post('/api/simulate/action', requireLocalAdmin, (req, res) => {
     triggerSimulatedChat(user, `!도네 ${pts} ${message || '항상 즐거운 방송 응원합니다!'}`);
   } else if (action === 'sr') {
     triggerSimulatedChat(user, `!sr ${message || 'Hype Boy - NewJeans'}`);
-  } else if (action === 'dice') {
-    triggerSimulatedChat(user, '!주사위');
   } else if (action === 'jump') {
     triggerSimulatedChat(user, '!점프');
   }

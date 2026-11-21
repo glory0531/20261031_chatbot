@@ -124,16 +124,6 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({ simulatorRunning =
             </button>
 
             <button
-              onClick={() => handleQuickAction('chat', { message: '!낚시' })}
-              className="p-3.5 rounded-xl bg-slate-950/60 hover:bg-indigo-500/10 border border-slate-800 hover:border-indigo-500/30 text-left transition-all cursor-pointer"
-            >
-              <div className="flex items-center gap-2 text-indigo-400 font-bold text-xs mb-1">
-                🎣 낚시 미니게임 ({cUnit})
-              </div>
-              <p className="text-[11px] text-slate-400">!낚시 미끼 칩 소모 및 보상 획득</p>
-            </button>
-
-            <button
               onClick={() => handleQuickAction('jump')}
               className="p-3.5 rounded-xl bg-slate-950/60 hover:bg-amber-500/10 border border-slate-800 hover:border-amber-500/30 text-left transition-all cursor-pointer"
             >
@@ -141,16 +131,6 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({ simulatorRunning =
                 🦘 아바타 점프
               </div>
               <p className="text-[11px] text-slate-400">!점프 실행 및 캐릭터 점프 모션</p>
-            </button>
-
-            <button
-              onClick={() => handleQuickAction('dice')}
-              className="p-3.5 rounded-xl bg-slate-950/60 hover:bg-blue-500/10 border border-slate-800 hover:border-blue-500/30 text-left transition-all cursor-pointer"
-            >
-              <div className="flex items-center gap-2 text-blue-400 font-bold text-xs mb-1">
-                <Dices className="w-4 h-4" /> 주사위 굴리기
-              </div>
-              <p className="text-[11px] text-slate-400">!주사위 1~100 난수 굴리기</p>
             </button>
           </div>
 

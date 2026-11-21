@@ -262,7 +262,7 @@ export const api = {
     return res.json();
   },
 
-  // 모금 목표 수정
+  // 모금 목표 수정 & 다중 모금함 관리
   async updateFund(data: any) {
     const res = await fetch(`${API_BASE}/fund`, {
       method: 'POST',
@@ -272,8 +272,34 @@ export const api = {
     return res.json();
   },
 
-  async resetFund() {
-    const res = await fetch(`${API_BASE}/fund/reset`, { method: 'POST' });
+  async createFund(data: { title: string; goalPoints: number; currency?: 'chips' | 'points'; enabled?: boolean }) {
+    const res = await fetch(`${API_BASE}/funds`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    return res.json();
+  },
+
+  async updateFundById(id: string, data: any) {
+    const res = await fetch(`${API_BASE}/funds/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    return res.json();
+  },
+
+  async deleteFundById(id: string) {
+    const res = await fetch(`${API_BASE}/funds/${encodeURIComponent(id)}`, {
+      method: 'DELETE'
+    });
+    return res.json();
+  },
+
+  async resetFund(id?: string) {
+    const url = id ? `${API_BASE}/funds/${encodeURIComponent(id)}/reset` : `${API_BASE}/fund/reset`;
+    const res = await fetch(url, { method: 'POST' });
     return res.json();
   },
 
@@ -282,8 +308,9 @@ export const api = {
     return res.json();
   },
 
-  async testFund(points = 5000) {
-    const res = await fetch(`${API_BASE}/fund/test`, {
+  async testFund(points = 5000, id?: string) {
+    const url = id ? `${API_BASE}/funds/${encodeURIComponent(id)}/test` : `${API_BASE}/fund/test`;
+    const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ points })
@@ -389,6 +416,20 @@ export const api = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ user, pulls })
+    });
+    return res.json();
+  },
+
+  async deleteRouletteHistory(id: string) {
+    const res = await fetch(`${API_BASE}/roulette/history/${encodeURIComponent(id)}`, {
+      method: 'DELETE'
+    });
+    return res.json();
+  },
+
+  async clearRouletteHistory() {
+    const res = await fetch(`${API_BASE}/roulette/history`, {
+      method: 'DELETE'
     });
     return res.json();
   },
