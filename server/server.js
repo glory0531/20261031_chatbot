@@ -6,6 +6,7 @@ import cors from 'cors';
 import axios from 'axios';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { MsEdgeTTS, OUTPUT_FORMAT } from 'msedge-tts';
 import {
   db,
   commit,
@@ -140,6 +141,47 @@ app.get('/api/version', (req, res) => {
     version: readCurrentVersion(),
     uptime: process.uptime()
   });
+});
+
+const ALLOWED_KO_VOICES = new Set([
+  'ko-KR-SunHiNeural',
+  'ko-KR-InJoonNeural',
+  'ko-KR-HyunsuMultilingualNeural'
+]);
+
+// 한국어 AI 신경망 TTS 오디오 스트림 생성 (Edge Neural TTS)
+app.get('/api/tts', async (req, res) => {
+  const text = String(req.query.text || '').trim().slice(0, 300);
+  if (!text) {
+    return res.status(400).json({ success: false, message: 'text가 필요합니다.' });
+  }
+  const requestedVoice = String(req.query.voice || 'ko-KR-SunHiNeural').split('|')[0].trim();
+  const voice = ALLOWED_KO_VOICES.has(requestedVoice) ? requestedVoice : 'ko-KR-SunHiNeural';
+  const rateNum = Math.min(1.6, Math.max(0.6, Number(req.query.rate) || 1.0));
+  const ratePercent = Math.round((rateNum - 1) * 100);
+  const rateStr = `${ratePercent >= 0 ? '+' : ''}${ratePercent}%`;
+  const pitchNum = Math.min(30, Math.max(-30, Math.round(Number(req.query.pitch) || 0)));
+  const pitchStr = `${pitchNum >= 0 ? '+' : ''}${pitchNum}Hz`;
+
+  let tts = null;
+  try {
+    tts = new MsEdgeTTS();
+    await tts.setMetadata(voice, OUTPUT_FORMAT.AUDIO_24KHZ_48KBITRATE_MONO_MP3);
+    const { audioStream } = tts.toStream(text, { rate: rateStr, pitch: pitchStr });
+    const chunks = [];
+    for await (const chunk of audioStream) {
+      chunks.push(chunk);
+    }
+    const audioBuffer = Buffer.concat(chunks);
+    res.setHeader('Content-Type', 'audio/mpeg');
+    res.setHeader('Cache-Control', 'no-store');
+    res.send(audioBuffer);
+  } catch (err) {
+    console.warn('[TTS Error]:', err.message);
+    res.status(500).json({ success: false, message: err.message });
+  } finally {
+    try { tts?.close(); } catch {}
+  }
 });
 
 app.get('/api/update/status', (req, res) => {

@@ -254,6 +254,9 @@ export interface RouletteTriggerSettings {
   bonusAddM: number;
   sendResultToChat: boolean;
   readResultTts: boolean;
+  ttsVoice?: string;
+  ttsRate?: number;
+  ttsPitch?: number;
 }
 
 export interface RouletteHistoryEntry {

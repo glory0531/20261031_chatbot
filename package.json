@@ -1,6 +1,6 @@
 {
   "name": "shabot-chzzk-chatbot",
-  "version": "1.4.1",
+  "version": "1.4.2",
   "description": "오픈 샤봇 (ShaBot) - 치지직 스트리머 방송 챗봇 & 통합 대시보드 공식 배포판",
   "main": "server/server.js",
   "scripts": {
@@ -31,6 +31,7 @@
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "localtunnel": "^2.0.2",
+    "msedge-tts": "^2.1.1",
     "socket.io": "^4.8.1",
     "socket.io-client": "^4.8.4",
     "ws": "^8.18.0"

@@ -17,6 +17,7 @@ import {
 import { api } from '../services/api';
 import { socket } from '../services/socket';
 import { SlotMachineReel } from '../components/SlotMachineReel';
+import { KOREAN_AI_VOICES, buildRouletteTtsText, speakNaturalTts } from '../utils/tts';
 
 interface GamesViewProps {
   roulette: RouletteState;
@@ -90,7 +91,10 @@ const DEFAULT_ROULETTE_SETTINGS: RouletteTriggerSettings = {
   bonusEveryN: 10,
   bonusAddM: 1,
   sendResultToChat: true,
-  readResultTts: true
+  readResultTts: true,
+  ttsVoice: 'ko-KR-SunHiNeural',
+  ttsRate: 1.0,
+  ttsPitch: 0
 };
 
 export const GamesView: React.FC<GamesViewProps> = ({
@@ -141,14 +145,12 @@ export const GamesView: React.FC<GamesViewProps> = ({
   // TTS 발화 도우미
   const speakRouletteResult = (text: string, shouldRead?: boolean) => {
     if (shouldRead === false) return;
-    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
-    try {
-      window.speechSynthesis.cancel();
-      const utter = new SpeechSynthesisUtterance(text);
-      utter.lang = 'ko-KR';
-      utter.rate = 1.05;
-      window.speechSynthesis.speak(utter);
-    } catch { }
+    speakNaturalTts({
+      text,
+      voice: rSettings.ttsVoice || 'ko-KR-SunHiNeural',
+      rate: rSettings.ttsRate ?? 1.05,
+      pitch: rSettings.ttsPitch ?? 0
+    });
   };
 
   // 실시간 소켓 스핀 수신 (시청자 명령어/후원/구독 발동 시 대시보드 슬롯도 동기화 회전)
@@ -211,11 +213,14 @@ export const GamesView: React.FC<GamesViewProps> = ({
       const data = res.data;
       if (data?.readResultTts !== false && rSettings.readResultTts) {
         setTimeout(() => {
-          const summaryStr = Array.isArray(data?.resultsSummary) && data.resultsSummary.length > 0
-            ? data.resultsSummary.map((s: any) => `${s.name} ${s.count}개`).join(', ')
-            : data?.winner;
-          speakRouletteResult(`룰렛 당첨 결과! ${summaryStr}`, true);
-        }, 3600);
+          const ttsText = buildRouletteTtsText({
+            user: data?.user,
+            winner: data?.winner || '당첨',
+            totalPulls: data?.totalPulls || pulls,
+            resultsSummary: data?.resultsSummary || []
+          });
+          speakRouletteResult(ttsText, true);
+        }, 3500);
       }
     } catch (e: any) {
       alert('룰렛 실행 실패: ' + (e.message || '오류'));
@@ -1130,6 +1135,86 @@ export const GamesView: React.FC<GamesViewProps> = ({
                 />
               </button>
             </div>
+
+            {/* AI TTS 목소리 선택 & 속도/톤 & 미리듣기 */}
+            {rSettings.readResultTts && (
+              <div className="p-3 rounded-xl bg-slate-950/60 border border-white/10 space-y-3">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-300 mb-1">
+                    AI 목소리 선택 (자연어 신경망 음성)
+                  </label>
+                  <select
+                    value={KOREAN_AI_VOICES.some(v => v.id === rSettings.ttsVoice) ? rSettings.ttsVoice : 'ko-KR-SunHiNeural'}
+                    onChange={(e) => {
+                      const nextId = e.target.value;
+                      const preset = KOREAN_AI_VOICES.find(v => v.id === nextId);
+                      setRSettings(prev => ({
+                        ...prev,
+                        ttsVoice: nextId,
+                        ttsRate: preset ? preset.defaultRate : prev.ttsRate,
+                        ttsPitch: preset ? preset.defaultPitch : prev.ttsPitch
+                      }));
+                    }}
+                    className="w-full px-2.5 py-2 rounded-lg bg-slate-900 border border-white/10 text-xs text-white focus:outline-none focus:border-amber-400 cursor-pointer"
+                  >
+                    {KOREAN_AI_VOICES.map((v) => (
+                      <option key={v.id} value={v.id}>
+                        {v.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2.5">
+                  <div>
+                    <div className="flex items-center justify-between text-[10px] text-slate-400 mb-1">
+                      <span>말하기 속도</span>
+                      <span className="font-mono text-amber-300 font-bold">{(rSettings.ttsRate ?? 1.0).toFixed(2)}x</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0.8"
+                      max="1.4"
+                      step="0.05"
+                      value={rSettings.ttsRate ?? 1.0}
+                      onChange={(e) => updateRSetting('ttsRate', Number(e.target.value))}
+                      className="w-full accent-amber-400 cursor-pointer"
+                    />
+                  </div>
+                  <div>
+                    <div className="flex items-center justify-between text-[10px] text-slate-400 mb-1">
+                      <span>목소리 톤</span>
+                      <span className="font-mono text-amber-300 font-bold">{(rSettings.ttsPitch ?? 0) >= 0 ? '+' : ''}{rSettings.ttsPitch ?? 0}Hz</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="-15"
+                      max="15"
+                      step="1"
+                      value={rSettings.ttsPitch ?? 0}
+                      onChange={(e) => updateRSetting('ttsPitch', Number(e.target.value))}
+                      className="w-full accent-amber-400 cursor-pointer"
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    speakNaturalTts({
+                      text: `${settings?.streamerName || '시청자'}님, 10연차 결과 치킨 기프티콘 외 9개에 당첨되셨습니다.`,
+                      voice: rSettings.ttsVoice || 'ko-KR-SunHiNeural',
+                      rate: rSettings.ttsRate ?? 1.0,
+                      pitch: rSettings.ttsPitch ?? 0
+                    })
+                  }
+                  className="w-full py-2 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 font-bold text-[11px] flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                >
+                  <Volume2 className="w-3.5 h-3.5" />
+                  <span>선택한 목소리 미리듣기</span>
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>

@@ -357,6 +357,9 @@ export function executeRoulettePulls({
     triggerSource,
     resultsSummary,
     readResultTts: rSettings.readResultTts !== false,
+    ttsVoice: rSettings.ttsVoice || 'ko-KR-SunHiNeural',
+    ttsRate: Number(rSettings.ttsRate) || 1.05,
+    ttsPitch: Number(rSettings.ttsPitch) || 0,
     time: Date.now()
   };
 

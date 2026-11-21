@@ -279,7 +279,10 @@ export const defaultData = {
       bonusEveryN: 10,
       bonusAddM: 1,
       sendResultToChat: true,
-      readResultTts: true
+      readResultTts: true,
+      ttsVoice: 'ko-KR-SunHiNeural',
+      ttsRate: 1.05,
+      ttsPitch: 0
     },
     history: []
   },

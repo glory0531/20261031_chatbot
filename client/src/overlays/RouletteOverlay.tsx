@@ -3,6 +3,7 @@ import confetti from 'canvas-confetti';
 import { socket } from '../services/socket';
 import { RouletteState, RouletteSpinSummaryItem } from '../types';
 import { SlotMachineReel } from '../components/SlotMachineReel';
+import { buildRouletteTtsText, speakNaturalTts } from '../utils/tts';
 
 export const RouletteOverlay: React.FC = () => {
   const [roulette, setRoulette] = useState<RouletteState | null>(null);
@@ -32,6 +33,9 @@ export const RouletteOverlay: React.FC = () => {
       bonusPulls?: number;
       resultsSummary?: RouletteSpinSummaryItem[];
       readResultTts?: boolean;
+      ttsVoice?: string;
+      ttsRate?: number;
+      ttsPitch?: number;
     }) => {
       setIsSpinning(true);
       setWinner(null);
@@ -54,19 +58,20 @@ export const RouletteOverlay: React.FC = () => {
           origin: { y: 0.6 }
         });
 
-        // 결과 TTS 읽기
-        if (data.readResultTts !== false && typeof window !== 'undefined' && 'speechSynthesis' in window) {
-          try {
-            window.speechSynthesis.cancel();
-            const summaryText = Array.isArray(data.resultsSummary) && data.resultsSummary.length > 0 && (data.totalPulls || 1) > 1
-              ? `${data.user ? `${data.user}님 ` : ''}${data.totalPulls}연차 결과! ` +
-                data.resultsSummary.map(s => `${s.name} ${s.count}개`).join(', ')
-              : `${data.user ? `${data.user}님 ` : ''}룰렛 당첨! ${data.winner}`;
-            const utter = new SpeechSynthesisUtterance(summaryText);
-            utter.lang = 'ko-KR';
-            utter.rate = 1.05;
-            window.speechSynthesis.speak(utter);
-          } catch {}
+        // 자연스러운 한국어 AI TTS 읽기 (연차 시 가장 희박한 당첨 결과 1개 + 그 외 N개)
+        if (data.readResultTts !== false) {
+          const ttsText = buildRouletteTtsText({
+            user: data.user,
+            winner: data.winner,
+            totalPulls: data.totalPulls || 1,
+            resultsSummary: data.resultsSummary || []
+          });
+          speakNaturalTts({
+            text: ttsText,
+            voice: data.ttsVoice || 'ko-KR-SunHiNeural',
+            rate: data.ttsRate ?? 1.05,
+            pitch: data.ttsPitch ?? 0
+          });
         }
       }, 3500);
     });
