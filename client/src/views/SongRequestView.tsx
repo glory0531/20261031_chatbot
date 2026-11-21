@@ -42,12 +42,133 @@ export const SongRequestView: React.FC<SongRequestViewProps> = ({ songRequests, 
 
   const curSongIdRef = useRef<string | null>(null);
   const isSkippingRef = useRef(false);
+  const playerRef = useRef<any>(null);
+  const dashboardAudioRef = useRef(dashboardAudio);
+  dashboardAudioRef.current = dashboardAudio;
+  const volumeRef = useRef(volume);
+  volumeRef.current = volume;
+  const isMutedRef = useRef(isMuted);
+  isMutedRef.current = isMuted;
 
   const cur = songRequests.current;
 
   useEffect(() => {
     curSongIdRef.current = cur ? cur.id : null;
   }, [cur?.id]);
+
+  // 유튜브 IFrame API 로드
+  useEffect(() => {
+    if (!(window as any).YT) {
+      const tag = document.createElement('script');
+      tag.src = 'https://www.youtube.com/iframe_api';
+      const firstScriptTag = document.getElementsByTagName('script')[0];
+      if (firstScriptTag && firstScriptTag.parentNode) {
+        firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+      } else {
+        document.head.appendChild(tag);
+      }
+    }
+  }, []);
+
+  // 유튜브 플레이어 초기화 및 곡 변경 시 리로드 없이 연속 재생
+  useEffect(() => {
+    if (!cur?.videoId) {
+      if (playerRef.current) {
+        try { playerRef.current.stopVideo?.(); } catch {}
+        try { playerRef.current.destroy?.(); } catch {}
+        playerRef.current = null;
+      }
+      return;
+    }
+
+    const syncAudioState = (p: any) => {
+      if (!p) return;
+      try {
+        if (typeof p.setVolume === 'function') p.setVolume(volumeRef.current);
+        if (!dashboardAudioRef.current || isMutedRef.current) {
+          if (typeof p.mute === 'function') p.mute();
+        } else {
+          if (typeof p.unMute === 'function') p.unMute();
+        }
+      } catch {}
+    };
+
+    const initOrLoad = () => {
+      if (playerRef.current && typeof playerRef.current.loadVideoById === 'function') {
+        try {
+          playerRef.current.loadVideoById(cur.videoId);
+          syncAudioState(playerRef.current);
+          return;
+        } catch {}
+      }
+
+      const slot = document.getElementById('yt-dashboard-player-slot');
+      if (!slot || !(window as any).YT?.Player) return;
+
+      try {
+        playerRef.current = new (window as any).YT.Player('yt-dashboard-player-slot', {
+          height: '100%',
+          width: '100%',
+          videoId: cur.videoId,
+          playerVars: {
+            autoplay: 1,
+            controls: 1,
+            enablejsapi: 1,
+            origin: window.location.origin,
+            playsinline: 1,
+            rel: 0
+          },
+          events: {
+            onReady: (event: any) => {
+              syncAudioState(event.target);
+              try { event.target.playVideo(); } catch {}
+            },
+            onStateChange: (event: any) => {
+              if (event.data === 0) {
+                handleAutoSkip();
+              }
+            }
+          }
+        });
+      } catch {}
+    };
+
+    if ((window as any).YT && (window as any).YT.Player) {
+      initOrLoad();
+    } else {
+      const prev = (window as any).onYouTubeIframeAPIReady;
+      (window as any).onYouTubeIframeAPIReady = () => {
+        if (typeof prev === 'function') prev();
+        initOrLoad();
+      };
+    }
+  }, [cur?.videoId]);
+
+  // 대시보드 소리 ON/OFF, 볼륨, 일시정지/재생 변경 시 플레이어 리로드 없이 즉시 반영
+  useEffect(() => {
+    const p = playerRef.current;
+    if (!p) return;
+    try {
+      if (typeof p.setVolume === 'function') p.setVolume(volume);
+      if (!dashboardAudio || isMuted) {
+        if (typeof p.mute === 'function') p.mute();
+      } else {
+        if (typeof p.unMute === 'function') p.unMute();
+      }
+    } catch {}
+  }, [dashboardAudio, volume, isMuted]);
+
+  useEffect(() => {
+    const p = playerRef.current;
+    if (!p || !cur?.videoId) return;
+    try {
+      if (isPlaying && typeof p.playVideo === 'function') {
+        p.playVideo();
+      } else if (!isPlaying && typeof p.pauseVideo === 'function') {
+        p.pauseVideo();
+      }
+    } catch {}
+  }, [isPlaying, cur?.videoId]);
 
   useEffect(() => {
     if (songRequests.isPlaying !== undefined) setIsPlaying(songRequests.isPlaying);
@@ -285,16 +406,9 @@ export const SongRequestView: React.FC<SongRequestViewProps> = ({ songRequests, 
 
           {cur ? (
             <div className="space-y-4">
-              {/* 유튜브 임베드 플레이어 */}
+              {/* 유튜브 임베드 플레이어 (무중단 YT.Player 인스턴스 유지) */}
               <div className="relative w-full aspect-video rounded-xl overflow-hidden bg-black shadow-lg border border-white/10">
-                <iframe
-                  key={cur.videoId + (dashboardAudio ? '-unmuted' : '-muted')}
-                  src={`https://www.youtube.com/embed/${cur.videoId}?autoplay=1&enablejsapi=1&origin=${encodeURIComponent(window.location.origin)}${dashboardAudio ? '' : '&mute=1'}`}
-                  title={cur.title}
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                  className="w-full h-full"
-                ></iframe>
+                <div id="yt-dashboard-player-slot" className="w-full h-full" />
                 {!isPlaying && (
                   <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center text-white gap-2 pointer-events-none">
                     <Pause className="w-8 h-8 text-amber-400 fill-current" />

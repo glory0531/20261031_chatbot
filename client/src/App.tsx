@@ -442,9 +442,9 @@ export function App() {
             />
           )}
 
-          {currentTab === 'sr' && (
+          <div className={currentTab === 'sr' ? 'block' : 'hidden'}>
             <SongRequestView songRequests={songRequests} settings={settings} />
-          )}
+          </div>
 
           {currentTab === 'requests' && (
             <RequestsView

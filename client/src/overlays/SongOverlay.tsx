@@ -217,10 +217,20 @@ export const SongOverlay: React.FC = () => {
               }
             },
             onError: (event: any) => {
-              console.warn('[SongOverlay] 재생 불가 영상 (외부 재생 제한 등), 2초 후 다음 곡으로 건너뜁니다:', event.data);
-              setTimeout(() => {
-                handleAutoSkip();
-              }, 2500);
+              const code = Number(event?.data);
+              // 100, 101, 150: 삭제되거나 외부 임베드 재생이 금지된 영상만 다음 곡으로 스킵
+              if (code === 100 || code === 101 || code === 150) {
+                console.warn('[SongOverlay] 재생 불가 영상 (외부 재생 제한 등), 2.5초 후 다음 곡으로 건너뜁니다:', code);
+                setTimeout(() => {
+                  handleAutoSkip();
+                }, 2500);
+              } else {
+                // 일시적 네트워크/버퍼링 오류는 스킵하지 않고 2초 후 재생 재시도
+                console.warn('[SongOverlay] 일시적 플레이어 오류, 재생 재시도:', code);
+                setTimeout(() => {
+                  try { event.target?.playVideo?.(); } catch {}
+                }, 2000);
+              }
             }
           }
         });
