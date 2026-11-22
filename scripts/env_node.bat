@@ -46,7 +46,7 @@ echo [ERROR] Node.js runtime not found.
 exit /b 1
 
 :CHECK_MODULES
-if exist "%ROOT_DIR%\node_modules\express\package.json" exit /b 0
+if exist "%ROOT_DIR%\node_modules\express\package.json" if exist "%ROOT_DIR%\node_modules\msedge-tts\package.json" exit /b 0
 
 where npm >nul 2>nul
 if not errorlevel 1 (

@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { spawn } from 'child_process';
+import { execSync, spawn } from 'child_process';
 import { fileURLToPath } from 'url';
 import { extractStagedUpdate } from '../server/updater.js';
 
@@ -56,6 +56,20 @@ async function run() {
       toVersion,
       changelog
     });
+
+    try {
+      const pkgPath = path.join(ROOT_DIR, 'package.json');
+      if (fs.existsSync(pkgPath)) {
+        const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
+        const deps = Object.keys(pkg.dependencies || {});
+        const missing = deps.filter((dep) => !fs.existsSync(path.join(ROOT_DIR, 'node_modules', dep, 'package.json')));
+        if (missing.length > 0) {
+          const portableNpm = path.join(ROOT_DIR, 'runtime', 'node', 'npm.cmd');
+          const npmCmd = fs.existsSync(portableNpm) ? `"${portableNpm}"` : 'npm';
+          execSync(`${npmCmd} install --omit=dev --no-audit --no-fund`, { cwd: ROOT_DIR, stdio: 'ignore' });
+        }
+      }
+    } catch {}
 
     // 새 버전 서버 백그라운드 재실행
     const serverEntry = path.join(ROOT_DIR, 'server', 'server.js');

@@ -6,7 +6,6 @@ import cors from 'cors';
 import axios from 'axios';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { MsEdgeTTS, OUTPUT_FORMAT } from 'msedge-tts';
 import {
   db,
   commit,
@@ -178,6 +177,7 @@ app.get('/api/tts', async (req, res) => {
   }, 12000);
 
   try {
+    const { MsEdgeTTS, OUTPUT_FORMAT } = await import('msedge-tts');
     tts = new MsEdgeTTS();
     await tts.setMetadata(voice, OUTPUT_FORMAT.AUDIO_24KHZ_48KBITRATE_MONO_MP3);
     if (closed) return;

@@ -1,7 +1,7 @@
 import http from 'http';
 import fs from 'fs';
 import path from 'path';
-import { exec, spawn } from 'child_process';
+import { exec, execSync, spawn } from 'child_process';
 import { fileURLToPath } from 'url';
 import {
   checkForUpdate,
@@ -76,11 +76,34 @@ async function tryAutoUpdateBeforeStart() {
       changelog: meta.changelog
     });
 
+    ensureDependenciesInstalled();
+
     console.log(` ✅ 최신 대시보드 및 리소스 구성 완료!\n`);
     return true;
   } catch (err) {
     console.warn(` ⚠️ [자동 업데이트 건너뜀] ${err.message} (기존 버전으로 정상 실행합니다)`);
     return false;
+  }
+}
+
+function ensureDependenciesInstalled() {
+  try {
+    const pkgPath = path.join(ROOT_DIR, 'package.json');
+    if (!fs.existsSync(pkgPath)) return;
+    const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
+    const deps = Object.keys(pkg.dependencies || {});
+    const missing = deps.filter((dep) => !fs.existsSync(path.join(ROOT_DIR, 'node_modules', dep, 'package.json')));
+    if (missing.length === 0) return;
+
+    console.log(` 📦 새 버전 필수 라이브러리(${missing.join(', ')})를 자동 설치합니다...`);
+    const portableNpm = path.join(ROOT_DIR, 'runtime', 'node', 'npm.cmd');
+    const npmCmd = fs.existsSync(portableNpm) ? `"${portableNpm}"` : 'npm';
+    execSync(`${npmCmd} install --omit=dev --no-audit --no-fund`, {
+      cwd: ROOT_DIR,
+      stdio: 'inherit'
+    });
+  } catch (err) {
+    console.warn(` ⚠️ [라이브러리 자동 설치 경고] ${err.message}`);
   }
 }
 
@@ -139,6 +162,9 @@ async function main() {
     child.on('exit', (code) => process.exit(code ?? 0));
     return;
   }
+
+  // 시작 전 누락된 필수 패키지 확인 및 자동 설치
+  ensureDependenciesInstalled();
 
   // 서버 기동
   await import('../server/server.js');
