@@ -308,6 +308,7 @@ export function App() {
         weeklySchedules={weeklySchedules}
         activeWeekKey={activeWeekKey}
         fund={fund}
+        funds={funds}
         prediction={prediction}
         isLocalHost={false}
         onBackToDashboard={() => {}}
@@ -329,6 +330,7 @@ export function App() {
         weeklySchedules={weeklySchedules}
         activeWeekKey={activeWeekKey}
         fund={fund}
+        funds={funds}
         prediction={prediction}
         isLocalHost={true}
         onBackToDashboard={() => {

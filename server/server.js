@@ -157,29 +157,49 @@ app.get('/api/tts', async (req, res) => {
   }
   const requestedVoice = String(req.query.voice || 'ko-KR-SunHiNeural').split('|')[0].trim();
   const voice = ALLOWED_KO_VOICES.has(requestedVoice) ? requestedVoice : 'ko-KR-SunHiNeural';
-  const rateNum = Math.min(1.6, Math.max(0.6, Number(req.query.rate) || 1.0));
+  const rawRate = req.query.rate !== undefined && req.query.rate !== '' ? Number(req.query.rate) : 1.0;
+  const rateNum = Math.min(1.6, Math.max(0.6, Number.isFinite(rawRate) ? rawRate : 1.0));
   const ratePercent = Math.round((rateNum - 1) * 100);
   const rateStr = `${ratePercent >= 0 ? '+' : ''}${ratePercent}%`;
-  const pitchNum = Math.min(30, Math.max(-30, Math.round(Number(req.query.pitch) || 0)));
+  const rawPitch = req.query.pitch !== undefined && req.query.pitch !== '' ? Number(req.query.pitch) : 0;
+  const pitchNum = Math.min(30, Math.max(-30, Math.round(Number.isFinite(rawPitch) ? rawPitch : 0)));
   const pitchStr = `${pitchNum >= 0 ? '+' : ''}${pitchNum}Hz`;
 
   let tts = null;
+  let closed = false;
+  const onClose = () => {
+    closed = true;
+    try { tts?.close(); } catch {}
+  };
+  req.on('close', onClose);
+  const timeoutId = setTimeout(() => {
+    closed = true;
+    try { tts?.close(); } catch {}
+  }, 12000);
+
   try {
     tts = new MsEdgeTTS();
     await tts.setMetadata(voice, OUTPUT_FORMAT.AUDIO_24KHZ_48KBITRATE_MONO_MP3);
+    if (closed) return;
     const { audioStream } = tts.toStream(text, { rate: rateStr, pitch: pitchStr });
     const chunks = [];
     for await (const chunk of audioStream) {
+      if (closed) break;
       chunks.push(chunk);
     }
+    if (closed || res.headersSent) return;
     const audioBuffer = Buffer.concat(chunks);
     res.setHeader('Content-Type', 'audio/mpeg');
     res.setHeader('Cache-Control', 'no-store');
     res.send(audioBuffer);
   } catch (err) {
     console.warn('[TTS Error]:', err.message);
-    res.status(500).json({ success: false, message: err.message });
+    if (!res.headersSent) {
+      res.status(500).json({ success: false, message: err.message });
+    }
   } finally {
+    clearTimeout(timeoutId);
+    req.off('close', onClose);
     try { tts?.close(); } catch {}
   }
 });
@@ -198,6 +218,9 @@ app.post('/api/update/check', requireLocalAdmin, async (req, res) => {
 });
 
 app.post('/api/update/apply', requireLocalAdmin, async (req, res) => {
+  if (getUpdateState().updating) {
+    return res.status(409).json({ success: false, message: '이미 업데이트가 진행 중입니다.' });
+  }
   try {
     const meta = await downloadAndStageUpdate({ backupFn: createLocalBackup });
     res.json({
@@ -663,7 +686,8 @@ app.post('/api/attendance/manual', requireLocalAdmin, (req, res) => {
 app.delete('/api/attendance/user/:nickname', requireLocalAdmin, (req, res) => {
   const { nickname } = req.params;
   const user = db.users[nickname];
-  if (user) {
+  const today = getAttendanceDayKey(db.settings?.attendResetHour ?? 5);
+  if (user && user.lastAttend === today) {
     user.lastAttend = '';
     if (user.attendStreak > 0) user.attendStreak -= 1;
     if (user.totalAttends > 0) user.totalAttends -= 1;
@@ -678,12 +702,12 @@ app.post('/api/attendance/test', requireLocalAdmin, (req, res) => {
   const attendCfg = db.defaultCommands?.attend;
   const prefix = db.settings.prefix || '!';
   const cmdName = attendCfg?.name || (attendCfg?.aliases && attendCfg.aliases[0]) || '출첵';
-  processChatMessage({
+  Promise.resolve(processChatMessage({
     user: streamerName,
     message: `${prefix}${cmdName}`,
     role: 'streamer',
     source: 'web'
-  });
+  })).catch((err) => console.warn('[Attendance Test Error]:', err.message));
   res.json({ success: true });
 });
 
@@ -1083,6 +1107,9 @@ app.post('/api/funds/:id/test', requireLocalAdmin, (req, res) => {
 
   const { points = 5000, user = getStreamerDisplayName() } = req.body || {};
   const numPoints = Number(points);
+  if (!Number.isFinite(numPoints) || numPoints <= 0) {
+    return res.status(400).json({ success: false, message: '올바른 금액을 입력해주세요.' });
+  }
   const currency = target.currency || 'chips';
   const unit = currency === 'points' ? (db.settings.pointName || 'P') : (db.settings.chipName || '칩');
   target.currentPoints += numPoints;
@@ -1128,8 +1155,11 @@ app.post('/api/fund/toggle', requireLocalAdmin, (req, res) => {
 app.post('/api/fund/test', requireLocalAdmin, (req, res) => {
   const funds = ensureFundsList();
   const target = funds[0];
-  const { points = 5000, user = getStreamerDisplayName() } = req.body;
+  const { points = 5000, user = getStreamerDisplayName() } = req.body || {};
   const numPoints = Number(points);
+  if (!Number.isFinite(numPoints) || numPoints <= 0) {
+    return res.status(400).json({ success: false, message: '올바른 금액을 입력해주세요.' });
+  }
   const currency = target?.currency || 'chips';
   const unit = currency === 'points' ? (db.settings.pointName || 'P') : (db.settings.chipName || '칩');
   target.currentPoints += numPoints;
@@ -1239,17 +1269,21 @@ app.post('/api/prediction/toggle', requireLocalAdmin, (req, res) => {
 
 app.post('/api/prediction/test-bet', requireLocalAdmin, (req, res) => {
   const { optionId = '1', points = 1000, user = getStreamerDisplayName() } = req.body;
+  const numPoints = Number(points);
+  if (!Number.isFinite(numPoints) || numPoints <= 0) {
+    return res.status(400).json({ success: false, message: '올바른 배팅 금액을 입력해주세요.' });
+  }
   if (!db.prediction || db.prediction.status !== 'active') {
     return res.status(400).json({ success: false, message: '현재 진행 중인 투표가 없습니다.' });
   }
   const opt = db.prediction.options.find(o => o.id === optionId) || db.prediction.options[0];
   if (opt) {
-    opt.points += Number(points);
+    opt.points += numPoints;
     opt.votes += 1;
     commit();
     io.emit('prediction_update', db.prediction);
     const cUnit = db.settings.chipName || '칩';
-    sendBotMessage(`🗳️ [${user}]님이 [${opt.title}]에 ${Number(points).toLocaleString()}${cUnit}을(를) 걸었습니다!`, { currencyType: 'chips' });
+    sendBotMessage(`🗳️ [${user}]님이 [${opt.title}]에 ${numPoints.toLocaleString()}${cUnit}을(를) 걸었습니다!`, { currencyType: 'chips' });
   }
   res.json({ success: true, data: db.prediction });
 });
@@ -1279,7 +1313,7 @@ app.post('/api/roulette/spin', requireLocalAdmin, (req, res) => {
   const spinResult = executeRoulettePulls({
     username: user,
     basePulls: Math.max(1, Number(pulls) || 1),
-    triggerSource: 'command',
+    triggerSource: 'manual',
     costDeducted: 0
   });
 
@@ -1320,12 +1354,12 @@ app.post('/api/chat/send', requireLocalAdmin, (req, res) => {
   if (role === 'bot') {
     sendBotMessage(message);
   } else {
-    processChatMessage({
+    Promise.resolve(processChatMessage({
       user: sender,
       message,
       role,
       source: 'dashboard'
-    });
+    })).catch((err) => console.warn('[Dashboard Chat Error]:', err.message));
   }
 
   res.json({ success: true });

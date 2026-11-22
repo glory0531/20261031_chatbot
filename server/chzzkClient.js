@@ -206,7 +206,7 @@ export async function connectChzzk(rawChannelId) {
       isConnecting = false;
       setTimeout(() => {
         if (db.settings.chzzkChannelId === channelId && !isConnected && !isConnecting) {
-          connectChzzk(channelId);
+          connectChzzk(channelId).catch((err) => console.warn('[Chzzk Reconnect Error]:', err.message));
         }
       }, 15000);
       return;
@@ -221,11 +221,17 @@ export async function connectChzzk(rawChannelId) {
 
     const accessToken = tokenRes.data?.content?.accessToken;
     const wsUrl = 'wss://kr-ss1.chat.naver.com/chat';
+    if (wsClient) {
+      try { wsClient.close(); } catch {}
+    }
     const socket = new WebSocket(wsUrl);
     wsClient = socket;
 
     socket.on('open', () => {
-      if (socket !== wsClient || socket.readyState !== WebSocket.OPEN) return;
+      if (socket !== wsClient || socket.readyState !== WebSocket.OPEN) {
+        try { socket.close(); } catch {}
+        return;
+      }
       console.log('[Chzzk] 실시간 채팅 및 치즈 후원 웹소켓 연결 완료!');
       isConnected = true;
       isConnecting = false;
@@ -341,13 +347,13 @@ export async function connectChzzk(rawChannelId) {
               });
             } else if (message) {
               console.log(`💬 [치지직 수신] ${nickname}: ${message}`);
-              processChatMessage({
+              Promise.resolve(processChatMessage({
                 user: profile.nickname || '익명 시청자',
                 userIdHash,
                 message,
                 role: userRole,
                 source: 'chzzk'
-              });
+              })).catch((err) => console.warn('[Chzzk Chat Process Error]:', err.message));
             }
           }
         }
@@ -363,7 +369,7 @@ export async function connectChzzk(rawChannelId) {
       clearInterval(pingInterval);
       setTimeout(() => {
         if (db.settings.chzzkChannelId && !isConnected && !isConnecting) {
-          connectChzzk(db.settings.chzzkChannelId);
+          connectChzzk(db.settings.chzzkChannelId).catch((err) => console.warn('[Chzzk Reconnect Error]:', err.message));
         }
       }, 3000);
     });
@@ -528,6 +534,11 @@ async function connectOfficialChzzkSession() {
       officialPingInterval = null;
     }
     officialSessionWs = null;
+    setTimeout(() => {
+      if (db.settings.chzzkChannelId && db.settings.chzzkAccessToken && !officialSessionWs) {
+        connectOfficialChzzkSession().catch((err) => console.warn('[Chzzk Official Reconnect Error]:', err.message));
+      }
+    }, 5000);
   });
 
   officialSessionWs.on('error', (err) => {
@@ -574,12 +585,12 @@ export function startSimulator() {
     const viewer = SIM_VIEWERS[Math.floor(Math.random() * SIM_VIEWERS.length)];
     const message = SIM_CHAT_MESSAGES[Math.floor(Math.random() * SIM_CHAT_MESSAGES.length)];
 
-    processChatMessage({
+    Promise.resolve(processChatMessage({
       user: viewer.name,
       message,
       role: viewer.role,
       source: 'simulator'
-    });
+    })).catch((err) => console.warn('[Simulator Chat Error]:', err.message));
   }, 15000);
 }
 
@@ -645,7 +656,9 @@ export async function sendChzzkChatMessage(message) {
   const finalMessage = bName ? `${bName} ${message}` : message;
 
   markSentByBot(finalMessage);
+  markSentByBot(finalMessage.slice(0, 100));
   markSentByBot(message);
+  markSentByBot(message.slice(0, 100));
 
   const trySend = async (token) => {
     return axios.post('https://openapi.chzzk.naver.com/open/v1/chats/send', {

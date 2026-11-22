@@ -11,8 +11,6 @@ interface SimulatorViewProps {
 export const SimulatorView: React.FC<SimulatorViewProps> = ({ simulatorRunning = false, settings }) => {
   const [customUser, setCustomUser] = useState('테스트시청자1');
   const [customMsg, setCustomMsg] = useState('');
-  const [donateAmount, setDonateAmount] = useState(100);
-  const [donateMsg, setDonateMsg] = useState('방송 너무 재밌어요 항상 응원합니다! 💖');
   const [cheeseAmount, setCheeseAmount] = useState(1000);
   const [cheeseMsg, setCheeseMsg] = useState('치즈 1,000개 후원합니다! 룰렛 돌려볼게요~');
   const [songTitle, setSongTitle] = useState('Hype Boy - NewJeans');
@@ -47,7 +45,7 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({ simulatorRunning =
             방송 시뮬레이터 (사전 리허설 테스트)
           </h2>
           <p className="text-xs text-slate-400 mt-0.5">
-            치즈 후원 유료 포인트 적립, 룰렛 돌리기, 활동 칩 출석체크, 후원 TTS 알림, 미니게임을 실제 방송 전 미리 테스트할 수 있습니다.
+            치즈 후원 적립, 룰렛 돌리기, 출석체크, 후원 TTS 알림, 신청곡을 실제 방송 전 미리 테스트할 수 있습니다.
           </p>
         </div>
 

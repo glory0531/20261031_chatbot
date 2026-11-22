@@ -129,6 +129,8 @@ export const GamesView: React.FC<GamesViewProps> = ({
     triggerType?: string;
   } | null>(null);
   const [rouletteSaved, setRouletteSaved] = useState(false);
+  const spinTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const ttsTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // 동기화
   useEffect(() => {
@@ -164,7 +166,8 @@ export const GamesView: React.FC<GamesViewProps> = ({
       setTargetWinner(winnerName);
       setSpinTrigger(prev => prev + 1);
 
-      setTimeout(() => {
+      if (spinTimerRef.current) clearTimeout(spinTimerRef.current);
+      spinTimerRef.current = setTimeout(() => {
         setIsSpinning(false);
         setWinnerItem(winnerName);
         if (Array.isArray(data?.resultsSummary)) {
@@ -187,6 +190,8 @@ export const GamesView: React.FC<GamesViewProps> = ({
 
     socket.on('spin_roulette', onSpin);
     return () => {
+      if (spinTimerRef.current) clearTimeout(spinTimerRef.current);
+      if (ttsTimerRef.current) clearTimeout(ttsTimerRef.current);
       socket.off('spin_roulette', onSpin);
     };
   }, []);
@@ -212,7 +217,8 @@ export const GamesView: React.FC<GamesViewProps> = ({
       const res = await api.spinRoulette(settings?.streamerName || '스트리머', pulls);
       const data = res.data;
       if (data?.readResultTts !== false && rSettings.readResultTts) {
-        setTimeout(() => {
+        if (ttsTimerRef.current) clearTimeout(ttsTimerRef.current);
+        ttsTimerRef.current = setTimeout(() => {
           const ttsText = buildRouletteTtsText({
             user: data?.user,
             winner: data?.winner || '당첨',

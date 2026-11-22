@@ -51,6 +51,7 @@ interface ViewerPublicPageProps {
   weeklySchedules?: Record<string, ScheduleItem[]>;
   activeWeekKey?: string;
   fund?: FundState;
+  funds?: FundState[];
   prediction?: PredictionState;
   isLocalHost?: boolean;
   onBackToDashboard: () => void;
@@ -68,6 +69,7 @@ export const ViewerPublicPage: React.FC<ViewerPublicPageProps> = ({
   weeklySchedules = {},
   activeWeekKey = '',
   fund,
+  funds = [],
   prediction,
   isLocalHost = false,
   onBackToDashboard
@@ -160,9 +162,11 @@ export const ViewerPublicPage: React.FC<ViewerPublicPageProps> = ({
     }
 
     // 목표 모금 기부
-    if (defaultCommands?.fund?.enabled && fund?.enabled && defaultCommands?.fund?.visibleInViewer !== false) {
+    const activeFundsList = (funds && funds.length > 0 ? funds.filter(f => f.enabled !== false) : (fund?.enabled ? [fund] : []));
+    if (defaultCommands?.fund?.enabled && activeFundsList.length > 0 && defaultCommands?.fund?.visibleInViewer !== false) {
+      const primaryFund = activeFundsList[0];
       const name = defaultCommands?.fund?.name || '모금';
-      const fundUnit = fund?.currency === 'points' ? pointName : chipName;
+      const fundUnit = primaryFund?.currency === 'points' ? pointName : chipName;
       list.push({
         key: 'fund',
         name,

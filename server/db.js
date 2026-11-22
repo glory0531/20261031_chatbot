@@ -15,7 +15,8 @@ export const CURRENT_SCHEMA_VERSION = 4;
  * 현재 시점이 속한 출석 날짜 키(YYYY-MM-DD)를 계산합니다.
  */
 export function getAttendanceDayKey(resetHour = 5, timestampMs = Date.now()) {
-  const safeHour = Math.min(23, Math.max(0, Number.isFinite(Number(resetHour)) ? Number(resetHour) : 5));
+  const parsed = (resetHour === '' || resetHour === null || resetHour === undefined) ? 5 : Number(resetHour);
+  const safeHour = Math.min(23, Math.max(0, Number.isFinite(parsed) ? parsed : 5));
   const KST_OFFSET_MS = 9 * 3600 * 1000;
   const shiftedMs = timestampMs + KST_OFFSET_MS - safeHour * 3600 * 1000;
   return new Date(shiftedMs).toISOString().split('T')[0];

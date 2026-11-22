@@ -23,10 +23,10 @@ export const OverlayModal: React.FC<OverlayModalProps> = ({ isOpen, onClose }) =
     },
     {
       key: 'alert',
-      name: '포인트 후원 알림 (TTS)',
+      name: '후원 알림 (TTS)',
       url: `${origin}/overlay/alert`,
       resolution: '1920 x 1080 (중앙 투명)',
-      desc: '!도네 후원 발생 시 팝업 애니메이션, 색종이 폭죽, 한국어 TTS 음성이 재생됩니다.'
+      desc: '치지직 치즈 후원 발생 시 팝업 애니메이션, 색종이 폭죽, 한국어 TTS 음성이 재생됩니다.'
     },
     {
       key: 'sr',

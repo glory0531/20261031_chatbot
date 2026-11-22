@@ -87,7 +87,7 @@ export const AlertOverlay: React.FC = () => {
             <span className="text-[#7A8060] drop-shadow">{currentAlert.user}</span> 님의 특별 후원!
           </h2>
           <div className="mt-2 inline-block px-5 py-1.5 rounded-full bg-gradient-to-r from-[#8E7C6F] to-[#7A8060] text-[#1C1C1C] font-black text-xl shadow-lg">
-            {currentAlert.amount.toLocaleString()} {currentAlert.currencyName || 'P'}
+            {currentAlert.amount.toLocaleString()} {currentAlert.currencyName || currentAlert.unit || 'P'}
           </div>
         </div>
 

@@ -183,6 +183,8 @@ function readCachedSnapshot() {
         songRequests: db.songRequests || { current: null, queue: [], settings: { enabled: true, maxQueueSize: 20, maxPerUser: 2, minCost: 0, currency: 'chips', volume: 75 } },
         generalRequests: db.generalRequests || [],
         fund: db.fund || { enabled: false, title: '', goalPoints: 50000, currentPoints: 0, recentDonors: [] },
+        funds: db.funds || (db.fund ? [db.fund] : []),
+        liveDonations: db.liveDonations || [],
         prediction: db.prediction || { status: 'closed', title: '', options: [] },
         roulette: db.roulette || { items: [], cost: 500, history: [] },
         tunnel: {
@@ -212,6 +214,8 @@ function readCachedSnapshot() {
     songRequests: { current: null, queue: [], settings: { enabled: true, maxQueueSize: 20, maxPerUser: 2, minCost: 0, currency: 'chips', volume: 75 } },
     generalRequests: [],
     fund: { enabled: false, title: '', goalPoints: 50000, currentPoints: 0, recentDonors: [] },
+    funds: [],
+    liveDonations: [],
     prediction: { status: 'closed', title: '', options: [] },
     roulette: { items: [], cost: 500, history: [] },
     tunnel: {
@@ -415,6 +419,15 @@ async function serveOfflineApi(req, res) {
   if (pathPart.startsWith('/requests')) {
     return res.json({ success: true, data: snapshot.generalRequests });
   }
+  if (pathPart.startsWith('/funds')) {
+    return res.json({ success: true, data: snapshot.funds });
+  }
+  if (pathPart.startsWith('/fund')) {
+    return res.json({ success: true, data: snapshot.fund });
+  }
+  if (pathPart.startsWith('/donations')) {
+    return res.json({ success: true, data: snapshot.liveDonations });
+  }
   if (pathPart.startsWith('/tunnel')) {
     return res.json({ success: true, data: snapshot.tunnel });
   }
@@ -515,7 +528,8 @@ function connectMainServerBridge() {
   const relayEvents = [
     'initial_state', 'status_update', 'settings_update', 'commands_update',
     'default_commands_update', 'automessages_update', 'points_update',
-    'sr_update', 'requests_update', 'fund_update', 'prediction_update',
+    'sr_update', 'requests_update', 'fund_update', 'funds_update',
+    'donations_update', 'prediction_update',
     'roulette_update', 'schedules_update', 'weekly_schedules_update',
     'active_week_update', 'chat_message'
   ];

@@ -564,7 +564,7 @@ export const FundPredictionView: React.FC<FundPredictionViewProps> = ({
                         </div>
                         <div className="flex items-center gap-2">
                           <span className="text-[11px] text-slate-400">{opt.votes || 0}표</span>
-                          <span className="text-sm font-black text-white">{optPercent}% ({opt.points.toLocaleString()}P)</span>
+                          <span className="text-sm font-black text-white">{optPercent}% ({opt.points.toLocaleString()}{cUnit})</span>
                         </div>
                       </div>
 
@@ -642,13 +642,13 @@ export const FundPredictionView: React.FC<FundPredictionViewProps> = ({
                     onClick={() => handleTestBet('1')}
                     className="px-2.5 py-1.5 rounded-xl bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 border border-blue-500/30 text-xs font-bold transition-all"
                   >
-                    1번 베팅 (1,000P)
+                    1번 베팅 (1,000{cUnit})
                   </button>
                   <button
                     onClick={() => handleTestBet('2')}
                     className="px-2.5 py-1.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30 text-xs font-bold transition-all"
                   >
-                    2번 베팅 (1,000P)
+                    2번 베팅 (1,000{cUnit})
                   </button>
                 </div>
               )}

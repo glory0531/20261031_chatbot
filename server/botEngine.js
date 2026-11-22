@@ -99,11 +99,9 @@ export function isPointRelatedMessage(text = '', meta = {}) {
     /배팅/,
     /걸었습니다/,
     /룰렛을\s*돌려/,
-    /낚시\s*결과/,
-    /가위바위보/,
     /남은\s*(포인트|칩)/,
     /보유:\s*\d+/,
-    /사용법:\s*!(도네|모금|투표|가위바위보)/
+    /사용법:\s*!(모금|투표)/
   ];
 
   return pointPatterns.some(pattern => pattern.test(text));
@@ -130,8 +128,8 @@ export function shouldSendToChzzkChat(text = '', meta = {}) {
     return db.settings.sendChatRoulette ?? (db.settings.sendPaidPointMessagesInChat !== false);
   }
 
-  // (3) 포인트/칩 도네이션(!도네) 후원 알림
-  if (meta.category === 'donation' || text.includes('을(를) 후원하셨습니다!') || text.includes('기부하셨습니다!')) {
+  // (3) 모금 기부 알림
+  if (meta.category === 'donation' || text.includes('기부하셨습니다!')) {
     return db.settings.sendChatDonation ?? (db.settings.sendPaidPointMessagesInChat !== false);
   }
 
@@ -149,11 +147,6 @@ export function shouldSendToChzzkChat(text = '', meta = {}) {
   // (3) 지갑 및 잔액 조회 알림
   if (meta.category === 'wallet' || text.includes('님의 지갑') || text.includes('보유 칩:')) {
     return db.settings.sendChatWallet ?? false;
-  }
-
-  // (4) 미니게임 결과 알림 (가위바위보, 주사위 등)
-  if (meta.category === 'minigame' || text.includes('✌️✊🖐️') || text.includes('🎲 주사위')) {
-    return db.settings.sendChatMiniGames ?? false;
   }
 
   // 기타 포인트 관련 메시지 fallback
@@ -285,21 +278,24 @@ export function executeRoulettePulls({
   for (let i = 0; i < totalPulls; i++) {
     const rand = Math.random() * totalChance;
     let cur = 0;
-    let pickedMeta = itemMetaList[itemMetaList.length - 1];
+    let pickedMeta = itemMetaList.find((m) => Number(m.item.chance) > 0) || itemMetaList[itemMetaList.length - 1];
     for (const meta of itemMetaList) {
-      cur += Number(meta.item.chance) || 0;
-      if (rand <= cur) {
+      const ch = Number(meta.item.chance) || 0;
+      if (ch <= 0) continue;
+      cur += ch;
+      if (rand < cur || cur >= totalChance) {
         pickedMeta = meta;
         break;
       }
     }
 
     const pickedItem = pickedMeta.item;
-    const prev = countsMap.get(pickedItem.id);
+    const itemKey = pickedItem.id || pickedItem.name;
+    const prev = countsMap.get(itemKey);
     if (prev) {
       prev.count += 1;
     } else {
-      countsMap.set(pickedItem.id, { item: pickedItem, meta: pickedMeta, count: 1 });
+      countsMap.set(itemKey, { item: pickedItem, meta: pickedMeta, count: 1 });
     }
 
     // 항목 이름에 '500P 반환', '300칩 지급', '500개 반환' 등이 있을 경우 자동 페이백
@@ -371,7 +367,7 @@ export function executeRoulettePulls({
       prize: totalPulls > 1 ? nonLossText : nonLossSummary[0].name,
       resultsSummary: nonLossSummary
     };
-    db.roulette.history = [historyEntry, ...db.roulette.history];
+    db.roulette.history = [historyEntry, ...db.roulette.history].slice(0, 500);
   }
   commit();
 
@@ -690,8 +686,8 @@ export async function processChatMessage(chat) {
 
   // 1. 키워드 감지 커스텀 반응
   const keywordCmd = db.commands.find(c => {
-    if (!c.enabled) return false;
-    const triggerWord = c.name.toLowerCase();
+    if (!c.enabled || !c.name) return false;
+    const triggerWord = String(c.name).toLowerCase();
     const targetMsg = trimmed.toLowerCase();
     if (c.matchType === 'contains') {
       return targetMsg.includes(triggerWord);
@@ -723,9 +719,9 @@ export async function processChatMessage(chat) {
 
     // 3. 일반 커스텀 명령어 검사 (접두사 포함)
     const customCmd = db.commands.find(c => {
-      if (!c.enabled) return false;
+      if (!c.enabled || !c.name) return false;
       if (c.matchType && c.matchType !== 'exact') return false;
-      return c.name.toLowerCase() === cmdName.toLowerCase();
+      return String(c.name).toLowerCase() === cmdName.toLowerCase();
     });
 
     if (customCmd) {
@@ -740,9 +736,9 @@ export async function processChatMessage(chat) {
 
   // 5. 접두사(!) 없이 허용된 일반 커스텀 명령어 검사
   const noPrefixCustomCmd = db.commands.find(c => {
-    if (!c.enabled || !c.allowNoPrefix) return false;
+    if (!c.enabled || !c.allowNoPrefix || !c.name) return false;
     if (c.matchType && c.matchType !== 'exact') return false;
-    return c.name.toLowerCase() === cmdName.toLowerCase();
+    return String(c.name).toLowerCase() === cmdName.toLowerCase();
   });
 
   if (noPrefixCustomCmd) {
@@ -803,7 +799,8 @@ function executeAttendForUser(user, role, options = {}) {
 
 // 커스텀 명령어 처리
 function handleCustomCommand(cmd, target, user, role) {
-  const onceKey = `${cmd.id}_${user.nickname.toLowerCase()}`;
+  const safeNickname = String(user?.nickname || '알수없음');
+  const onceKey = `${cmd.id}_${safeNickname.toLowerCase()}`;
   const isOnce = Boolean(cmd.oncePerUser);
   if (isOnce && usedOncePerUser.has(onceKey)) {
     return null;
@@ -817,7 +814,7 @@ function handleCustomCommand(cmd, target, user, role) {
     return null;
   }
 
-  const cdKey = `${cmd.id}_${user.nickname}`;
+  const cdKey = `${cmd.id}_${safeNickname}`;
   const now = Date.now();
   const lastUsed = cooldowns.get(cdKey) || 0;
   const cdMs = (cmd.cooldown || 0) * 1000;
@@ -861,8 +858,9 @@ function handleCustomCommand(cmd, target, user, role) {
   }
 
   // 변수 치환 ({points} 유료 포인트, {chips} 활동 칩 모두 지원)
-  let responseText = cmd.response;
-  responseText = responseText.replace(/{user}/g, user.nickname);
+  let responseText = String(cmd.response || '');
+  if (!responseText) return null;
+  responseText = responseText.replace(/{user}/g, safeNickname);
   responseText = responseText.replace(/{target}/g, target);
   const rawBot = typeof db.settings.botName === 'string' ? db.settings.botName.trim() : '';
   responseText = responseText.replace(/{bot}/g, rawBot || db.settings.streamerName || '샤봇');
@@ -1121,8 +1119,8 @@ async function handleDefaultCommand(cmdName, param, target, user, role, options 
       );
     }
 
-    const boxNum = parseInt(parts[0], 10);
-    const amount = parseInt(parts[1], 10);
+    const boxNum = /^\d+$/.test(parts[0]) ? Number(parts[0]) : NaN;
+    const amount = /^\d+$/.test(parts[1]) ? Number(parts[1]) : NaN;
 
     if (isNaN(boxNum) || boxNum <= 0 || isNaN(amount) || amount <= 0) {
       return sendBotMessage(
@@ -1322,7 +1320,12 @@ async function handleDefaultCommand(cmdName, param, target, user, role, options 
   const rouletteCfg = dCmd.roulette;
   const rSettings = db.roulette?.settings || {};
   const customTriggerCmd = String(rSettings.commandTrigger || '').trim().replace(/^[!/]+/, '').toLowerCase();
-  const isCustomRouletteTrigger = Boolean(customTriggerCmd && String(cmdName || '').trim().toLowerCase() === customTriggerCmd);
+  const allowCustomNoPrefix = Boolean(rouletteCfg?.allowNoPrefix);
+  const isCustomRouletteTrigger = Boolean(
+    customTriggerCmd &&
+    (!noPrefixOnly || allowCustomNoPrefix) &&
+    String(cmdName || '').trim().toLowerCase() === customTriggerCmd
+  );
 
   if (isCmdMatch(rouletteCfg, cmdName, ['룰렛', 'roulette'], noPrefixOnly) || isCustomRouletteTrigger) {
     if (rSettings.enabled === false || rSettings.commandEnabled === false) {
@@ -1391,9 +1394,9 @@ export function startAutoMessageScheduler() {
       const intervalMs = (msg.intervalMin || 10) * 60 * 1000;
       if (now - (msg.lastSent || 0) >= intervalMs) {
         if (msg.categoryFilter === 'include' && msg.categoryTarget) {
-          if (!db.status.category.toLowerCase().includes(msg.categoryTarget.toLowerCase())) return;
+          if (!String(db.status?.category || '').toLowerCase().includes(String(msg.categoryTarget).toLowerCase())) return;
         } else if (msg.categoryFilter === 'exclude' && msg.categoryTarget) {
-          if (db.status.category.toLowerCase().includes(msg.categoryTarget.toLowerCase())) return;
+          if (String(db.status?.category || '').toLowerCase().includes(String(msg.categoryTarget).toLowerCase())) return;
         }
 
         msg.lastSent = now;

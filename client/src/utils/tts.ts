@@ -91,6 +91,9 @@ export function buildRouletteTtsText(params: {
   return `${cleanWinner} 1개`;
 }
 
+let ttsRequestSeq = 0;
+let currentAbortController: AbortController | null = null;
+
 /**
  * 서버의 한국어 AI 신경망 TTS(/api/tts)를 Blob으로 받아 자연스럽게 재생하고, 실패 시 브라우저 음성으로 폴백합니다.
  */
@@ -110,6 +113,16 @@ export async function speakNaturalTts(options: {
   const cleanText = sanitizeTextForSpeech(text);
   if (!cleanText) return;
 
+  const mySeq = ++ttsRequestSeq;
+  if (currentAbortController) {
+    try {
+      currentAbortController.abort();
+    } catch {}
+    currentAbortController = null;
+  }
+  const abortController = new AbortController();
+  currentAbortController = abortController;
+
   if (currentAudio) {
     try {
       currentAudio.pause();
@@ -127,26 +140,36 @@ export async function speakNaturalTts(options: {
   const apiBase = window.location.port === '24701' ? 'http://localhost:24700/api' : '/api';
   const url = `${apiBase}/tts?text=${encodeURIComponent(cleanText)}&voice=${encodeURIComponent(actualVoice)}&rate=${encodeURIComponent(String(rate))}&pitch=${encodeURIComponent(String(pitch))}`;
 
+  let objUrl: string | null = null;
   try {
-    const res = await fetch(url);
+    const res = await fetch(url, { signal: abortController.signal });
     if (!res.ok) {
       throw new Error(`TTS HTTP ${res.status}`);
     }
     const blob = await res.blob();
-    const objUrl = URL.createObjectURL(blob);
+    if (mySeq !== ttsRequestSeq) return;
+
+    objUrl = URL.createObjectURL(blob);
     currentObjectUrl = objUrl;
 
     const audio = new Audio(objUrl);
     currentAudio = audio;
-    audio.onended = () => {
-      if (currentObjectUrl === objUrl) {
-        URL.revokeObjectURL(objUrl);
+    const cleanupUrl = () => {
+      if (objUrl && currentObjectUrl === objUrl) {
+        try { URL.revokeObjectURL(objUrl); } catch {}
         currentObjectUrl = null;
       }
     };
+    audio.onended = cleanupUrl;
+    audio.onerror = cleanupUrl;
     await audio.play();
     return;
-  } catch (err) {
+  } catch (err: any) {
+    if (objUrl && currentObjectUrl === objUrl) {
+      try { URL.revokeObjectURL(objUrl); } catch {}
+      currentObjectUrl = null;
+    }
+    if (err?.name === 'AbortError' || mySeq !== ttsRequestSeq) return;
     console.warn('[TTS] AI 음성 생성 실패 -> 브라우저 기본 음성 폴백:', err);
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       try {

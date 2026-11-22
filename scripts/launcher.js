@@ -84,6 +84,26 @@ async function tryAutoUpdateBeforeStart() {
   }
 }
 
+async function waitForServerReady(port, timeoutMs = 15000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const ok = await new Promise((resolve) => {
+      const req = http.get(`http://localhost:${port}/api/version`, (res) => {
+        res.resume();
+        resolve(res.statusCode === 200);
+      });
+      req.on('error', () => resolve(false));
+      req.setTimeout(500, () => {
+        req.destroy();
+        resolve(false);
+      });
+    });
+    if (ok) return true;
+    await new Promise((r) => setTimeout(r, 250));
+  }
+  return false;
+}
+
 async function main() {
   const isRunning = await checkAlreadyRunning();
 
@@ -102,10 +122,12 @@ async function main() {
   // 시작 전 자동 업데이트 확인 및 적용
   const didUpdate = await tryAutoUpdateBeforeStart();
 
-  // 브라우저 자동 오픈
-  setTimeout(() => {
-    openBrowser(`http://localhost:${PORT}`);
-  }, 1200);
+  // 서버가 실제로 포트 바인딩을 완료한 뒤 브라우저 자동 오픈 (ERR_CONNECTION_REFUSED 방지)
+  waitForServerReady(PORT).then((ready) => {
+    if (ready) {
+      openBrowser(`http://localhost:${PORT}`);
+    }
+  });
 
   if (didUpdate) {
     // 업데이트된 최신 모듈 캐시를 깨끗하게 로드하기 위해 새 Node 자식 프로세스로 실행

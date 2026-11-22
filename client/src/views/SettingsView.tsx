@@ -54,17 +54,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, update, on
   const [sendChatRoulette, setSendChatRoulette] = useState(
     settings.sendChatRoulette ?? (settings.sendPaidPointMessagesInChat !== false)
   );
-  const [sendChatDonation, setSendChatDonation] = useState(
-    settings.sendChatDonation ?? (settings.sendPaidPointMessagesInChat !== false)
-  );
   const [sendChatAttendance, setSendChatAttendance] = useState(
     settings.sendChatAttendance ?? false
   );
   const [sendChatWallet, setSendChatWallet] = useState(
     settings.sendChatWallet ?? false
-  );
-  const [sendChatMiniGames, setSendChatMiniGames] = useState(
-    settings.sendChatMiniGames ?? false
   );
   const [sendChatInsufficient, setSendChatInsufficient] = useState(
     settings.sendChatInsufficient ?? false
@@ -81,11 +75,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, update, on
   const [includeMissionCheese, setIncludeMissionCheese] = useState(settings.includeMissionCheese ?? false);
   const [donateCurrency, setDonateCurrency] = useState<CurrencyType>(settings.donateCurrency || 'chips');
 
-  const fullDonateCmd = getFullCommand('donate', defaultCommands, prefix, '도네');
   const fullAttendCmd = getFullCommand('attend', defaultCommands, prefix, '출첵');
   const fullPointCmd = getFullCommand('point', defaultCommands, prefix, '포인트');
-  const fullRpsCmd = getFullCommand('rps', defaultCommands, prefix, '가위바위보');
-  const fullDiceCmd = getFullCommand('dice', defaultCommands, prefix, '주사위');
 
   const [themePreset, setThemePreset] = useState<ThemePreset>(settings.themePreset || 'chzzk-emerald');
   const [autoUpdateOnStart, setAutoUpdateOnStart] = useState(settings.autoUpdateOnStart ?? true);
@@ -129,10 +120,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, update, on
     setSendPaidPointMessagesInChat(settings.sendPaidPointMessagesInChat ?? true);
     setSendChatCheeseDonation(settings.sendChatCheeseDonation ?? (settings.sendPaidPointMessagesInChat !== false));
     setSendChatRoulette(settings.sendChatRoulette ?? (settings.sendPaidPointMessagesInChat !== false));
-    setSendChatDonation(settings.sendChatDonation ?? (settings.sendPaidPointMessagesInChat !== false));
     setSendChatAttendance(settings.sendChatAttendance ?? false);
     setSendChatWallet(settings.sendChatWallet ?? false);
-    setSendChatMiniGames(settings.sendChatMiniGames ?? false);
     setSendChatInsufficient(settings.sendChatInsufficient ?? false);
     setThemePreset(settings.themePreset || 'chzzk-emerald');
     setAutoUpdateOnStart(settings.autoUpdateOnStart ?? true);
@@ -193,10 +182,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, update, on
         sendPaidPointMessagesInChat,
         sendChatCheeseDonation,
         sendChatRoulette,
-        sendChatDonation,
         sendChatAttendance,
         sendChatWallet,
-        sendChatMiniGames,
         sendChatInsufficient
       });
       window.location.href = '/api/chzzk/login';
@@ -252,10 +239,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, update, on
       sendPaidPointMessagesInChat,
       sendChatCheeseDonation,
       sendChatRoulette,
-      sendChatDonation,
       sendChatAttendance,
       sendChatWallet,
-      sendChatMiniGames,
       sendChatInsufficient
     });
     setSavedSuccess(true);

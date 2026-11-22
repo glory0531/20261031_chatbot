@@ -65,24 +65,24 @@ export const SongOverlay: React.FC = () => {
 
   // 소켓 동기화
   useEffect(() => {
-    socket.on('initial_state', (data: any) => {
+    const onInitialState = (data: any) => {
       if (data.songRequests) {
         setSongRequests(data.songRequests);
         if (data.songRequests.isPlaying !== undefined) setIsPlaying(data.songRequests.isPlaying);
         if (data.songRequests.volume !== undefined) setVolume(data.songRequests.volume);
         if (data.songRequests.isMuted !== undefined) setIsMuted(data.songRequests.isMuted);
       }
-    });
+    };
 
-    socket.on('sr_update', (data: SongRequestsState) => {
+    const onSrUpdate = (data: SongRequestsState) => {
       setSongRequests(data);
       if (data.isPlaying !== undefined) setIsPlaying(data.isPlaying);
       if (data.volume !== undefined) setVolume(data.volume);
       if (data.isMuted !== undefined) setIsMuted(data.isMuted);
-    });
+    };
 
     // 대시보드에서 전송한 실시간 원격 제어 (재생, 일시정지, 볼륨, 음소거 동기화)
-    socket.on('sr_control', (data: { action: string; isPlaying: boolean; volume?: number; isMuted?: boolean }) => {
+    const onSrControl = (data: { action: string; isPlaying: boolean; volume?: number; isMuted?: boolean }) => {
       console.log('[SongOverlay] Remote sr_control received:', data);
       if (data.action === 'pause') {
         if (playerRef.current && typeof playerRef.current.pauseVideo === 'function') {
@@ -125,11 +125,16 @@ export const SongOverlay: React.FC = () => {
           }
         }
       }
-    });
+    };
+
+    socket.on('initial_state', onInitialState);
+    socket.on('sr_update', onSrUpdate);
+    socket.on('sr_control', onSrControl);
 
     return () => {
-      socket.off('sr_update');
-      socket.off('sr_control');
+      socket.off('initial_state', onInitialState);
+      socket.off('sr_update', onSrUpdate);
+      socket.off('sr_control', onSrControl);
     };
   }, []);
 
@@ -154,8 +159,20 @@ export const SongOverlay: React.FC = () => {
     });
   };
 
+  const volumeRef = useRef(volume);
+  const isMutedRef = useRef(isMuted);
+  useEffect(() => {
+    volumeRef.current = volume;
+  }, [volume]);
+  useEffect(() => {
+    isMutedRef.current = isMuted;
+  }, [isMuted]);
+
   // 유튜브 플레이어 초기화 및 곡 변경 시 연속 재생
   useEffect(() => {
+    let cancelled = false;
+    const timers: ReturnType<typeof setTimeout>[] = [];
+
     if (!cur?.videoId) {
       if (playerRef.current && typeof playerRef.current.stopVideo === 'function') {
         try { playerRef.current.stopVideo(); } catch (e) {}
@@ -164,15 +181,18 @@ export const SongOverlay: React.FC = () => {
     }
 
     const initOrLoad = () => {
+      if (cancelled) return;
       // 기존 플레이어가 이미 있으면 비디오 ID만 교체하여 끊김 없이 연속 재생
       if (playerRef.current && typeof playerRef.current.loadVideoById === 'function') {
         try {
           playerRef.current.loadVideoById(cur.videoId);
           if (typeof playerRef.current.setVolume === 'function') {
-            playerRef.current.setVolume(volume);
+            playerRef.current.setVolume(volumeRef.current);
           }
-          if (isMuted && typeof playerRef.current.mute === 'function') {
+          if (isMutedRef.current && typeof playerRef.current.mute === 'function') {
             playerRef.current.mute();
+          } else if (!isMutedRef.current && typeof playerRef.current.unMute === 'function') {
+            playerRef.current.unMute();
           }
           setIsPlaying(true);
           return;
@@ -200,8 +220,9 @@ export const SongOverlay: React.FC = () => {
           events: {
             onReady: (event: any) => {
               try {
-                event.target.setVolume(volume);
-                if (isMuted) event.target.mute();
+                event.target.setVolume(volumeRef.current);
+                if (isMutedRef.current) event.target.mute();
+                else event.target.unMute();
                 event.target.playVideo();
                 setIsPlaying(true);
               } catch (e) {}
@@ -221,15 +242,17 @@ export const SongOverlay: React.FC = () => {
               // 100, 101, 150: 삭제되거나 외부 임베드 재생이 금지된 영상만 다음 곡으로 스킵
               if (code === 100 || code === 101 || code === 150) {
                 console.warn('[SongOverlay] 재생 불가 영상 (외부 재생 제한 등), 2.5초 후 다음 곡으로 건너뜁니다:', code);
-                setTimeout(() => {
-                  handleAutoSkip();
-                }, 2500);
+                timers.push(setTimeout(() => {
+                  if (!cancelled) handleAutoSkip();
+                }, 2500));
               } else {
                 // 일시적 네트워크/버퍼링 오류는 스킵하지 않고 2초 후 재생 재시도
                 console.warn('[SongOverlay] 일시적 플레이어 오류, 재생 재시도:', code);
-                setTimeout(() => {
-                  try { event.target?.playVideo?.(); } catch {}
-                }, 2000);
+                timers.push(setTimeout(() => {
+                  if (!cancelled) {
+                    try { event.target?.playVideo?.(); } catch {}
+                  }
+                }, 2000));
               }
             }
           }
@@ -245,9 +268,14 @@ export const SongOverlay: React.FC = () => {
       const prev = window.onYouTubeIframeAPIReady;
       window.onYouTubeIframeAPIReady = () => {
         if (typeof prev === 'function') prev();
-        initOrLoad();
+        if (!cancelled) initOrLoad();
       };
     }
+
+    return () => {
+      cancelled = true;
+      timers.forEach((t) => clearTimeout(t));
+    };
   }, [cur?.videoId]);
 
   // iframe postMessage 안전 백업 리스너

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import confetti from 'canvas-confetti';
 import { socket } from '../services/socket';
 import { RouletteState, RouletteSpinSummaryItem } from '../types';
@@ -15,6 +15,7 @@ export const RouletteOverlay: React.FC = () => {
   const [totalPulls, setTotalPulls] = useState<number>(1);
   const [bonusPulls, setBonusPulls] = useState<number>(0);
   const [summary, setSummary] = useState<RouletteSpinSummaryItem[]>([]);
+  const spinTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     socket.on('initial_state', (data: any) => {
@@ -46,7 +47,8 @@ export const RouletteOverlay: React.FC = () => {
       setTargetWinner(data.winner || null);
       setSpinTrigger(prev => prev + 1);
 
-      setTimeout(() => {
+      if (spinTimerRef.current) clearTimeout(spinTimerRef.current);
+      spinTimerRef.current = setTimeout(() => {
         setIsSpinning(false);
         setWinner(data.winner);
         if (Array.isArray(data.resultsSummary)) {
@@ -77,6 +79,7 @@ export const RouletteOverlay: React.FC = () => {
     });
 
     return () => {
+      if (spinTimerRef.current) clearTimeout(spinTimerRef.current);
       socket.off('initial_state');
       socket.off('roulette_update');
       socket.off('spin_roulette');

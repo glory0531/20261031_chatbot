@@ -51,7 +51,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const prefix = settings?.prefix || '!';
   const fullAttendCmd = getFullCommand('attend', defaultCommands, prefix, '출첵');
   const fullPointCmd = getFullCommand('point', defaultCommands, prefix, '포인트');
-  const fullDonateCmd = getFullCommand('donate', defaultCommands, prefix, '도네');
 
   const [titleInput, setTitleInput] = useState(status.title);
   const [categoryInput, setCategoryInput] = useState(status.category);
@@ -151,7 +150,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
     }, 600);
   };
 
-  const todayStr = new Date().toISOString().split('T')[0];
+  const resetHour = settings?.attendResetHour ?? 5;
+  const safeHour = Math.min(23, Math.max(0, Number.isFinite(Number(resetHour)) ? Number(resetHour) : 5));
+  const todayStr = new Date(Date.now() + 9 * 3600 * 1000 - safeHour * 3600 * 1000).toISOString().split('T')[0];
   const userList = Object.values(users);
   const todayAttends = userList.filter(u => u.lastAttend === todayStr).length;
   const totalChips = userList.reduce((acc, u) => acc + (u.chips || 0) + (u.points || 0), 0);
@@ -434,7 +435,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
               type="text"
               value={chatInput}
               onChange={(e) => setChatInput(e.target.value)}
-              placeholder={`명령어 (${fullAttendCmd}, ${fullPointCmd}, ${fullDonateCmd} 1000 등) 또는 채팅 직접 발송...`}
+              placeholder={`명령어 (${fullAttendCmd}, ${fullPointCmd} 등) 또는 채팅 직접 발송...`}
               className="flex-1 px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-400"
             />
             <button
@@ -454,12 +455,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 <Sparkles className="w-4 h-4 text-amber-400" />
                 <span className="font-extrabold text-sm text-white">실시간 {fandomName} 아바타 무대</span>
               </div>
-              <button
-                onClick={() => api.simulateAction('jump')}
-                className="px-2.5 py-1 rounded-xl bg-amber-400/15 hover:bg-amber-400/25 text-slate-100 text-[11px] font-black border border-amber-400/35 transition-all cursor-pointer"
-              >
-                모두 점프! 🐾
-              </button>
             </div>
             <p className="text-[11px] text-slate-400">
               채팅을 치면 {fandomName}들의 귀여운 도트 아바타가 무대 위에서 점프하며 반응합니다.
