@@ -130,8 +130,11 @@ export const GamesView: React.FC<GamesViewProps> = ({
   } | null>(null);
   const [rouletteSaved, setRouletteSaved] = useState(false);
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
+  const [chanceDrafts, setChanceDrafts] = useState<Record<string, string>>({});
   const spinTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const ttsTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const roundChanceTo3 = (val: number) => Math.round(val * 1000) / 1000;
 
   const PREVIEW_TTS_TEXT = '치킨 기프티콘 1개, 노래 1곡 신청권 2개';
 
@@ -213,9 +216,10 @@ export const GamesView: React.FC<GamesViewProps> = ({
     };
   }, []);
 
-  // 룰렛 확률 합계 계산
+  // 룰렛 확률 합계 계산 (소수점 3자리 정밀도 보정)
   const totalChance = useMemo(() => {
-    return rouletteItems.reduce((acc, it) => acc + (Number(it.chance) || 0), 0);
+    const sum = rouletteItems.reduce((acc, it) => acc + (Number(it.chance) || 0), 0);
+    return Math.round(sum * 1000) / 1000;
   }, [rouletteItems]);
 
   const handleDeleteHistoryItem = async (idOrIdx: string) => {
@@ -310,19 +314,19 @@ export const GamesView: React.FC<GamesViewProps> = ({
   };
 
   const handleFillRemainderWithLoss = () => {
-    const diff = 100 - totalChance;
+    const diff = roundChanceTo3(100 - totalChance);
     if (diff === 0) return;
 
     const lossIdx = rouletteItems.findIndex(it => it.name.includes('꽝') || it.name.includes('다음'));
     if (lossIdx >= 0) {
       const next = [...rouletteItems];
-      const newChance = Math.max(0, (next[lossIdx].chance || 0) + diff);
+      const newChance = roundChanceTo3(Math.max(0, (Number(next[lossIdx].chance) || 0) + diff));
       next[lossIdx].chance = newChance;
       setRouletteItems(next);
     } else {
       setRouletteItems([
         ...rouletteItems,
-        { id: 'r-' + Date.now(), name: '꽝 (다음 기회에)', chance: Math.max(1, diff), color: '#6b7280' }
+        { id: 'r-' + Date.now(), name: '꽝 (다음 기회에)', chance: roundChanceTo3(Math.max(0.001, diff)), color: '#6b7280' }
       ]);
     }
   };
@@ -588,7 +592,7 @@ export const GamesView: React.FC<GamesViewProps> = ({
             <div className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-between gap-2 text-xs text-rose-300">
               <span className="flex items-center gap-1.5">
                 <AlertCircle className="w-3.5 h-3.5 text-rose-400 shrink-0" />
-                확률 합계 {totalChance}% (차이: {100 - totalChance}%)
+                확률 합계 {totalChance}% (차이: {roundChanceTo3(100 - totalChance)}%)
               </span>
               <div className="flex items-center gap-1 shrink-0">
                 <button
@@ -635,13 +639,44 @@ export const GamesView: React.FC<GamesViewProps> = ({
 
                 <div className="flex items-center gap-1 shrink-0">
                   <input
-                    type="number"
-                    min="0"
-                    max="100"
-                    step="0.1"
-                    value={item.chance}
-                    onChange={(e) => handleUpdateRouletteItem(idx, 'chance', Number(e.target.value))}
-                    className="w-14 px-2 py-1.5 rounded-lg bg-slate-900 border border-white/10 text-xs text-amber-300 font-mono text-right focus:outline-none focus:ring-1 focus:ring-amber-400"
+                    type="text"
+                    inputMode="decimal"
+                    value={chanceDrafts[item.id || String(idx)] ?? String(item.chance ?? 0)}
+                    onChange={(e) => {
+                      const rowKey = item.id || String(idx);
+                      let raw = e.target.value.replace(/[^0-9.]/g, '');
+                      const dotIdx = raw.indexOf('.');
+                      if (dotIdx !== -1) {
+                        const intPart = raw.slice(0, dotIdx);
+                        const fracPart = raw.slice(dotIdx + 1).replace(/\./g, '').slice(0, 3);
+                        raw = `${intPart}.${fracPart}`;
+                      }
+                      if (raw !== '' && !raw.endsWith('.') && Number(raw) > 100) {
+                        raw = '100';
+                      }
+                      setChanceDrafts(prev => ({ ...prev, [rowKey]: raw }));
+                      if (raw !== '' && !raw.endsWith('.')) {
+                        const num = roundChanceTo3(Math.min(100, Math.max(0, Number(raw) || 0)));
+                        handleUpdateRouletteItem(idx, 'chance', num);
+                      } else if (raw === '') {
+                        handleUpdateRouletteItem(idx, 'chance', 0);
+                      }
+                    }}
+                    onBlur={() => {
+                      const rowKey = item.id || String(idx);
+                      const draft = chanceDrafts[rowKey];
+                      if (draft !== undefined) {
+                        const num = roundChanceTo3(Math.min(100, Math.max(0, Number(draft) || 0)));
+                        handleUpdateRouletteItem(idx, 'chance', num);
+                        setChanceDrafts(prev => {
+                          const next = { ...prev };
+                          delete next[rowKey];
+                          return next;
+                        });
+                      }
+                    }}
+                    placeholder="0.000"
+                    className="w-20 px-2 py-1.5 rounded-lg bg-slate-900 border border-white/10 text-xs text-amber-300 font-mono text-right focus:outline-none focus:ring-1 focus:ring-amber-400"
                   />
                   <span className="text-slate-400 font-bold text-[11px]">%</span>
                 </div>

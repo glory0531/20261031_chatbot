@@ -1317,7 +1317,12 @@ app.post('/api/prediction/test-bet', requireLocalAdmin, (req, res) => {
 app.post('/api/roulette/update', requireLocalAdmin, (req, res) => {
   const { items, cost, settings } = req.body;
   if (!db.roulette) db.roulette = { items: [], cost: 500, currency: 'chips', settings: {}, history: [] };
-  if (items && Array.isArray(items)) db.roulette.items = items;
+  if (items && Array.isArray(items)) {
+    db.roulette.items = items.map((it) => ({
+      ...it,
+      chance: Math.round(Math.min(100, Math.max(0, Number(it?.chance) || 0)) * 1000) / 1000
+    }));
+  }
   if (cost !== undefined) db.roulette.cost = Number(cost);
   db.roulette.currency = 'chips';
   if (settings && typeof settings === 'object') {
