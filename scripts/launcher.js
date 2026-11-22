@@ -97,7 +97,25 @@ function ensureDependenciesInstalled() {
 
     console.log(` 📦 새 버전 필수 라이브러리(${missing.join(', ')})를 자동 설치합니다...`);
     const portableNpm = path.join(ROOT_DIR, 'runtime', 'node', 'npm.cmd');
-    const npmCmd = fs.existsSync(portableNpm) ? `"${portableNpm}"` : 'npm';
+    let npmCmd = fs.existsSync(portableNpm) ? `"${portableNpm}"` : '';
+    if (!npmCmd) {
+      try {
+        execSync('where npm', { stdio: 'ignore' });
+        npmCmd = 'npm';
+      } catch {
+        const psScript = path.join(ROOT_DIR, 'scripts', 'bootstrap-node.ps1');
+        execSync(`powershell -NoProfile -ExecutionPolicy Bypass -File "${psScript}" -EnsureNpm`, {
+          cwd: ROOT_DIR,
+          stdio: 'inherit'
+        });
+        if (fs.existsSync(portableNpm)) {
+          npmCmd = `"${portableNpm}"`;
+        }
+      }
+    }
+    if (!npmCmd) {
+      throw new Error('npm을 찾을 수 없어 필수 라이브러리를 설치하지 못했습니다.');
+    }
     execSync(`${npmCmd} install --omit=dev --no-audit --no-fund`, {
       cwd: ROOT_DIR,
       stdio: 'inherit'

@@ -48,13 +48,24 @@ exit /b 1
 :CHECK_MODULES
 if exist "%ROOT_DIR%\node_modules\express\package.json" if exist "%ROOT_DIR%\node_modules\msedge-tts\package.json" exit /b 0
 
+if exist "%PORTABLE_NODE_DIR%\npm.cmd" (
+  set "NPM_CMD=%PORTABLE_NODE_DIR%\npm.cmd"
+  goto :DO_INSTALL
+)
+
 where npm >nul 2>nul
 if not errorlevel 1 (
   set "NPM_CMD=npm"
   goto :DO_INSTALL
 )
 
+echo.
+echo [오픈 샤봇] 필수 패키지 설치를 위해 포터블 npm을 자동 준비합니다...
+powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT_DIR%\scripts\bootstrap-node.ps1" -EnsureNpm
+if errorlevel 1 goto :ERR_NEED_PORTABLE_ZIP
 if exist "%PORTABLE_NODE_DIR%\npm.cmd" (
+  set "PATH=%PORTABLE_NODE_DIR%;%PATH%"
+  set "NODE_EXE=%PORTABLE_NODE_DIR%\node.exe"
   set "NPM_CMD=%PORTABLE_NODE_DIR%\npm.cmd"
   goto :DO_INSTALL
 )
@@ -79,10 +90,10 @@ echo =======================================================================
 echo  실행 엔진과 필수 모듈이 모두 포함된 [공식 무설치 포터블 압축파일]을
 echo  다운로드하시면 추가 설치 없이 1초 만에 바로 실행됩니다.
 echo.
-echo  👉 공식 다운로드 링크:
+echo  👉 공식 다운로드 링크 (Assets에서 ShaBot-Portable-vX.X.X.zip 선택):
 echo  https://github.com/glory0531/20261031_chatbot/releases/latest
 echo.
-echo  인터넷 브라우저에서 공식 다운로드 페이지를 엽니다...
+echo  [안내] Source code(zip) 또는 ShaBot-Update 파일에는 실행 모듈이 없습니다.
+echo         반드시 ShaBot-Portable-vX.X.X.zip 파일을 받아 실행해 주세요.
 echo =======================================================================
-start https://github.com/glory0531/20261031_chatbot/releases/latest
 exit /b 1
