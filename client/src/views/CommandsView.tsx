@@ -36,10 +36,10 @@ const DEFAULT_COMMAND_META: Record<string, { desc: string; category: string }> =
   attend: { desc: '1일 1회 출석 체크를 수행하고 연속 출석 보너스 칩을 지급합니다.', category: '참여 & 재화' },
   point: { desc: '시청자 본인의 현재 보유 칩과 총 출석 횟수를 조회합니다.', category: '참여 & 재화' },
   fund: { desc: '스트리머가 설정한 모금 목표에 칩을 함께 기부합니다.', category: '참여 & 재화' },
-  vote: { desc: '진행 중인 투표/예측 항목에 칩을 배팅합니다.', category: '참여 & 재화' },
+  vote: { desc: '진행 중인 투표/예측 항목에 칩을 베팅합니다.', category: '참여 & 재화' },
   sr: { desc: '방송 화면 플레이어에 재생할 유튜브 노래를 신청합니다.', category: '방송 도구' },
   request: { desc: '시청자 참여 또는 미션 요청을 대기열에 등록합니다.', category: '방송 도구' },
-  roulette: { desc: '재화를 소모하여 행운의 룰렛을 돌립니다.', category: '컨텐츠' }
+  roulette: { desc: '재화를 소모하여 행운의 룰렛을 돌립니다.', category: '콘텐츠' }
 };
 
 export const CommandsView: React.FC<CommandsViewProps> = ({
@@ -258,7 +258,7 @@ export const CommandsView: React.FC<CommandsViewProps> = ({
                             "{cmd.name}" 포함
                           </>
                         ) : cmd.matchType === 'startsWith' ? (
-                          `"${cmd.name}"로 시작`
+                          `"${cmd.name}"(으)로 시작`
                         ) : cmd.allowNoPrefix ? (
                           `${cmd.name}`
                         ) : (

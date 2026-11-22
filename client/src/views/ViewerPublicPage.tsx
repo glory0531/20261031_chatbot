@@ -185,7 +185,7 @@ export const ViewerPublicPage: React.FC<ViewerPublicPageProps> = ({
         name,
         syntax: `${prefix}${name} [번호] [${chipName}]`,
         badge: '승부 예측',
-        desc: `진행 중인 승부 예측에 ${chipName} 배팅하기`,
+        desc: `진행 중인 승부 예측에 ${chipName} 베팅하기`,
         category: '참여 & 재화'
       });
     }
@@ -476,7 +476,7 @@ export const ViewerPublicPage: React.FC<ViewerPublicPageProps> = ({
               </div>
             ) : (
               <div className="p-4 rounded-2xl bg-slate-900 border border-white/10 text-center text-xs text-slate-400">
-                현재 재생 중인 노래가 없습니다. 방송 중 치지직 채팅창에 <b className="text-amber-300">{prefix}{defaultCommands?.sr?.name || 'sr'} [노래제목]</b>을 입력해보세요!
+                현재 재생 중인 노래가 없습니다. 방송 중 치지직 채팅창에 <b className="text-amber-300">{prefix}{defaultCommands?.sr?.name || 'sr'} [노래 제목]</b>을 입력해 보세요!
               </div>
             )}
 
@@ -549,7 +549,7 @@ export const ViewerPublicPage: React.FC<ViewerPublicPageProps> = ({
                 <MessageSquare className="w-4 h-4 text-amber-400" /> 치지직 생방송 채팅창 명령어 가이드
               </h3>
               <p className="text-xs text-amber-400 mt-0.5">
-                스트리머가 대시보드에서 활성화한 명령어 목록입니다. 접두사 <b className="text-amber-300 font-mono">[{prefix}]</b> 와 함께 채팅창에 입력해보세요!
+                스트리머가 대시보드에서 활성화한 명령어 목록입니다. 접두사 <b className="text-amber-300 font-mono">[{prefix}]</b>와 함께 채팅창에 입력해 보세요!
               </p>
             </div>
 

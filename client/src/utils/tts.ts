@@ -94,6 +94,69 @@ export function buildRouletteTtsText(params: {
 let ttsRequestSeq = 0;
 let currentAbortController: AbortController | null = null;
 
+const ttsBlobCache = new Map<string, Blob>();
+const ttsInflightCache = new Map<string, Promise<Blob>>();
+const TTS_BLOB_CACHE_MAX = 40;
+
+function buildTtsRequestUrl(cleanText: string, voice: string, rate: number, pitch: number): string {
+  const actualVoice = String(voice || 'ko-KR-SunHiNeural').split('|')[0];
+  const apiBase = window.location.port === '24701' ? 'http://localhost:24700/api' : '/api';
+  return `${apiBase}/tts?text=${encodeURIComponent(cleanText)}&voice=${encodeURIComponent(actualVoice)}&rate=${encodeURIComponent(String(rate))}&pitch=${encodeURIComponent(String(pitch))}`;
+}
+
+function fetchTtsBlob(url: string, externalSignal?: AbortSignal): Promise<Blob> {
+  const cached = ttsBlobCache.get(url);
+  if (cached) return Promise.resolve(cached);
+
+  const existingInflight = ttsInflightCache.get(url);
+  if (existingInflight) return existingInflight;
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 3800);
+  const onExternalAbort = () => controller.abort();
+  externalSignal?.addEventListener('abort', onExternalAbort, { once: true });
+
+  const promise = fetch(url, { signal: controller.signal })
+    .then(async (res) => {
+      if (!res.ok) throw new Error(`TTS HTTP ${res.status}`);
+      const blob = await res.blob();
+      ttsBlobCache.set(url, blob);
+      if (ttsBlobCache.size > TTS_BLOB_CACHE_MAX) {
+        const oldestKey = ttsBlobCache.keys().next().value;
+        if (oldestKey) ttsBlobCache.delete(oldestKey);
+      }
+      return blob;
+    })
+    .finally(() => {
+      clearTimeout(timeoutId);
+      externalSignal?.removeEventListener('abort', onExternalAbort);
+      ttsInflightCache.delete(url);
+    });
+
+  ttsInflightCache.set(url, promise);
+  return promise;
+}
+
+/**
+ * 미리듣기 등의 TTS 오디오를 백그라운드에서 미리 받아 캐시해 둡니다.
+ */
+export function prefetchNaturalTts(options: {
+  text: string;
+  voice?: string;
+  rate?: number;
+  pitch?: number;
+}): void {
+  const cleanText = sanitizeTextForSpeech(options.text);
+  if (!cleanText) return;
+  const url = buildTtsRequestUrl(
+    cleanText,
+    options.voice || 'ko-KR-SunHiNeural',
+    options.rate ?? 1.0,
+    options.pitch ?? 0
+  );
+  fetchTtsBlob(url).catch(() => {});
+}
+
 /**
  * 서버의 한국어 AI 신경망 TTS(/api/tts)를 Blob으로 받아 자연스럽게 재생하고, 실패 시 브라우저 음성으로 폴백합니다.
  */
@@ -136,17 +199,11 @@ export async function speakNaturalTts(options: {
     currentObjectUrl = null;
   }
 
-  const actualVoice = String(voice || 'ko-KR-SunHiNeural').split('|')[0];
-  const apiBase = window.location.port === '24701' ? 'http://localhost:24700/api' : '/api';
-  const url = `${apiBase}/tts?text=${encodeURIComponent(cleanText)}&voice=${encodeURIComponent(actualVoice)}&rate=${encodeURIComponent(String(rate))}&pitch=${encodeURIComponent(String(pitch))}`;
+  const url = buildTtsRequestUrl(cleanText, voice, rate, pitch);
 
   let objUrl: string | null = null;
   try {
-    const res = await fetch(url, { signal: abortController.signal });
-    if (!res.ok) {
-      throw new Error(`TTS HTTP ${res.status}`);
-    }
-    const blob = await res.blob();
+    const blob = await fetchTtsBlob(url, abortController.signal);
     if (mySeq !== ttsRequestSeq) return;
 
     objUrl = URL.createObjectURL(blob);

@@ -910,7 +910,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, update, on
                       <Coins className="w-3.5 h-3.5" /> 방송 재화 단위명 (단일 통합)
                     </label>
                     <div className="text-[10px] text-slate-400 mt-0.5">
-                      치즈 후원 적립, 출석·채팅 보상, 룰렛, 모금, 미니게임 등 모든 컨텐츠에서 공통으로 사용됩니다.
+                      치즈 후원 적립, 출석·채팅 보상, 룰렛, 모금, 미니게임 등 모든 콘텐츠에서 공통으로 사용됩니다.
                     </div>
                   </div>
                   <input

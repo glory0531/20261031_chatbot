@@ -1040,7 +1040,7 @@ export const WeeklyCalendarView: React.FC<WeeklyCalendarViewProps> = ({
                   ? 'bg-amber-400 text-slate-950 border-amber-300 shadow-amber-400/30'
                   : 'bg-slate-900 hover:bg-[#23273c] text-amber-300 hover:text-amber-100 border-amber-400/40 hover:border-amber-400'
               }`}
-              title={isExpanded ? '최근 한 달 일정 접기' : '최근 한 달(4주치) 방송 일정표 펼쳐보기'}
+              title={isExpanded ? '최근 한 달 일정 접기' : '최근 한 달(4주 치) 방송 일정표 펼쳐보기'}
               aria-label="최근 한 달 방송 일정표 토글"
             >
               <span className={`text-[12px] leading-none transition-transform duration-300 inline-block ${isExpanded ? 'rotate-180' : ''}`}>
@@ -1055,7 +1055,7 @@ export const WeeklyCalendarView: React.FC<WeeklyCalendarViewProps> = ({
         <div className="flex items-center gap-2">
           {isExpanded && (
             <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30 font-bold animate-pulse">
-              최근 4주치 롤링 캘린더 펼침
+              최근 4주 치 롤링 캘린더 펼침
             </span>
           )}
           <span className="text-[11px] text-amber-400">

@@ -231,7 +231,7 @@ export const FundPredictionView: React.FC<FundPredictionViewProps> = ({
   // 테스트 베팅
   const handleTestBet = async (optionId: string) => {
     await api.testPredictionBet(optionId, 1000);
-    showFeedback(`${optionId}번 선택지에 1,000P를 테스트 베팅했습니다.`);
+    showFeedback(`${optionId}번 선택지에 1,000${cUnit}을(를) 테스트 베팅했습니다.`);
   };
 
   // 더미 데이터 전체 정리 (실방송 모드)
@@ -274,7 +274,7 @@ export const FundPredictionView: React.FC<FundPredictionViewProps> = ({
                 </span>
               </h2>
               <p className="text-xs text-slate-400 mt-0.5">
-                시청자들과 함께 포인트를 모으는 <b className="text-amber-400">{fullFundCmd}</b>과 승부 예측 <b className="text-blue-400">{fullVoteCmd}</b>를 실시간으로 제어합니다.
+                시청자들과 함께 포인트를 모으는 <b className="text-amber-400">{fullFundCmd}</b>과(와) 승부 예측 <b className="text-blue-400">{fullVoteCmd}</b>을(를) 실시간으로 제어합니다.
               </p>
             </div>
           </div>

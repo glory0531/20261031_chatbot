@@ -287,7 +287,7 @@ export const SongRequestView: React.FC<SongRequestViewProps> = ({ songRequests, 
             재즈 & LP 주크박스 (신청곡 SR)
           </h2>
           <p className="text-xs text-slate-400 mt-0.5">
-            시청자가 채팅으로 <b className="text-indigo-400">!노래 [곡명 또는 유튜브링크]</b> 또는 <b className="text-indigo-400">!sr</b>을 입력하면 유튜브 음악을 자동 검색하여 순서대로 재생합니다.
+            시청자가 채팅으로 <b className="text-indigo-400">!노래 [곡명 또는 유튜브 링크]</b> 또는 <b className="text-indigo-400">!sr</b>을 입력하면 유튜브 음악을 자동 검색하여 순서대로 재생합니다.
           </p>
         </div>
 
@@ -508,7 +508,7 @@ export const SongRequestView: React.FC<SongRequestViewProps> = ({ songRequests, 
           ) : (
             <div className="h-64 flex flex-col items-center justify-center text-slate-500 text-xs text-center p-4">
               <Music className="w-12 h-12 mb-3 text-slate-700" />
-              재생 중인 노래가 없습니다.<br />위 입력창이나 채팅창에 !sr 노래제목을 입력해보세요!
+              재생 중인 노래가 없습니다.<br />위 입력창이나 채팅창에 !sr 노래 제목을 입력해 보세요!
             </div>
           )}
         </div>

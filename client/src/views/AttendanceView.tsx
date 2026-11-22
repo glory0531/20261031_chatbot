@@ -104,7 +104,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
       attendResetHour: Number(resetHour)
     });
     setIsResetHourSaved(true);
-    showFeedback(`출석 기준 시각이 한국 시간 ${formatResetHourOption(Number(resetHour))}으로 저장되었습니다!`);
+    showFeedback(`출석 기준 시각이 한국 시간 ${formatResetHourOption(Number(resetHour))}(으)로 저장되었습니다!`);
     setTimeout(() => setIsResetHourSaved(false), 2000);
   };
 
@@ -475,7 +475,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
                       {(u.totalAttends || 0).toLocaleString()}회
                     </td>
                     <td className="py-3 px-4 text-right font-bold text-indigo-300 font-mono">
-                      {(u.attendStreak || 0).toLocaleString()}회
+                      {(u.attendStreak || 0).toLocaleString()}일
                     </td>
                     <td className="py-3 px-4 text-right text-slate-400 font-mono">
                       {formatKoreanDateDot(u.lastAttend)}

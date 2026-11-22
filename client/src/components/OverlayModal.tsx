@@ -19,7 +19,7 @@ export const OverlayModal: React.FC<OverlayModalProps> = ({ isOpen, onClose }) =
       name: '채팅 인터랙션 도트 아바타 오버레이',
       url: `${origin}/overlay/avatar`,
       resolution: '1920 x 1080 (화면 하단 투명)',
-      desc: '시청자가 채팅을 치면 귀여운 도트 아바타들이 화면 바닥을 아장아장 걸어다니며 말풍선을 띄우고 점프합니다.'
+      desc: '시청자가 채팅을 치면 귀여운 도트 아바타들이 화면 바닥을 아장아장 걸어 다니며 말풍선을 띄우고 점프합니다.'
     },
     {
       key: 'alert',
@@ -33,7 +33,7 @@ export const OverlayModal: React.FC<OverlayModalProps> = ({ isOpen, onClose }) =
       name: '노래 신청 플레이어 (OBS 직접 컨트롤 가능)',
       url: `${origin}/overlay/sr`,
       resolution: '460 x 180 (위젯형) / 640 x 360 (영상 표시형)',
-      desc: '유튜브 음원/영상이 직접 재생되는 플레이어입니다. OBS 소스 우클릭 › [상호작용]을 누르면 일시정지, 다음곡 스킵, 볼륨 조절, 대기열 확인/삭제, 영상 토글을 OBS 창 안에서 바로 제어할 수 있습니다.'
+      desc: '유튜브 음원/영상이 직접 재생되는 플레이어입니다. OBS 소스 우클릭 › [상호작용]을 누르면 일시정지, 다음 곡 스킵, 볼륨 조절, 대기열 확인/삭제, 영상 토글을 OBS 창 안에서 바로 제어할 수 있습니다.'
     },
     {
       key: 'goal',

@@ -17,7 +17,7 @@ import {
 import { api } from '../services/api';
 import { socket } from '../services/socket';
 import { SlotMachineReel } from '../components/SlotMachineReel';
-import { KOREAN_AI_VOICES, buildRouletteTtsText, speakNaturalTts } from '../utils/tts';
+import { KOREAN_AI_VOICES, buildRouletteTtsText, prefetchNaturalTts, speakNaturalTts } from '../utils/tts';
 
 interface GamesViewProps {
   roulette: RouletteState;
@@ -129,8 +129,25 @@ export const GamesView: React.FC<GamesViewProps> = ({
     triggerType?: string;
   } | null>(null);
   const [rouletteSaved, setRouletteSaved] = useState(false);
+  const [isPreviewLoading, setIsPreviewLoading] = useState(false);
   const spinTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const ttsTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const PREVIEW_TTS_TEXT = '치킨 기프티콘 1개, 노래 1곡 신청권 2개';
+
+  // AI 목소리/속도/톤 변경 시 미리듣기 음성을 백그라운드에서 미리 준비 (즉시 재생)
+  useEffect(() => {
+    if (!rSettings.readResultTts) return;
+    const t = setTimeout(() => {
+      prefetchNaturalTts({
+        text: PREVIEW_TTS_TEXT,
+        voice: rSettings.ttsVoice || 'ko-KR-SunHiNeural',
+        rate: rSettings.ttsRate ?? 1.0,
+        pitch: rSettings.ttsPitch ?? 0
+      });
+    }, 250);
+    return () => clearTimeout(t);
+  }, [rSettings.readResultTts, rSettings.ttsVoice, rSettings.ttsRate, rSettings.ttsPitch]);
 
   // 동기화
   useEffect(() => {
@@ -842,7 +859,7 @@ export const GamesView: React.FC<GamesViewProps> = ({
                   <div>
                     <div className="font-bold text-white text-xs">배수가 아니어도 작동</div>
                     <div className="text-[11px] text-slate-400 mt-0.5 leading-snug">
-                      가능한 만큼 돌리고 남는 금액은 무시 (4,000원 룰렛에 12,300원 → 3연차)
+                      가능한 만큼 돌리고 남는 금액은 무시 (4,000치즈 룰렛에 12,300치즈 → 3연차)
                     </div>
                   </div>
                   <button
@@ -974,7 +991,7 @@ export const GamesView: React.FC<GamesViewProps> = ({
                   <div>
                     <div className="font-bold text-slate-300 text-xs">선물 수</div>
                     <div className="text-[11px] text-slate-500 mt-0.5 leading-snug">
-                      이 개수마다 1회 (5 → 12개 선물은 2회, 4개는 안 돌아요)
+                      이 개수마다 1회 (예: 5 입력 시 12개 선물 → 2회, 4개 → 미작동)
                     </div>
                   </div>
                   <input
@@ -1126,7 +1143,7 @@ export const GamesView: React.FC<GamesViewProps> = ({
                   결과 TTS 읽기
                 </div>
                 <div className="text-[11px] text-slate-400 mt-0.5">
-                  오버레이에서 당첨 항목을 소리내어 읽어줍니다
+                  오버레이에서 당첨 항목을 소리 내어 읽어줍니다
                 </div>
               </div>
               <button
@@ -1206,18 +1223,24 @@ export const GamesView: React.FC<GamesViewProps> = ({
 
                 <button
                   type="button"
-                  onClick={() =>
-                    speakNaturalTts({
-                      text: '치킨 기프티콘 1개, 노래 1곡 신청권 2개',
-                      voice: rSettings.ttsVoice || 'ko-KR-SunHiNeural',
-                      rate: rSettings.ttsRate ?? 1.0,
-                      pitch: rSettings.ttsPitch ?? 0
-                    })
-                  }
-                  className="w-full py-2 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 font-bold text-[11px] flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                  disabled={isPreviewLoading}
+                  onClick={async () => {
+                    setIsPreviewLoading(true);
+                    try {
+                      await speakNaturalTts({
+                        text: PREVIEW_TTS_TEXT,
+                        voice: rSettings.ttsVoice || 'ko-KR-SunHiNeural',
+                        rate: rSettings.ttsRate ?? 1.0,
+                        pitch: rSettings.ttsPitch ?? 0
+                      });
+                    } finally {
+                      setIsPreviewLoading(false);
+                    }
+                  }}
+                  className="w-full py-2 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 font-bold text-[11px] flex items-center justify-center gap-1.5 transition-all cursor-pointer disabled:opacity-60"
                 >
                   <Volume2 className="w-3.5 h-3.5" />
-                  <span>선택한 목소리 미리듣기</span>
+                  <span>{isPreviewLoading ? '음성 준비 중...' : '선택한 목소리 미리듣기'}</span>
                 </button>
               </div>
             )}

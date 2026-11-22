@@ -148,6 +148,9 @@ const ALLOWED_KO_VOICES = new Set([
   'ko-KR-HyunsuMultilingualNeural'
 ]);
 
+const ttsAudioCache = new Map();
+const TTS_CACHE_MAX = 100;
+
 // 한국어 AI 신경망 TTS 오디오 스트림 생성 (Edge Neural TTS)
 app.get('/api/tts', async (req, res) => {
   const text = String(req.query.text || '').trim().slice(0, 300);
@@ -164,17 +167,33 @@ app.get('/api/tts', async (req, res) => {
   const pitchNum = Math.min(30, Math.max(-30, Math.round(Number.isFinite(rawPitch) ? rawPitch : 0)));
   const pitchStr = `${pitchNum >= 0 ? '+' : ''}${pitchNum}Hz`;
 
+  const cacheKey = `${voice}|${rateStr}|${pitchStr}|${text}`;
+  const cachedBuffer = ttsAudioCache.get(cacheKey);
+  if (cachedBuffer) {
+    // LRU 갱신
+    ttsAudioCache.delete(cacheKey);
+    ttsAudioCache.set(cacheKey, cachedBuffer);
+    res.setHeader('Content-Type', 'audio/mpeg');
+    res.setHeader('Cache-Control', 'private, max-age=300');
+    return res.send(cachedBuffer);
+  }
+
   let tts = null;
   let closed = false;
+  let timedOut = false;
   const onClose = () => {
     closed = true;
     try { tts?.close(); } catch {}
   };
   req.on('close', onClose);
   const timeoutId = setTimeout(() => {
+    timedOut = true;
     closed = true;
     try { tts?.close(); } catch {}
-  }, 12000);
+    if (!res.headersSent) {
+      res.status(504).json({ success: false, message: 'TTS 생성 시간 초과' });
+    }
+  }, 4000);
 
   try {
     const { MsEdgeTTS, OUTPUT_FORMAT } = await import('msedge-tts');
@@ -187,14 +206,21 @@ app.get('/api/tts', async (req, res) => {
       if (closed) break;
       chunks.push(chunk);
     }
-    if (closed || res.headersSent) return;
+    if (closed || timedOut || res.headersSent) return;
     const audioBuffer = Buffer.concat(chunks);
+    if (audioBuffer.length > 0) {
+      ttsAudioCache.set(cacheKey, audioBuffer);
+      if (ttsAudioCache.size > TTS_CACHE_MAX) {
+        const oldestKey = ttsAudioCache.keys().next().value;
+        ttsAudioCache.delete(oldestKey);
+      }
+    }
     res.setHeader('Content-Type', 'audio/mpeg');
-    res.setHeader('Cache-Control', 'no-store');
+    res.setHeader('Cache-Control', 'private, max-age=300');
     res.send(audioBuffer);
   } catch (err) {
     console.warn('[TTS Error]:', err.message);
-    if (!res.headersSent) {
+    if (!res.headersSent && !timedOut) {
       res.status(500).json({ success: false, message: err.message });
     }
   } finally {

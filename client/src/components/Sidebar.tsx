@@ -87,7 +87,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       ]
     },
     {
-      group: '컨텐츠 & 일정',
+      group: '콘텐츠 & 일정',
       items: [
         { id: 'sr', label: '유튜브 노래 신청 (SR)', icon: Music, badge: stats.queueCount },
         { id: 'requests', label: '시참 & 미션 대기열', icon: ListOrdered, badge: stats.requestCount },
