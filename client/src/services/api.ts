@@ -1,4 +1,4 @@
-const API_BASE = window.location.port === '24701' ? 'http://localhost:24700/api' : '/api';
+const API_BASE = window.location.port === '24701' ? `${window.location.protocol}//${window.location.hostname}:24700/api` : '/api';
 
 export const api = {
   // 버전 및 원격 자동 업데이트

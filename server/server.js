@@ -292,7 +292,7 @@ app.post('/api/status/update', requireLocalAdmin, (req, res) => {
   res.json({ success: true, data: db.status });
 });
 
-app.post('/api/status/sync', async (req, res) => {
+app.post('/api/status/sync', requireLocalAdmin, async (req, res) => {
   const channelId = extractChzzkChannelId(req.body?.channelId || db.settings.chzzkChannelId);
   const status = await syncChzzkChannelStatus(channelId);
   res.json({ success: true, data: status });

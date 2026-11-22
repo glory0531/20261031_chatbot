@@ -1,7 +1,7 @@
 import { io, Socket } from 'socket.io-client';
 
 // 포트 24700 또는 현재 호스트
-const SOCKET_URL = window.location.port === '24701' ? 'http://localhost:24700' : '/';
+const SOCKET_URL = window.location.port === '24701' ? `${window.location.protocol}//${window.location.hostname}:24700` : '/';
 
 export const socket: Socket = io(SOCKET_URL, {
   transports: ['websocket', 'polling'],

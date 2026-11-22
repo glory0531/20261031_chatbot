@@ -18,15 +18,57 @@ const PORT = Number(process.env.PORT) || 24700;
 
 function checkAlreadyRunning() {
   return new Promise((resolve) => {
-    const req = http.get(`http://localhost:${PORT}/api/settings`, (res) => {
-      resolve(res.statusCode === 200);
+    const req = http.get(`http://localhost:${PORT}/api/version`, (res) => {
+      let body = '';
+      res.on('data', (c) => { body += c; });
+      res.on('end', () => {
+        if (res.statusCode !== 200) {
+          resolve({ running: false, version: '' });
+          return;
+        }
+        try {
+          const parsed = JSON.parse(body);
+          resolve({ running: true, version: String(parsed?.version || '').trim() });
+        } catch {
+          resolve({ running: true, version: '' });
+        }
+      });
     });
-    req.on('error', () => resolve(false));
+    req.on('error', () => resolve({ running: false, version: '' }));
     req.setTimeout(800, () => {
       req.destroy();
-      resolve(false);
+      resolve({ running: false, version: '' });
     });
   });
+}
+
+async function stopProcessOnPort(port) {
+  try {
+    if (process.platform === 'win32') {
+      const out = execSync(`netstat -ano -p tcp`, { encoding: 'utf8' });
+      const pids = new Set();
+      for (const line of out.split(/\r?\n/)) {
+        if (line.includes(`:${port} `) && line.includes('LISTENING')) {
+          const parts = line.trim().split(/\s+/);
+          const pid = Number(parts[parts.length - 1]);
+          if (Number.isFinite(pid) && pid > 0 && pid !== process.pid) {
+            pids.add(pid);
+          }
+        }
+      }
+      for (const pid of pids) {
+        try { execSync(`taskkill /F /PID ${pid}`, { stdio: 'ignore' }); } catch {}
+      }
+    } else {
+      try { execSync(`fuser -k ${port}/tcp`, { stdio: 'ignore' }); } catch {}
+    }
+  } catch {}
+  for (let i = 0; i < 12; i++) {
+    const status = await checkAlreadyRunning();
+    if (!status.running) return true;
+    await new Promise((r) => setTimeout(r, 250));
+  }
+  return false;
 }
 
 function openBrowser(url) {
@@ -54,7 +96,7 @@ async function tryAutoUpdateBeforeStart() {
   if (!isAutoUpdateOnStartEnabled() && !missingClientDist) return false;
 
   try {
-    const state = await checkForUpdate({ timeoutMs: 3500 });
+    const state = await checkForUpdate({ timeoutMs: 6000 });
     if (!state.configured) return false;
     if (!state.updateAvailable && !missingClientDist) return false;
 
@@ -146,18 +188,35 @@ async function waitForServerReady(port, timeoutMs = 15000) {
 }
 
 async function main() {
-  const isRunning = await checkAlreadyRunning();
+  const runningInfo = await checkAlreadyRunning();
 
-  if (isRunning) {
-    console.log('==============================================================');
-    console.log('       🐻 [ShaBot / 오픈 샤봇] 방송용 챗봇 & 통합 대시보드');
-    console.log('==============================================================');
-    console.log(` ✨ 이미 샤봇 서버가 포트 ${PORT}에서 실행 중입니다!`);
-    console.log(' 🌐 웹 브라우저에서 관리자 대시보드를 열었습니다.');
-    console.log(` 📍 대시보드 주소: http://localhost:${PORT}`);
-    console.log('==============================================================');
-    openBrowser(`http://localhost:${PORT}`);
-    return;
+  if (runningInfo.running) {
+    const localVersion = readCurrentVersion(ROOT_DIR);
+    let hasRemoteUpdate = false;
+    if (isAutoUpdateOnStartEnabled()) {
+      try {
+        const remoteState = await checkForUpdate({ timeoutMs: 4500 });
+        hasRemoteUpdate = Boolean(remoteState?.updateAvailable);
+      } catch {}
+    }
+
+    const versionMismatch = Boolean(runningInfo.version && localVersion && runningInfo.version !== localVersion);
+    if (versionMismatch || hasRemoteUpdate) {
+      console.log('==============================================================');
+      console.log(` 🔄 포트 ${PORT}에서 실행 중인 구버전 서버(v${runningInfo.version || '?'})를 종료하고 최신 버전으로 전환합니다...`);
+      console.log('==============================================================');
+      await stopProcessOnPort(PORT);
+    } else {
+      console.log('==============================================================');
+      console.log('       🐻 [ShaBot / 오픈 샤봇] 방송용 챗봇 & 통합 대시보드');
+      console.log('==============================================================');
+      console.log(` ✨ 이미 샤봇 서버(v${runningInfo.version || localVersion})가 포트 ${PORT}에서 실행 중입니다!`);
+      console.log(' 🌐 웹 브라우저에서 관리자 대시보드를 열었습니다.');
+      console.log(` 📍 대시보드 주소: http://localhost:${PORT}`);
+      console.log('==============================================================');
+      openBrowser(`http://localhost:${PORT}`);
+      return;
+    }
   }
 
   // 시작 전 자동 업데이트 확인 및 적용

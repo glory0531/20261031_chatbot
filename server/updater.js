@@ -259,20 +259,44 @@ export async function checkForUpdate({ timeoutMs = 4500 } = {}) {
           } catch {}
         }
       } catch (ghErr) {
-        // 아직 GitHub Release가 하나도 없을 경우(404), 기본 브랜치의 version.json 확인
-        if (ghErr.response?.status === 404) {
-          const branch = cfg.branch || 'main';
-          const verRes = await axios.get(`https://raw.githubusercontent.com/${cfg.repo}/${branch}/version.json`, {
-            timeout: timeoutMs
+        // GitHub API 한도 초과(403), 미존재(404), 타임아웃 시 raw manifest.json -> version.json 순으로 폴백
+        const branch = cfg.branch || 'main';
+        let resolvedFromRaw = false;
+        try {
+          const manifestRawRes = await axios.get(`https://raw.githubusercontent.com/${cfg.repo}/${branch}/dist-release/manifest.json`, {
+            timeout: Math.max(timeoutMs, 6000)
           });
-          if (verRes.data?.version) {
-            remoteVersion = String(verRes.data.version).replace(/^v/i, '').trim();
-            publishedAt = verRes.data.releasedAt || '';
-            changelog = parseChangelogBody(verRes.data.changelog);
-            releaseUrl = `https://github.com/${cfg.repo}`;
-            downloadUrl = verRes.data.downloadUrl || `https://api.github.com/repos/${cfg.repo}/zipball/${branch}`;
+          if (manifestRawRes.data?.version) {
+            remoteVersion = String(manifestRawRes.data.version).replace(/^v/i, '').trim();
+            publishedAt = manifestRawRes.data.releasedAt || '';
+            changelog = parseChangelogBody(manifestRawRes.data.changelog);
+            releaseUrl = `https://github.com/${cfg.repo}/releases/tag/v${remoteVersion}`;
+            const assetName = manifestRawRes.data.updateAsset || `ShaBot-Update-v${remoteVersion}.zip`;
+            downloadUrl = `https://github.com/${cfg.repo}/releases/download/v${remoteVersion}/${assetName}`;
+            if (manifestRawRes.data.updateSha256) {
+              sha256 = manifestRawRes.data.updateSha256;
+            }
+            resolvedFromRaw = true;
           }
-        } else {
+        } catch {}
+
+        if (!resolvedFromRaw) {
+          try {
+            const verRes = await axios.get(`https://raw.githubusercontent.com/${cfg.repo}/${branch}/version.json`, {
+              timeout: Math.max(timeoutMs, 6000)
+            });
+            if (verRes.data?.version) {
+              remoteVersion = String(verRes.data.version).replace(/^v/i, '').trim();
+              publishedAt = verRes.data.releasedAt || '';
+              changelog = parseChangelogBody(verRes.data.changelog);
+              releaseUrl = `https://github.com/${cfg.repo}/releases`;
+              downloadUrl = verRes.data.downloadUrl || `https://github.com/${cfg.repo}/releases/download/v${remoteVersion}/ShaBot-Update-v${remoteVersion}.zip`;
+              resolvedFromRaw = true;
+            }
+          } catch {}
+        }
+
+        if (!resolvedFromRaw) {
           throw ghErr;
         }
       }
@@ -339,7 +363,7 @@ export async function downloadAndStageUpdate({ backupFn, force = false } = {}) {
     } else {
       const response = await axios.get(state.downloadUrl, {
         responseType: 'arraybuffer',
-        timeout: 60000,
+        timeout: 180000,
         maxContentLength: Infinity,
         maxBodyLength: Infinity,
         headers: { 'User-Agent': 'ShaBot-AutoUpdater' }
@@ -471,7 +495,23 @@ export function extractStagedUpdate({ zipPath, rootDir = ROOT_DIR, fromVersion =
   } catch {}
 
   if (oldDepsJson !== newDepsJson) {
-    const npmBin = getPortableOrSystemNpm(rootDir);
+    let npmBin = getPortableOrSystemNpm(rootDir);
+    if (npmBin === 'npm.cmd' || npmBin === 'npm') {
+      try {
+        execSync(`${process.platform === 'win32' ? 'where' : 'which'} npm`, { stdio: 'ignore' });
+      } catch {
+        const psScript = path.join(rootDir, 'scripts', 'bootstrap-node.ps1');
+        if (process.platform === 'win32' && fs.existsSync(psScript)) {
+          try {
+            execSync(`powershell -NoProfile -ExecutionPolicy Bypass -File "${psScript}" -EnsureNpm`, {
+              cwd: rootDir,
+              stdio: 'inherit'
+            });
+            npmBin = getPortableOrSystemNpm(rootDir);
+          } catch {}
+        }
+      }
+    }
     try {
       execSync(`"${npmBin}" install --omit=dev --no-audit --no-fund`, {
         cwd: rootDir,

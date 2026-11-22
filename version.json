@@ -1,8 +1,8 @@
 {
-  "version": "1.4.9",
+  "version": "1.4.10",
   "releasedAt": "2026-11-22",
   "channel": "stable",
   "changelog": [
-    "Node.js/npm 미설치 PC에서도 1_샤봇_시작.bat 실행 시 포터블 Node+npm 및 누락 패키지 자동 설치 후 자동 업데이트·실행되도록 개선;구버전(v1.1.3 등)에서 자동 업데이트 직후에도 크래시 없이 정상 실행"
+    "포트 24700 구버전/숨겨진 백그라운드 서버 자동 종료 및 최신 버전 교체 실행으로 설정 저장·테스트·내역 삭제 오류 해결;GitHub API 한도(403)/타임아웃 시 raw manifest.json·version.json 폴백 및 180초 다운로드 타임아웃으로 자동 업데이트 안정화;업데이터(extractStagedUpdate) 내 포터블 npm 자동 부트스트랩 및 bootstrap-node.ps1 UTF-8 BOM 복구;IPv6([::1]) 로컬 관리자 인식 및 /api/status/sync 관리자 보호 적용"
   ]
 }
